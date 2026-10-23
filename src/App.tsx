@@ -8,6 +8,7 @@ import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useConnections } from '@/stores/connections';
 import { useSettings } from '@/stores/settings';
+import { useTransfers } from '@/stores/transfers';
 import { applyTheme, useResolvedTheme } from '@/themes';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
 
@@ -62,6 +63,19 @@ export default function App() {
       .catch(fail);
     getAppInfo().then(setAppInfo, fail);
     let stopConnections: (() => void) | undefined;
+    let stopTransfers: (() => void) | undefined;
+    useTransfers
+      .getState()
+      .init()
+      .then(
+        (off) => {
+          if (isCancelled()) off();
+          else stopTransfers = off;
+        },
+        (err: unknown) => {
+          console.warn('transfers unavailable', err);
+        },
+      );
     useConnections
       .getState()
       .init()
@@ -79,6 +93,7 @@ export default function App() {
       run.cancelled = true;
       unsubscribe?.();
       stopConnections?.();
+      stopTransfers?.();
       stopPersistence?.();
     };
   }, [init]);

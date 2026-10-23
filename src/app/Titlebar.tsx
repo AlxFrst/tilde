@@ -1,5 +1,6 @@
 import type { Platform } from '@/ipc/app';
 import { Logo } from './Logo';
+import { TransfersButton } from './TransfersButton';
 import { WindowControls } from './WindowControls';
 
 /**
@@ -19,6 +20,7 @@ export function Titlebar({ platform }: { platform: Platform }) {
         <span data-tauri-drag-region>Tilde</span>
       </div>
       <div data-tauri-drag-region className="h-full flex-1" />
+      <TransfersButton />
       {!isMac && <WindowControls />}
     </header>
   );
