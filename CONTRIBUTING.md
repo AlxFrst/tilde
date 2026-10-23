@@ -1,32 +1,38 @@
-# Contribuer à Tilde
+# Contributing to Tilde
 
-Merci de votre intérêt ! Quelques règles simples pour que tout le monde gagne du temps.
+Thanks for your interest! A few simple rules save everyone time.
 
-## Avant de coder
+## Before you code
 
-- Pour un bug : ouvrez une issue avec les étapes pour le reproduire, votre OS et la version de
-  Tilde, et joignez les logs si possible (Réglages → « Ouvrir le dossier des logs »).
-- Pour une fonctionnalité : ouvrez d'abord une issue pour en discuter, surtout si elle touche
-  l'architecture.
+- **Bug**: open an issue with the steps to reproduce it, your OS and Tilde version, and the
+  logs if you can (*Réglages → Général → Logs*).
+- **Feature**: open an issue first to discuss it, especially if it touches the architecture.
+- **Security issue**: do not open a public issue; see [SECURITY.md](SECURITY.md).
 
-## Mise en place
+## Setting up
 
-Voir la section « Développer » du [README](README.md).
+See [Build from source](README.md#build-from-source) in the README.
+[docs/architecture.md](docs/architecture.md) explains how the pieces fit together (in French).
 
-## Règles
+## Rules
 
-- **Tests d'abord.** Toute correction de bug arrive avec un test qui échouait avant.
-- La CI doit être verte : `pnpm lint`, `pnpm typecheck`, `pnpm test`,
-  `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
-  `cargo test --workspace`, `cargo deny check`.
-- Les crates de `crates/` ne dépendent **pas** de Tauri : elles se testent seules.
-- Toute nouvelle commande Tauri passe par `src-tauri/src/commands/` et un wrapper typé dans
-  `src/ipc/`. Le front n'appelle jamais `invoke` directement depuis un composant.
-- Aucun secret ne doit être écrit sur disque, dans les logs ou dans un export.
-- Commits au format [Conventional Commits](https://www.conventionalcommits.org/fr/)
+- **Tests first.** A bug fix comes with a test that failed before the fix.
+- **CI must be green**:
+  - `pnpm lint`, `pnpm typecheck`, `pnpm test` ;
+  - `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
+    `cargo test --workspace` ;
+  - `cargo deny check`.
+- **Core crates stay Tauri-free.** The crates in `crates/` must not depend on Tauri, so they
+  can be tested on their own.
+- **One IPC path.** Every Tauri command lives in `src-tauri/src/commands/` and has a typed
+  wrapper in `src/ipc/`. Components never call `invoke` directly.
+- **Settings types are generated.** After changing `crates/tilde-config`, run
+  `pnpm gen:types` and commit the result; CI checks it.
+- **No secret** may be written to disk, logs or exports.
+- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/)
   (`feat(ssh): …`, `fix(config): …`).
 
 ## Licence
 
-En contribuant, vous acceptez que votre contribution soit publiée sous la double licence
-MIT OR Apache-2.0 du projet.
+By contributing, you agree that your contribution is published under the project's dual
+licence, MIT OR Apache-2.0.

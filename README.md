@@ -1,280 +1,265 @@
-# ~ Tilde
+<div align="center">
 
-**Un terminal moderne, centré SSH/SFTP, open source et gratuit.**
+<img src="src-tauri/icons/128x128@2x.png" alt="Tilde logo" width="96" height="96" />
 
-Tilde veut une chose avant tout : que la connexion SSH marche du premier coup, y compris
-derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans abonnement.
-Le tout dans une interface soignée, rapide et entièrement personnalisable.
+# Tilde
 
-> 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local), 3 (SSH), 4
-> (sidebar de connexions et palette), 5 (SFTP), 6 (personnalisation) et 7 (panneaux modulaires)
-> sont terminées. Voir la [feuille de route](#feuille-de-route).
+**An SSH-first terminal that connects on the first try — jump hosts, SFTP and a polished UI,
+free and open source.**
 
-## Fonctionnalités (aujourd'hui)
+[![CI](https://github.com/AlxFrst/tilde/actions/workflows/ci.yml/badge.svg)](https://github.com/AlxFrst/tilde/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/AlxFrst/tilde?include_prereleases&label=release)](https://github.com/AlxFrst/tilde/releases)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-lightgrey)
 
-- **Terminal local** : PowerShell 7, Windows PowerShell, cmd, Git Bash et chaque
-  distribution WSL détectés automatiquement (bash/zsh/fish sous Linux et macOS)
-- Onglets (glisser-déposer, renommage, couleur) et **splits** redimensionnables
-- Rendu WebGL (xterm.js), Unicode/emoji, recherche dans le scrollback, liens cliquables,
-  copie à la sélection, confirmation avant de coller plusieurs lignes
-- Confirmation avant de fermer un terminal où un programme tourne
-- Onglets et splits **restaurés** au redémarrage (dans le dernier dossier connu)
-- Profils personnalisés dans `settings.json` (commande, arguments, dossier, variables,
-  couleur), ou masquage d'un shell détecté
-- Fenêtre sans bordure avec titlebar intégrée
-- **14 thèmes** : Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine
-  (sombres et clairs), suivi automatique du thème de l'OS
-- **Personnalisation** (voir [docs/personnalisation.md](docs/personnalisation.md)) :
-  - éditeur de thèmes avec aperçu en direct ;
-  - import iTerm2, Windows Terminal et base16, et export ;
-  - raccourcis reconfigurables ;
-  - Mica, Acrylic, vibrancy et opacité ;
-  - mode Quake ;
-  - ligatures ;
-  - une page de réglages qui couvre tout
-- `settings.json` versionné, validé et **rechargé à chaud**, avec autocomplétion dans VS Code
-  grâce au JSON Schema fourni
-- Logs structurés, accessibles depuis l'interface
-- **SSH** (voir [plus bas](#ssh)) : votre `~/.ssh/config` tel quel, bastions en chaîne,
-  agent, reconnexion automatique, tunnels
-- **Connexions enregistrées** dans la sidebar (voir [plus bas](#connexions)) et **palette de
-  commandes** (Ctrl+Maj+P)
-- **Fichiers (SFTP)** sur la même connexion que le terminal (voir [plus bas](#fichiers-sftp))
-- **Éditeur intégré**, **aperçu** et **moniteur système** à côté du terminal (voir
-  [plus bas](#éditeur-aperçu-et-moniteur))
-- Aucune télémétrie ; aucune requête réseau en dehors des connexions que vous ouvrez
+English · *[Français](README.fr.md)*
 
-## Raccourcis
+<img src="docs/screenshots/hero.png" alt="Tilde with an SSH session, its files and a system monitor side by side" width="900" />
 
-| Raccourci | Action |
+</div>
+
+---
+
+## Why Tilde
+
+Most terminals treat SSH as an afterthought. The rest put jump hosts behind a subscription, or
+drop connections without saying why. Tilde starts from the other end.
+
+- **It just works with your setup.** Your `~/.ssh/config` is read as OpenSSH reads it:
+  `Include`, `Match`, `ProxyJump` chains, `ProxyCommand`, your agent, your `known_hosts`.
+  Double-click a host behind two bastions and you get a shell.
+- **Failures explain themselves.** You get "key refused", "host unreachable", "fingerprint
+  changed" or "timeout on bastion #2", never a spinner that gives up silently.
+- **Everything around the shell is built in:** files over the same connection, an editor,
+  previews and a system monitor, as panes beside your terminal.
+- **No account, no subscription, no telemetry.** Secrets live in your OS keyring and nowhere
+  else.
+
+## Features
+
+### SSH that handles the hard cases
+- Password, key (with passphrase), agent (OpenSSH for Windows, Pageant, `ssh-agent`) and
+  keyboard-interactive / 2FA.
+- **Jump hosts**: chained `ProxyJump`, with each hop verified and authenticated, plus
+  `ProxyCommand`.
+- **`known_hosts`** compatible with OpenSSH: hashed entries, ports, patterns, `@revoked`. A
+  changed fingerprint is refused unless you explicitly replace it.
+- Keepalive and **automatic reconnection** with backoff; port **forwards** (local and remote)
+  that survive reconnections.
+- Saved passwords and passphrases go to the **OS keyring** only, never to a file, log or
+  export.
+
+### Connections at hand
+- A sidebar with favourites, recents, coloured folders, tags and icons, plus your
+  `~/.ssh/config` hosts (read-only, one click to adopt).
+- Fuzzy search, and a **command palette** (`Ctrl+Shift+P`) for every connection and command.
+- Import and export of connections as JSON, **without any secret**.
+
+### Files (SFTP) on the same connection
+- A file pane next to the SSH terminal: no second login, and it comes back after a
+  reconnection.
+- It **follows your `cd`** (OSC 7; Tilde offers the one-line snippet if your shell doesn't
+  report it).
+- Upload by drag and drop, download, rename, delete, `chmod`. A transfer queue shows speed,
+  time left, cancel, and **resume**.
+- **Edit remote files** in the built-in editor or in your own (`code --wait`…). A file changed
+  on the server in the meantime is never overwritten silently.
+
+### A fast local terminal
+- PowerShell 7, Windows PowerShell, cmd, Git Bash and every WSL distribution are detected
+  (bash/zsh/fish on Linux and macOS), and custom profiles are supported.
+- Tabs and splits, restored at startup; WebGL rendering, ligatures, search, clickable links,
+  copy on select, safe multi-line paste.
+
+### Panes beside your shell
+- **Editor** (CodeMirror 6): 16 languages, search, Ctrl+S. Conflict detection, Windows line
+  endings preserved.
+- **Preview**: Markdown (rendered safely), JSON as a foldable tree, images. It follows the
+  editor as you type.
+- **System monitor**: CPU, memory, network and disks for this machine, or for a Linux server
+  read from `/proc` over the SSH connection you already have. Nothing to install.
+
+### Make it yours
+- **14 themes** (Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine — dark
+  and light). Import from **iTerm2**, **Windows Terminal** or **base16**, and a theme editor
+  with live preview.
+- **Rebindable shortcuts** with conflict detection (`keybindings.json`).
+- **Mica, Acrylic and vibrancy**, plus background opacity.
+- **Quake mode**: a global shortcut drops a terminal from the top of the screen.
+- Everything is in the settings page **and** in JSON files with a schema (autocompletion in
+  VS Code), reloaded live.
+
+## Screenshots
+
+| | |
 |---|---|
-| Ctrl+Maj+T | Nouvel onglet (profil par défaut) |
-| Ctrl+Maj+W | Fermer l'onglet |
-| Ctrl+Tab / Ctrl+Maj+Tab | Onglet suivant / précédent |
-| Alt+Maj+= | Diviser à droite |
-| Alt+Maj+- | Diviser en bas |
-| Ctrl+Maj+X | Fermer le panneau |
-| Alt+← ↑ → ↓ | Changer de panneau |
-| Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller |
-| Ctrl+Maj+F | Rechercher |
-| Ctrl+Maj+K | Connexion SSH |
-| Ctrl+Maj+P | Palette de commandes (connexions et commandes) |
-| Ctrl+Maj+E | Fichiers (SFTP) de l'onglet SSH |
+| <img src="docs/screenshots/ssh.png" alt="SSH session and connection sidebar" /> | <img src="docs/screenshots/sftp.png" alt="Files pane following the terminal's directory" /> |
+| SSH, the connection sidebar and the command palette | Files on the same connection, following `cd` |
+| <img src="docs/screenshots/editor.png" alt="Built-in editor with a live Markdown preview" /> | <img src="docs/screenshots/monitor.png" alt="System monitor of a remote server" /> |
+| Built-in editor with a live preview | System monitor of a server, over SSH |
+| <img src="docs/screenshots/themes.png" alt="Theme editor" /> | <img src="docs/screenshots/settings.png" alt="Settings page" /> |
+| Theme editor, imports from iTerm2 / Windows Terminal / base16 | Every setting, also in JSON |
 
-Les lettres suivent la touche **imprimée** (Ctrl+Maj+W = la touche W, y compris en AZERTY).
-Les symboles suivent la **position physique** (disposition US) : sur un clavier AZERTY,
-« Alt+Maj+- » se fait avec la touche `)`, et l’écran d’accueil affiche les touches de votre
-clavier. Le `+` et le `-` du pavé numérique fonctionnent aussi.
+<p align="center"><img src="docs/screenshots/quake.png" alt="Quake mode" width="700" /><br/><em>Quake mode</em></p>
 
-Tous ces raccourcis se changent dans **Réglages → Raccourcis** ou dans `keybindings.json`
-(voir [docs/personnalisation.md](docs/personnalisation.md#raccourcis)).
+## Install
 
-### Profils personnalisés
+Download the installer for your system from the
+[latest release](https://github.com/AlxFrst/tilde/releases/latest):
 
-```jsonc
-// settings.json
-"terminal": { "defaultProfile": "wsl:Ubuntu" },
-"profiles": [
-  // Masquer un shell détecté
-  { "id": "cmd", "hidden": true },
-  // Surcharger un shell détecté (même id)
-  { "id": "pwsh", "color": "#7AA2F7", "env": { "EDITOR": "code --wait" } },
-  // Ajouter un profil
-  { "id": "htop", "name": "htop (WSL)", "command": "wsl.exe", "args": ["-e", "htop"] }
-]
-```
-
-Pour que Tilde restaure le dossier courant d'un onglet, le shell doit émettre la séquence
-OSC 7 (c'est le cas par défaut de nombreuses configurations bash/zsh/fish sous Linux et macOS).
-
-## SSH
-
-**Ctrl+Maj+K** (ou « Connexion SSH » dans le menu `+` et sur l'écran d'accueil) : tapez un
-alias de `~/.ssh/config` (proposé à la saisie) ou `user@hôte:port`, puis Entrée.
-
-Ce qui est pris en charge :
-
-- **`~/.ssh/config`** lu comme OpenSSH (la première valeur gagne, `Include`, `Host`/`Match`
-  avec motifs, `%h %p %r…`). Les problèmes sont journalisés avec fichier:ligne et les autres
-  hôtes restent utilisables. Les `Match exec` ne sont pas évalués.
-- **Bastions** : `ProxyJump a,b,c` (chaque saut est vérifié et authentifié) et
-  **`ProxyCommand`** (lancé par `cmd /C` sous Windows, `sh -c` ailleurs ; sa sortie d'erreur
-  apparaît dans le message en cas d'échec).
-- **`known_hosts`** d'OpenSSH (entrées hachées, `[hôte]:port`, motifs, `@revoked`). Un hôte
-  inconnu affiche son empreinte avant tout ; une empreinte **modifiée** est refusée par défaut,
-  et la remplacer demande une confirmation explicite.
-- **Authentification**, dans cet ordre : agent, `IdentityFile`, clés par défaut
-  (`id_ed25519`, `id_ecdsa`, `id_rsa`), keyboard-interactive (2FA), mot de passe.
-  `IdentitiesOnly yes` est respecté.
-- **Agent** : `SSH_AUTH_SOCK` s'il est défini ; sinon, sous Windows, l'agent OpenSSH
-  (`\\.\pipe\openssh-ssh-agent`, service « OpenSSH Authentication Agent ») puis Pageant.
-  `ForwardAgent yes` transmet l'agent au serveur.
-- **Keepalive** (`ServerAliveInterval`/`ServerAliveCountMax`, sinon `ssh.keepaliveIntervalSecs`
-  et `ssh.keepaliveCountMax`) et **reconnexion automatique** (`ssh.autoReconnect`) : 1, 2, 4,
-  8, 16 puis 30 s entre les tentatives, une ligne « reconnecté » marque le nouveau shell.
-  Une authentification refusée arrête les tentatives.
-- **Tunnels** : `LocalForward`/`RemoteForward` de la config ouverts automatiquement, et menu
-  de l'onglet → « Tunnels… » pour en ajouter ou en arrêter. Ils survivent aux reconnexions.
-
-**Secrets.** Les mots de passe et phrases secrètes ne sont mémorisés que si vous cochez
-« Mémoriser dans le trousseau », et uniquement dans le trousseau du système (Gestionnaire
-d'identification Windows, Trousseau macOS, Secret Service sous Linux), service
-`dev.tilde.app`. Jamais dans `settings.json`, `workspace.json` ni les logs.
-
-Fermer un onglet SSH connecté demande toujours confirmation, sauf si
-`ssh.confirmCloseSsh` vaut `false`.
-
-## Connexions
-
-La sidebar range vos serveurs : **Favoris**, **Récents**, vos **dossiers** (couleur, repliables),
-**Sans dossier**, puis les hôtes de **`~/.ssh/config`** en lecture seule.
-
-- Double-clic ou Entrée ouvre un onglet ; ↑/↓ pour se déplacer ; Ctrl+F pour chercher
-  (recherche floue sur le nom, l'hôte, l'utilisateur et les tags, sans tenir compte des accents).
-- `+` → « Nouvelle connexion… » : nom, hôte (ou alias de `~/.ssh/config`), port, utilisateur,
-  clé, ProxyJump, transfert d'agent, dossier, tags, couleur, icône. Pour un alias, les réglages
-  de `~/.ssh/config` s'appliquent et les champs remplis les remplacent.
-- Un hôte de `~/.ssh/config` s'**adopte** d'un clic (`+` sur la ligne) pour lui donner un
-  dossier, une couleur ou des tags. Votre `~/.ssh/config` n'est jamais modifié.
-- Clic droit : ouvrir, modifier, dupliquer, favori, déplacer, supprimer. On peut aussi glisser
-  une connexion sur un dossier.
-- **Import / export** (menu `+` ou palette) : un fichier JSON **sans aucun secret**. À l'import,
-  les doublons (même hôte, utilisateur et port) sont ignorés et les dossiers fusionnés par nom.
-
-Tout est dans `connections.json`, à côté de `settings.json`, éditable à la main (schéma JSON
-fourni pour l'autocomplétion, rechargement à chaud). S'il contient une erreur, Tilde l'affiche
-avec la ligne et ne l'écrase jamais. Les mots de passe restent dans le trousseau du système.
-
-## Fichiers (SFTP)
-
-Depuis un onglet SSH : **Ctrl+Maj+E** (ou clic droit sur l'onglet → « Fichiers… »). Le panneau
-s'ouvre à droite du terminal, sur la même connexion : pas de seconde authentification, et il
-revient tout seul après une reconnexion.
-
-- **Il suit votre `cd`** si le shell distant signale son dossier (séquence OSC 7). Sinon, le
-  panneau propose la ligne à ajouter à `~/.bashrc`, `~/.zshrc` ou `config.fish`. Naviguer à la
-  main détache le suivi ; le bouton 🔗 le rétablit.
-- Double-clic sur un dossier pour y entrer, sur un fichier pour le télécharger (dans
-  *Téléchargements*, sans jamais écraser un fichier existant). Retour arrière : dossier
-  parent ; Suppr : supprimer ; F2 : renommer. Ctrl et Maj pour la sélection multiple.
-- Clic droit : télécharger, télécharger vers…, **modifier** dans votre éditeur, renommer,
-  permissions (octal + cases à cocher), copier le chemin, supprimer. Les suppressions
-  demandent confirmation ; un lien symbolique est supprimé sans toucher à sa cible.
-- **Envoyer** : bouton ⬆ ou glisser-déposer des fichiers et dossiers depuis l'explorateur.
-- **Transferts** (icône dans la barre de titre) : progression, vitesse, temps restant,
-  annulation. « Réessayer » **reprend** où le transfert s'est arrêté. Trois transferts à la
-  fois par défaut (`sftp.concurrency`).
-- **Édition** : « Modifier » ouvre le fichier dans l'éditeur intégré ou dans votre éditeur,
-  au choix (`sftp.editorMode`).
-  - L'éditeur externe est `sftp.externalEditor` (par exemple `code --wait`), à défaut
-    l'éditeur de texte du système. Chaque enregistrement est renvoyé sur le serveur.
-  - Dans les deux cas, si le fichier a changé sur le serveur entre-temps, Tilde ne l'écrase
-    pas et vous demande quelle version garder.
-- **Aperçu** (clic droit) des fichiers Markdown, JSON et des images.
-- Un nom de fichier distant ne peut jamais faire écrire en dehors du dossier choisi (`..`,
-  noms réservés Windows, caractères interdits).
-
-## Éditeur, aperçu et moniteur
-
-Chaque panneau s'ouvre à côté du panneau actif.
-
-- **Éditeur** (« Modifier » dans les fichiers, ou « Ouvrir un fichier… » dans la palette) :
-  - coloration de plus de 15 langages, numéros de ligne, repli, recherche (Ctrl+F) ;
-  - Ctrl+S enregistre ; un point signale les modifications non enregistrées, et fermer
-    demande toujours confirmation ;
-  - si le fichier a changé ailleurs entre-temps, un bandeau propose « Écraser » ou
-    « Recharger » ;
-  - les fichiers binaires et ceux de plus de 5 Mio sont refusés et renvoyés vers l'éditeur
-    externe ;
-  - un fichier local ne s'ouvre que par le dialogue du système.
-- **Aperçu** :
-  - Markdown, rendu sans HTML brut ; seuls les liens web s'ouvrent, dans le navigateur ;
-  - JSON en arbre repliable, avec la position de l'erreur s'il est invalide ;
-  - images.
-  
-  Depuis l'éditeur, l'aperçu suit le texte pendant la frappe.
-- **Moniteur système** (palette, ou clic droit sur un onglet SSH → « Moniteur du
-  serveur… ») :
-  - processeur, mémoire, réseau, disques, charge et uptime, actualisés toutes les 2 s tant
-    que le panneau est visible ;
-  - pour un serveur, Tilde lit `/proc` par la connexion SSH déjà ouverte : rien à installer.
-    Seul Linux est pris en charge.
-
-Ces panneaux sont des modules du registre décrit dans [docs/panneaux.md](docs/panneaux.md).
-
-## Prérequis
-
-| Outil | Version |
+| System | File |
 |---|---|
-| [Rust](https://rustup.rs) (via rustup) | la version de `rust-toolchain.toml` est installée automatiquement |
-| [Node.js](https://nodejs.org) | 24+ |
-| [pnpm](https://pnpm.io) | 10+ |
+| Windows 10/11 | `Tilde_x.y.z_x64-setup.exe` (per-user, no admin rights) or `Tilde_x.y.z_x64_en-US.msi` |
+| macOS 11+ (Apple Silicon and Intel) | `Tilde_x.y.z_universal.dmg` |
+| Linux | `Tilde_x.y.z_amd64.AppImage` (any distribution) or `Tilde_x.y.z_amd64.deb` (Debian, Ubuntu) |
 
-Dépendances système de Tauri :
+> **The installers are not code-signed yet.**
+> - On Windows, SmartScreen shows "Windows protected your PC": choose *More info*, then
+>   *Run anyway*.
+> - On macOS, right-click the app and choose *Open* the first time.
+>
+> Each release has a `SHA256SUMS.txt` for checking your download (see
+> [docs/release.md](docs/release.md)).
 
-- **Windows** : WebView2 (présent sur Windows 10/11) et les « Build Tools for Visual Studio »
-  (composant C++).
-- **Linux (Debian/Ubuntu)** :
-  `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf libdbus-1-dev pkg-config`
-- **macOS** : Xcode Command Line Tools (`xcode-select --install`).
+**Updates** are built in. At startup, at most once a day, Tilde asks GitHub whether a newer
+version exists and offers to install it. Updates are signed: one whose signature does not
+match the key built into Tilde is refused. You can turn the check off in *Réglages → Général*.
 
-Détails : [prérequis Tauri](https://tauri.app/start/prerequisites/).
+> The interface is in **French** for now. An English translation is planned.
 
-## Développer
+## Quick start
+
+1. **Connect**: press `Ctrl+Shift+K`, then type a host alias from `~/.ssh/config` or
+   `user@host:port`. Or double-click a host in the sidebar.
+2. **Files**: in an SSH tab, press `Ctrl+Shift+E`.
+3. **Everything else**: press `Ctrl+Shift+P` and type what you want ("split", "theme",
+   "monitor"…).
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Shift+T` / `Ctrl+Shift+W` | New tab / close tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Alt+Shift+=` / `Alt+Shift+-` | Split right / down |
+| `Alt+←↑→↓` | Move between panes |
+| `Ctrl+Shift+X` | Close pane |
+| `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste |
+| `Ctrl+Shift+F` | Search the scrollback |
+| `Ctrl+Shift+K` | SSH quick connect |
+| `Ctrl+Shift+E` | Files (SFTP) of the SSH tab |
+| `Ctrl+Shift+P` | Command palette |
+
+On macOS, `Ctrl` means `⌘`.
+
+- Letters follow the key printed on your keyboard: AZERTY users press the key labelled W for
+  `Ctrl+Shift+W`.
+- Symbols follow the key's position on a US layout. The welcome screen shows them as printed
+  on your keyboard.
+
+Every shortcut can be changed in *Réglages → Raccourcis* or in `keybindings.json`.
+
+## Configuration
+
+Settings are edited in the app (*Réglages*) or in JSON files that come with a schema for
+editor autocompletion and are reloaded as you save. An invalid file is reported with its line
+and never overwritten; the last valid configuration stays active.
+
+| File | Purpose |
+|---|---|
+| `settings.json` | every setting (appearance, terminal, SSH, SFTP, Quake, updates…) |
+| `connections.json` | saved connections and folders — no secrets |
+| `keybindings.json` | your changes to the default shortcuts |
+| `themes/*.json` | your themes |
+
+| | Windows | macOS | Linux |
+|---|---|---|---|
+| Settings | `%APPDATA%\Tilde\` | `~/Library/Application Support/Tilde/` | `~/.config/Tilde/` |
+| Logs | `%LOCALAPPDATA%\Tilde\logs\` | `~/Library/Application Support/Tilde/logs/` | `~/.local/share/Tilde/logs/` |
+
+More: the customisation guide [docs/personnalisation.md](docs/personnalisation.md) (themes
+format, shortcut syntax, window effects; in French).
+
+## Security and privacy
+
+- **Secrets** (passwords, passphrases) are only ever stored in the OS keyring: Windows
+  Credential Manager, macOS Keychain or Secret Service. They are never written to a file, a
+  log or an export.
+- **Host keys** are verified against OpenSSH's `known_hosts`. Unknown hosts show their
+  fingerprint first; changed keys are refused by default.
+- **Hardened app**: strict Content Security Policy, and the web view has no file system or
+  shell access. Every file operation goes through dedicated, audited Rust commands, and local
+  files open only through the system dialog.
+- **No telemetry.** The only request Tilde makes on its own is the daily update check, and it
+  can be turned off.
+
+Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md).
+
+## Build from source
+
+Requirements: [Rust](https://rustup.rs) (the toolchain in `rust-toolchain.toml` installs
+itself), [Node.js](https://nodejs.org) 24+ and [pnpm](https://pnpm.io) 10+, plus the
+[Tauri prerequisites](https://tauri.app/start/prerequisites/):
+
+- **Windows**: WebView2 (preinstalled on Windows 10/11) and the Visual Studio Build Tools
+  (C++).
+- **macOS**: `xcode-select --install`.
+- **Debian/Ubuntu**: `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+  libayatana-appindicator3-dev patchelf libdbus-1-dev pkg-config`.
 
 ```sh
 pnpm install
-pnpm tauri dev          # lance l'app avec rechargement à chaud
+pnpm tauri dev     # run with hot reload
+pnpm tauri build   # installers for your platform
 ```
 
-| Commande | Rôle |
+| Command | Purpose |
 |---|---|
-| `pnpm test` | tests front (Vitest) |
-| `cargo test --workspace` | tests Rust |
-| `pnpm lint` / `pnpm typecheck` | ESLint / TypeScript |
-| `cargo clippy --workspace --all-targets -- -D warnings` | lint Rust |
-| `pnpm gen:types` | régénère le JSON Schema et les types TS des réglages |
-| `scripts/ssh-test-env.sh up` puis `cargo test -p tilde-ssh --features integration` | tests SSH contre un banc Docker (2 bastions + 1 cible, voir [tests/docker](tests/docker/README.md)) |
-| `pnpm tauri build` | produit les installeurs (MSI/NSIS sous Windows) |
+| `pnpm test` · `pnpm lint` · `pnpm typecheck` | front-end tests (Vitest), ESLint, TypeScript |
+| `cargo test --workspace` · `cargo clippy --workspace --all-targets -- -D warnings` | Rust tests and lints |
+| `scripts/ssh-test-env.sh up` then `cargo test -p tilde-ssh --features integration` | SSH tests against a Docker bench with two bastions ([tests/docker](tests/docker/README.md)) |
+| `pnpm gen:types` | regenerate the JSON schemas and TypeScript types from Rust |
 
-Les types TypeScript des réglages sont **générés** depuis Rust : après avoir modifié
-`crates/tilde-config/src/settings.rs`, lancez `pnpm gen:types` et commitez le résultat
-(la CI le vérifie).
-
-## Où sont mes fichiers ?
-
-| | Windows | Linux | macOS |
-|---|---|---|---|
-| Réglages | `%APPDATA%\Tilde\settings.json` | `~/.config/Tilde/settings.json` | `~/Library/Application Support/Tilde/settings.json` |
-| Connexions | `%APPDATA%\Tilde\connections.json` | `~/.config/Tilde/connections.json` | `~/Library/Application Support/Tilde/connections.json` |
-| Raccourcis | `%APPDATA%\Tilde\keybindings.json` | `~/.config/Tilde/keybindings.json` | `~/Library/Application Support/Tilde/keybindings.json` |
-| Thèmes | `%APPDATA%\Tilde	hemes\` | `~/.config/Tilde/themes/` | `~/Library/Application Support/Tilde/themes/` |
-| Logs | `%LOCALAPPDATA%\Tilde\logs\` | `~/.local/share/Tilde/logs/` | `~/Library/Application Support/Tilde/logs/` |
-
-Ils sont aussi accessibles depuis **Réglages → Général** dans l'application. Si `settings.json`
-contient une erreur, Tilde garde la dernière configuration valide, vous indique la ligne
-fautive et n'écrase jamais votre fichier.
+Releases are built by GitHub Actions from a version tag; see [docs/release.md](docs/release.md).
 
 ## Architecture
 
-Voir [docs/architecture.md](docs/architecture.md) et le
-[document de conception](docs/superpowers/specs/2026-10-23-tilde-design.md).
+Tauri 2 with a Rust core and a React + TypeScript front-end:
 
-## Feuille de route
+- **`tilde-ssh-config`**: a hand-written, heavily tested `ssh_config` parser.
+- **`tilde-ssh`**: built on `russh`. Connections, jump chains, agent, `known_hosts`,
+  forwards, SFTP, transfers.
+- **`tilde-pty`** and **`tilde-session`**: local shells and the binary data path, with
+  flow control.
+- **`tilde-config`**: settings, migrations, hot reload.
+- **`tilde-monitor`**: local and remote system sampling.
 
-1. ✅ Fondations : coquille, thèmes, réglages
-2. ✅ Terminal local : PTY, onglets, splits, profils de shells
-3. ✅ SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand, tunnels
-4. ✅ Sidebar de connexions et palette de commandes
-5. ✅ SFTP
-6. ✅ Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence, mode Quake
-7. ✅ Panneaux modulaires : éditeur, aperçu, moniteur
-8. Packaging et CI multiplateforme
+The UI is built on a panel registry, the contract future plugins will use. See
+[docs/architecture.md](docs/architecture.md) and [docs/panneaux.md](docs/panneaux.md) (in
+French).
 
-## Contribuer
+## Roadmap
 
-Voir [CONTRIBUTING.md](CONTRIBUTING.md). Failles de sécurité : [SECURITY.md](SECURITY.md).
+- [x] Foundations, local terminal, SSH, connections sidebar and palette, SFTP
+- [x] Customisation: themes, shortcuts, window effects, Quake mode
+- [x] Editor, preview and system monitor panes
+- [x] Installers for Windows, macOS and Linux, built-in updates
+- [ ] English interface
+- [ ] Signed installers
+- [ ] Third-party plugins on top of the panel registry
 
-## Licence
+See [CHANGELOG.md](CHANGELOG.md) for what each release contains.
 
-Au choix : [MIT](LICENSE-MIT) ou [Apache-2.0](LICENSE-APACHE).
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+first. In short: tests first, green CI, conventional commits.
+
+## License
+
+Tilde is dual-licensed under either of:
+
+- [MIT](LICENSE-MIT)
+- [Apache License 2.0](LICENSE-APACHE)
+
+at your option.
