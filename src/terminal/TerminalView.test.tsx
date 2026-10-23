@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-extraneous-class -- stand-ins for xterm addons */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { OpenSessionOptions } from '@/ipc/session';
-import type { Panel } from '@/workspace/types';
+import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { useSettings } from '@/stores/settings';
 import { defaultSettings } from '@/test/fixtures';
 import { TerminalView } from './TerminalView';
@@ -166,7 +166,7 @@ beforeEach(() => {
 
 const panel = { kind: 'terminal' as const, profileId: 'cmd', cwd: 'C:\\x', title: null };
 
-function renderView(p: Panel = panel) {
+function renderView(p: TerminalPanel | SshPanel = panel) {
   const props = {
     tabId: 't',
     leafId: 'l',

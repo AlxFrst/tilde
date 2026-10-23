@@ -33,7 +33,7 @@ import { ConnectionBanner } from '@/app/ConnectionStatus';
 import type { ConnState } from '@/ipc/ssh';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
-import type { Panel } from '@/workspace/types';
+import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { createTerminal, terminalOptions, type TerminalHandle } from './createTerminal';
 import { ExitOverlay } from './ExitOverlay';
 import { matchShortcut } from './keys';
@@ -47,7 +47,7 @@ import { registerTerminalActions } from './terminalActions';
 export interface TerminalViewProps {
   tabId: string;
   leafId: string;
-  panel: Panel;
+  panel: TerminalPanel | SshPanel;
   active: boolean;
   onExit: (code: number | null) => void;
   onTitle: (title: string) => void;

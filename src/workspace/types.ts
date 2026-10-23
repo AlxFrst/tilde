@@ -23,10 +23,28 @@ export interface SshPanel {
   title: string | null;
 }
 
-export type Panel = TerminalPanel | SshPanel;
+/** Files of the SSH session running in another pane (SFTP). */
+export interface SftpPanel {
+  kind: 'sftp';
+  /** The SSH pane whose session and working directory it uses. */
+  linkedLeafId: string;
+  /** The directory shown; `null` until known (home). */
+  path: string | null;
+  /** Follows the linked terminal's directory (OSC 7). */
+  follow: boolean;
+  cwd: null;
+  title: null;
+}
 
-/** The fields every panel kind shares and the terminal updates. */
-export type PanelPatch = Partial<Pick<Panel, 'cwd' | 'title'>>;
+export type Panel = TerminalPanel | SshPanel | SftpPanel;
+
+/** What a pane may update in its own panel. */
+export interface PanelPatch {
+  cwd?: string | null;
+  title?: string | null;
+  path?: string | null;
+  follow?: boolean;
+}
 
 export interface LeafNode {
   type: 'leaf';

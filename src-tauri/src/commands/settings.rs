@@ -29,10 +29,19 @@ pub fn settings_update(
     state: State<'_, AppState>,
     patch: serde_json::Value,
 ) -> Result<Settings, ConfigErrorDto> {
-    state.settings.lock().update(&patch).map_err(|e| {
+    let settings = state.settings.lock().update(&patch).map_err(|e| {
         tracing::warn!(error = %e, "settings update rejected");
         ConfigErrorDto::from(&e)
-    })
+    })?;
+    apply_live(&state, &settings);
+    Ok(settings)
+}
+
+/// Settings that running services pick up without a restart.
+fn apply_live(state: &AppState, settings: &Settings) {
+    if let Some(q) = state.sftp.transfers.get() {
+        q.set_concurrency(usize::from(settings.sftp.concurrency));
+    }
 }
 
 /// Called by the file watcher: reloads `settings.json` and notifies the front-end.
@@ -43,6 +52,7 @@ pub fn on_settings_file_changed(app: &AppHandle) {
         Ok(ReloadOutcome::Changed(settings)) => {
             tracing::info!("settings.json reloaded");
             *state.settings_error.lock() = None;
+            apply_live(&state, &settings);
             let _ = app.emit(EVENT_CHANGED, *settings);
         }
         Ok(ReloadOutcome::Unchanged | ReloadOutcome::SelfWrite) => {}

@@ -24,7 +24,13 @@ const profile = (id: string): ResolvedProfile => ({
 const ws = () => useWorkspace.getState();
 const profileIds = () =>
   ws().tabs.flatMap((t) =>
-    leaves(t.root).map((l) => (l.panel.kind === 'terminal' ? l.panel.profileId : l.panel.target)),
+    leaves(t.root).map((l) =>
+      l.panel.kind === 'terminal'
+        ? l.panel.profileId
+        : l.panel.kind === 'ssh'
+          ? l.panel.target
+          : l.panel.linkedLeafId,
+    ),
   );
 
 beforeEach(() => {

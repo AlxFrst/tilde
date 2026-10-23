@@ -25,6 +25,8 @@ interface WorkspaceState {
   openTab: (profileId: string, cwd?: string | null) => string;
   /** `target`: an alias of ~/.ssh/config or `user@host:port`. */
   openSshTab: (target: string, connectionId?: string | null) => string;
+  /** Opens the files (SFTP) of an SSH pane to its right; focuses it if already open. */
+  openSftpBeside: (sshLeafId: string) => void;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
   activateRelative: (delta: 1 | -1) => void;
@@ -89,6 +91,37 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
 
     openSshTab: (target, connectionId = null) => addTab(newSshLeaf(target, connectionId)),
 
+    openSftpBeside: (sshLeafId) => {
+      const tab = get().tabs.find((t) => findLeaf(t.root, sshLeafId));
+      if (!tab) return;
+      const existing = leaves(tab.root).find(
+        (l) => l.panel.kind === 'sftp' && l.panel.linkedLeafId === sshLeafId,
+      );
+      if (existing) {
+        set({ activeTabId: tab.id });
+        get().focusLeaf(tab.id, existing.id);
+        return;
+      }
+      const leaf: LeafNode = {
+        type: 'leaf',
+        id: crypto.randomUUID(),
+        panel: {
+          kind: 'sftp',
+          linkedLeafId: sshLeafId,
+          path: null,
+          follow: true,
+          cwd: null,
+          title: null,
+        },
+      };
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, sshLeafId, 'row', leaf),
+        activeLeafId: leaf.id,
+      }));
+      set({ activeTabId: tab.id });
+    },
+
     closeTab: (tabId) => {
       set((s) => {
         const index = s.tabs.findIndex((t) => t.id === tabId);
@@ -140,11 +173,14 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       if (!current) return;
       // Splitting an SSH pane opens another shell on the same host.
       const { panel } = current;
-      const leaf = profileId
+      // Splitting a files pane opens a second view of the same session.
+      const leaf: LeafNode = profileId
         ? newLeaf(profileId, panel.kind === 'terminal' ? panel.cwd : null)
         : panel.kind === 'ssh'
           ? newSshLeaf(panel.target, panel.connectionId)
-          : newLeaf(panel.profileId, panel.cwd);
+          : panel.kind === 'sftp'
+            ? { type: 'leaf', id: crypto.randomUUID(), panel: { ...panel } }
+            : newLeaf(panel.profileId, panel.cwd);
       mapTab(tab.id, (t) => ({
         ...t,
         root: splitLeaf(t.root, current.id, direction, leaf),
@@ -203,7 +239,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       let replaced = 0;
       const fix = (n: LayoutNode): LayoutNode => {
         if (n.type === 'split') return { ...n, children: n.children.map(fix) };
-        if (n.panel.kind === 'ssh' || available.includes(n.panel.profileId)) return n;
+        if (n.panel.kind !== 'terminal' || available.includes(n.panel.profileId)) return n;
         replaced += 1;
         return { ...n, panel: { ...n.panel, profileId: fallback } };
       };

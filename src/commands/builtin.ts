@@ -9,9 +9,21 @@ import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { DEFAULT_KEYBINDINGS, type CommandId } from '@/terminal/keys';
 import { activeTerminal } from '@/terminal/terminalActions';
+import { findLeaf } from '@/workspace/tree';
+import { toast } from 'sonner';
 import { registerCommands, type Command } from './registry';
 
 const ws = () => useWorkspace.getState();
+
+/** Opens (or focuses) the files of the active SSH pane. */
+function openFilesOfActivePane(): void {
+  const { tabs, activeTabId } = ws();
+  const tab = tabs.find((t) => t.id === activeTabId);
+  const leaf = tab ? findLeaf(tab.root, tab.activeLeafId) : null;
+  if (leaf?.panel.kind === 'ssh') ws().openSftpBeside(leaf.id);
+  else if (leaf?.panel.kind === 'sftp') ws().openSftpBeside(leaf.panel.linkedLeafId);
+  else toast.info('Les fichiers s’ouvrent depuis un onglet SSH (Ctrl+Maj+K pour se connecter).');
+}
 const noop = () => undefined;
 
 export function registerBuiltins(): () => void {
@@ -127,6 +139,12 @@ export function registerBuiltins(): () => void {
       run: () => {
         useSsh.getState().setQuickConnectOpen(true);
       },
+    },
+    {
+      id: 'sftp.open',
+      title: 'Fichiers (SFTP)',
+      group: 'Connexions',
+      run: openFilesOfActivePane,
     },
     {
       id: 'connections.new',

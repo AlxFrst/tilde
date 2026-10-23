@@ -318,3 +318,33 @@ test('an ssh panel with a connectionId survives sanitize', () => {
   expect(panels[0]).toMatchObject({ connectionId: 'c1' });
   expect(panels[1]).toMatchObject({ connectionId: null });
 });
+
+test('openSftpBeside splits the ssh pane and the panel survives sanitize', () => {
+  const tab = ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().openSftpBeside(sshLeaf);
+  const { leaf } = activeLeaf();
+  expect(leaf.panel).toEqual({
+    kind: 'sftp',
+    linkedLeafId: sshLeaf,
+    path: null,
+    follow: true,
+    cwd: null,
+    title: null,
+  });
+  expect(ws().tabs.find((t) => t.id === tab)?.root.type).toBe('split');
+
+  ws().updatePanel(tab, leaf.id, { path: '/var/log', follow: false });
+  const snap = ws().snapshot();
+  useWorkspace.setState({ tabs: [], activeTabId: null });
+  ws().hydrate(snap, ['cmd'], 'cmd');
+  const panels = ws().tabs.flatMap((t) => leaves(t.root).map((l) => l.panel));
+  expect(panels[1]).toMatchObject({ kind: 'sftp', path: '/var/log', follow: false });
+
+  useWorkspace.setState({ tabs: [], activeTabId: null });
+  hydrateRaw({
+    version: 1,
+    tabs: [{ id: 'z', root: { type: 'leaf', id: 'q', panel: { kind: 'sftp', linkedLeafId: 7 } } }],
+  });
+  expect(ws().tabs).toEqual([]);
+});

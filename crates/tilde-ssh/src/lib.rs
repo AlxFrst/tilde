@@ -5,13 +5,16 @@ mod auth;
 mod chain;
 mod connect;
 mod connection;
+mod edit;
 mod error;
 mod forward;
 mod interact;
 mod known_hosts;
 mod proxy_command;
 mod secrets;
+mod sftp;
 mod shell;
+mod transfer;
 
 pub use agent::{
     AgentSource, DynAgent, WINDOWS_AGENT_PIPE, agent_candidates, connect_agent,
@@ -24,6 +27,10 @@ pub use connection::{
     ConnState, RECONNECTED_LINE, SshSessionSpec, SshTarget, StateCallback, backoff,
     open_ssh_session,
 };
+pub use edit::{
+    EDIT_DEBOUNCE, EDIT_MAX_BYTES, EditSession, RemoteFile, Stamp, clean_stale_edit_dirs,
+    session_temp_dir,
+};
 pub use error::{ConnectError, HopLabel};
 pub use forward::{ForwardInfo, ForwardKind, ForwardSpec};
 pub use interact::{
@@ -32,4 +39,10 @@ pub use interact::{
 pub use known_hosts::{HostKeyStatus, KnownHosts, fingerprint};
 pub use proxy_command::{ProxyStream, spawn_proxy_command};
 pub use secrets::{KeyringStore, MemoryStore, SecretStore, passphrase_account, password_account};
+pub use sftp::{
+    EntryKind, MAX_REMOVE, RemoteEntry, SftpClient, SftpError, join_remote, safe_local_name,
+};
 pub use shell::{HOLD_CAP, STALL_MAX, SshShell};
+pub use transfer::{
+    CHUNK, Direction, PROGRESS_EVERY, Speed, Throttle, TransferInfo, TransferQueue, TransferState,
+};

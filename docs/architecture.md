@@ -153,6 +153,38 @@ src/commands/registry                CommandRegistry : palette (cmdk) et raccour
   quand on tape dans un champ ou un dialogue, sauf l'ouverture de la palette. Copier, coller et
   rechercher agissent sur le terminal du panneau actif (`terminalActions`).
 
+## SFTP
+
+```
+crates/tilde-ssh/sftp.rs      SftpClient (russh-sftp sur un canal de la connexion), noms sûrs
+crates/tilde-ssh/transfer.rs  TransferQueue : streaming, reprise, annulation, progression
+crates/tilde-ssh/edit.rs      EditSession : édition externe, debounce, détection de conflit
+src-tauri commands/sftp       sftp_*, transfer_*, événement sftp://transfer
+src/panels/sftp               panneau fichiers (lié à un panneau SSH)
+src/app/TransfersButton       file de transferts dans la barre de titre
+```
+
+- **Une session SFTP par session SSH**, ouverte à la demande sur la connexion existante
+  (`channel_open_session` + sous-système `sftp`). `SshShell::sftp()` la partage tant que la
+  connexion est la même et en rouvre une après une reconnexion.
+- **Panneau** : `{ kind: 'sftp', linkedLeafId, path, follow }` dans l'arbre de layout, à droite du
+  panneau SSH. Il retrouve la session par le registre des sessions (observable) et suit le `cwd`
+  OSC 7 du panneau lié tant que `follow` est vrai.
+- **Transferts** en blocs de 256 Kio : la mémoire ne dépend jamais de la taille du fichier. Les
+  données passent par un fichier partiel (`.part` localement, `.tilde-part` sur le serveur)
+  renommé à la fin ; « Réessayer » reprend à la taille de ce fichier partiel. Concurrence :
+  `settings.sftp.concurrency`, relue à chaud. Progression : au plus un événement toutes les
+  100 ms par transfert, vitesse moyenne sur 2 s.
+- **Dossiers** : un transfert par fichier ; les liens symboliques ne sont pas suivis.
+- **Noms locaux** : `safe_local_name` ne garde que le dernier segment et neutralise `..`, les
+  séparateurs, les caractères et noms réservés de Windows ; un fichier existant n'est jamais
+  écrasé (« nom (1).ext »).
+- **Édition externe** : copie dans `cache/Tilde/edit/<pid>-<session>/`, surveillée par `notify`.
+  Après 500 ms de calme, si le contenu a changé et que le fichier distant n'a pas changé depuis
+  le dernier échange (taille + mtime), il est renvoyé ; sinon c'est un conflit, résolu par
+  l'utilisateur. Le dossier est supprimé à la fermeture de la session ; les restes de plus de
+  7 jours sont nettoyés au démarrage.
+
 ## Fenêtre
 
 La fenêtre démarre **cachée** et le front l'affiche une fois la coquille rendue, ce qui évite

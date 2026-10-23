@@ -8,5 +8,6 @@ pub mod connections;
 pub mod profiles;
 pub mod session;
 pub mod settings;
+pub mod sftp;
 pub mod ssh;
 pub mod workspace;
