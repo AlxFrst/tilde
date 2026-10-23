@@ -196,3 +196,12 @@ test('the sidebar never scrolls sideways', () => {
   expect(list).toHaveClass('grid-cols-[minmax(0,1fr)]');
   expect(row.closest('.overflow-y-auto')).toHaveClass('overflow-x-hidden');
 });
+
+test('recents that cannot be shown leave no empty section behind', () => {
+  setFile({
+    connections: [conn('a', 'Alpha')],
+    recents: [{ key: 'bogus', label: 'Bogus', at: 1 }],
+  });
+  show();
+  expect(headings()).not.toContain('Récents');
+});

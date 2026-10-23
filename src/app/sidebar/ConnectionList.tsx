@@ -198,7 +198,10 @@ export function ConnectionList() {
   const byId = new Map(file.connections.map((c) => [c.id, c]));
   const favorites = file.connections.filter((c) => c.favorite);
   const recents = file.recents
-    .filter((r) => !r.key.startsWith('conn:') || byId.has(r.key.slice(5)))
+    // Only what RecentRow can draw, so the section is never an empty heading.
+    .filter((r) =>
+      r.key.startsWith('conn:') ? byId.has(r.key.slice(5)) : r.key.startsWith('ssh:'),
+    )
     .slice(0, MAX_SHOWN_RECENTS);
   const ungrouped = file.connections.filter((c) => c.folderId === null);
   const adopted = adoptedAliases(file.connections);
