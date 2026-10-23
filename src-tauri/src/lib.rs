@@ -51,6 +51,15 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     );
     let _ = app.state::<AppState>().ssh.prompter.set(Arc::new(prompter));
     let handle = app.clone();
+    let concurrency =
+        usize::from(app.state::<AppState>().settings.lock().settings().sftp.concurrency);
+    let transfers = tilde_ssh::TransferQueue::new(
+        concurrency,
+        Arc::new(move |info| commands::sftp::emit_transfer(&handle, info)),
+    );
+    let _ = app.state::<AppState>().sftp.transfers.set(transfers);
+    std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
+    let handle = app.clone();
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
         ConfigFile::Connections => on_connections_file_changed(&handle),
@@ -118,6 +127,7 @@ pub fn run() {
             sessions: SessionManager::new(),
             shells: Mutex::new(None),
             ssh: state::SshState::default(),
+            sftp: state::SftpState::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);
@@ -147,6 +157,21 @@ pub fn run() {
             commands::connections::folders_remove,
             commands::connections::connections_import,
             commands::connections::connections_export,
+            commands::sftp::sftp_home,
+            commands::sftp::sftp_list,
+            commands::sftp::sftp_mkdir,
+            commands::sftp::sftp_rename,
+            commands::sftp::sftp_remove,
+            commands::sftp::sftp_chmod,
+            commands::sftp::sftp_download,
+            commands::sftp::sftp_upload,
+            commands::sftp::sftp_edit,
+            commands::sftp::edit_resolve,
+            commands::sftp::transfers_list,
+            commands::sftp::transfer_cancel,
+            commands::sftp::transfer_retry,
+            commands::sftp::transfers_clear,
+            commands::sftp::transfer_reveal,
             commands::ssh::ssh_hosts,
             commands::ssh::ssh_prompt_reply,
             commands::ssh::secrets_available,

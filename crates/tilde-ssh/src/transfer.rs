@@ -163,6 +163,12 @@ impl TransferQueue {
         }
     }
 
+    /// A fresh id from the same sequence as transfers (external edits use it).
+    #[must_use]
+    pub fn next_id(&self) -> u32 {
+        self.inner.next_id.fetch_add(1, Ordering::Relaxed) + 1
+    }
+
     pub fn set_concurrency(&self, n: usize) {
         *self.inner.concurrency.lock() = n.max(1);
         self.pump();
@@ -271,7 +277,7 @@ impl TransferQueue {
         remote: &str,
         total: u64,
     ) -> u32 {
-        let id = self.inner.next_id.fetch_add(1, Ordering::Relaxed) + 1;
+        let id = self.next_id();
         let info = TransferInfo {
             id,
             session,

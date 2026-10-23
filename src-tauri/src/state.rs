@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 use tilde_config::{ConfigErrorDto, ConfigWatcher, ConnectionsStore, SettingsStore};
 use tilde_pty::ShellCandidate;
 use tilde_session::SessionManager;
-use tilde_ssh::{KeyringStore, SshShell};
+use tilde_ssh::{EditSession, KeyringStore, SshShell, TransferQueue};
 
 use crate::prompter::UiPrompter;
 
@@ -28,6 +28,15 @@ pub struct AppState {
     /// Detected shells; filled in the background at startup, cleared by `profiles_refresh`.
     pub shells: Mutex<Option<Vec<ShellCandidate>>>,
     pub ssh: SshState,
+    pub sftp: SftpState,
+}
+
+#[derive(Default)]
+pub struct SftpState {
+    /// Set at startup, once the app handle (to emit progress) exists.
+    pub transfers: OnceLock<TransferQueue>,
+    /// External edits by transfer id, with their session id.
+    pub edits: Mutex<HashMap<u32, (u32, Arc<EditSession>)>>,
 }
 
 #[derive(Default)]

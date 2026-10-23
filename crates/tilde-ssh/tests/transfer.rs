@@ -9,8 +9,10 @@ use std::{
 };
 
 use parking_lot::Mutex;
+use russh_sftp::protocol::OpenFlags;
 use tilde_session::Backend;
 use tilde_ssh::{SftpClient, SshShell, TransferInfo, TransferQueue, TransferState};
+use tokio::io::AsyncWriteExt;
 
 mod support;
 
@@ -62,9 +64,13 @@ async fn fixture(concurrency: usize) -> Option<Fixture> {
 }
 
 impl Fixture {
+    /// Creates a remote file (`SftpSession::write` only opens existing files).
     async fn put(&self, name: &str, bytes: &[u8]) -> String {
         let path = format!("{}/{name}", self.remote);
-        self.client.inner().write(&path, bytes).await.unwrap();
+        let flags = OpenFlags::CREATE | OpenFlags::WRITE | OpenFlags::TRUNCATE;
+        let mut file = self.client.inner().open_with_flags(&path, flags).await.unwrap();
+        file.write_all(bytes).await.unwrap();
+        file.shutdown().await.unwrap();
         path
     }
 

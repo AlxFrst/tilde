@@ -131,7 +131,7 @@ pub async fn session_open(
                 ssh_target_for(store.file(), &target, connection_id.as_deref())
                     .map_err(|message| SessionErrorDto { kind: "ssh", message })?
             };
-            let id = open_ssh(&state, ssh_target, cols, rows, output, events).await?;
+            let id = open_ssh(&app, &state, ssh_target, cols, rows, output, events).await?;
             state.connections.lock().record_recent(&key, &label);
             emit_changed(&app);
             Ok(SessionOpened { id, profile_id: None })
@@ -173,6 +173,7 @@ fn open_local(
 
 /// Connects (asking the user through `ssh://prompt` as needed) and registers the shell.
 async fn open_ssh(
+    app: &AppHandle,
     state: &AppState,
     target: SshTarget,
     cols: u16,
@@ -215,9 +216,17 @@ async fn open_ssh(
 
     let shells = Arc::clone(&state.ssh.shells);
     let ended = Arc::clone(&shell);
-    let on_exit = Box::new(move || shells.lock().retain(|_, s| !Arc::ptr_eq(s, &ended)));
+    let session_id = Arc::new(std::sync::OnceLock::new());
+    let (exit_app, exit_id) = (app.clone(), Arc::clone(&session_id));
+    let on_exit = Box::new(move || {
+        shells.lock().retain(|_, s| !Arc::ptr_eq(s, &ended));
+        if let Some(id) = exit_id.get() {
+            crate::commands::sftp::on_session_closed(&exit_app, *id);
+        }
+    });
     let sink = ChannelSink { output, events, on_exit: Some(on_exit) };
     let (id, flow) = state.sessions.open_backend(shell.clone(), feed, Arc::new(sink))?;
+    let _ = session_id.set(id.0);
     shell.attach_flow(flow);
     state.ssh.shells.lock().insert(id.0, shell);
     Ok(id.0)
@@ -263,8 +272,14 @@ pub fn session_ack(
 }
 
 #[tauri::command]
-pub fn session_close(state: State<'_, AppState>, id: u32) -> Result<(), SessionErrorDto> {
-    state.ssh.shells.lock().remove(&id);
+pub fn session_close(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    id: u32,
+) -> Result<(), SessionErrorDto> {
+    if state.ssh.shells.lock().remove(&id).is_some() {
+        crate::commands::sftp::on_session_closed(&app, id);
+    }
     Ok(state.sessions.close(SessionId(id))?)
 }
 
