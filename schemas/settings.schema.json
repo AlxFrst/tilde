@@ -69,6 +69,14 @@
         }
       }
     },
+    "profiles": {
+      "description": "User profiles. One whose `id` matches a detected shell overrides it.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Profile"
+      },
+      "default": []
+    },
     "$schema": {
       "type": "string"
     }
@@ -332,6 +340,64 @@
         "shortcut": {
           "type": "string",
           "default": "Ctrl+`"
+        }
+      }
+    },
+    "Profile": {
+      "description": "A user-defined shell profile, or overrides for a detected one (same `id`).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "type": "string",
+          "default": ""
+        },
+        "command": {
+          "type": "string",
+          "default": ""
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "icon": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "color": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "hidden": {
+          "description": "Hides a detected shell from the profile list.",
+          "type": "boolean",
+          "default": false
         }
       }
     }

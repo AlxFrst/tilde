@@ -18,6 +18,24 @@ pub struct Settings {
     pub ssh: Ssh,
     pub sftp: Sftp,
     pub general: General,
+    /// User profiles. One whose `id` matches a detected shell overrides it.
+    pub profiles: Vec<Profile>,
+}
+
+/// A user-defined shell profile, or overrides for a detected one (same `id`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Profile {
+    pub id: String,
+    pub name: String,
+    pub command: String,
+    pub args: Vec<String>,
+    pub cwd: Option<String>,
+    pub env: std::collections::BTreeMap<String, String>,
+    pub icon: Option<String>,
+    pub color: Option<String>,
+    /// Hides a detected shell from the profile list.
+    pub hidden: bool,
 }
 
 impl Default for Settings {
@@ -29,6 +47,7 @@ impl Default for Settings {
             ssh: Ssh::default(),
             sftp: Sftp::default(),
             general: General::default(),
+            profiles: Vec::new(),
         }
     }
 }
@@ -324,6 +343,18 @@ mod tests {
         assert_eq!(s.terminal.font_size, 16);
         assert!((s.terminal.line_height - 1.2).abs() < f64::EPSILON);
         assert_eq!(s.appearance.theme_dark, "tilde-dark");
+        assert_eq!(s.profiles, []);
+    }
+
+    #[test]
+    fn profiles_roundtrip() {
+        let s: Settings =
+            serde_json::from_str(r#"{"profiles":[{"id":"x","name":"X","command":"bash"}]}"#)
+                .unwrap();
+        let p = &s.profiles[0];
+        assert_eq!((p.id.as_str(), p.command.as_str()), ("x", "bash"));
+        assert_eq!(p.args, Vec::<String>::new());
+        assert!(!p.hidden);
     }
 
     #[test]

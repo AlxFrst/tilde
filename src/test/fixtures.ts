@@ -35,4 +35,5 @@ export const defaultSettings: Settings = {
   },
   sftp: { concurrency: 3, editorMode: 'external', externalEditor: null },
   general: { restoreSession: true, quake: { enabled: false, shortcut: 'Ctrl+`' } },
+  profiles: [],
 };
