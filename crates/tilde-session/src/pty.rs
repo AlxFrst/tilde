@@ -30,6 +30,8 @@ const CHANNEL_DEPTH: usize = 8;
 /// How long the pump waits for the exit code once output has ended.
 const EXIT_CODE_WAIT: Duration = Duration::from_secs(5);
 const IDLE_WAIT: Duration = Duration::from_millis(250);
+/// Quiet period after the process exited before the session is reported as ended.
+const EXIT_GRACE: Duration = Duration::from_millis(200);
 
 struct FlowState {
     coalescer: Coalescer,
@@ -44,7 +46,9 @@ struct Flow {
 
 pub(crate) struct Session {
     master: Mutex<Option<Box<dyn MasterPty + Send>>>,
-    writer: Mutex<Option<Box<dyn Write + Send>>>,
+    /// Input goes through a dedicated thread so a program that stops reading never
+    /// blocks the caller (the IPC thread). `None` once the PTY is released.
+    input: Mutex<Option<mpsc::Sender<Vec<u8>>>>,
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     pid: Option<u32>,
     flow: Flow,
@@ -96,12 +100,13 @@ impl Session {
         drop(pair.slave);
         let reader = pair.master.try_clone_reader().map_err(|e| spawn_err(&cmd_name, e))?;
         let writer = pair.master.take_writer().map_err(|e| spawn_err(&cmd_name, e))?;
+        let (input_tx, input_rx) = mpsc::channel::<Vec<u8>>();
 
         let session = Arc::new(Self {
             pid: child.process_id(),
             killer: Mutex::new(child.clone_killer()),
             master: Mutex::new(Some(pair.master)),
-            writer: Mutex::new(Some(writer)),
+            input: Mutex::new(Some(input_tx)),
             flow: Flow {
                 state: Mutex::new(FlowState { coalescer: Coalescer::new(), closed: false }),
                 cv: Condvar::new(),
@@ -110,6 +115,9 @@ impl Session {
         tracing::info!(command = %cmd_name, pid = ?session.pid, "session started");
 
         let (chunk_tx, chunk_rx) = mpsc::sync_channel::<Vec<u8>>(CHANNEL_DEPTH);
+        thread::Builder::new()
+            .name("pty-writer".into())
+            .spawn(move || write_loop(writer, &input_rx))?;
         let (code_tx, code_rx) = mpsc::channel::<Option<i32>>();
 
         thread::Builder::new()
@@ -145,6 +153,11 @@ impl Session {
         exit_code: &mpsc::Receiver<Option<i32>>,
         sink: &dyn OutputSink,
     ) {
+        // Set once the process has exited. A background job can keep the PTY open after
+        // the shell is gone (`sleep 600 & exit` on Unix), so the reader may never see EOF:
+        // once the output has been quiet for EXIT_GRACE we finish anyway.
+        let mut exited: Option<Option<i32>> = None;
+        let mut last_data = Instant::now();
         loop {
             let deadline = {
                 let mut st = self.flow.state.lock();
@@ -156,15 +169,28 @@ impl Session {
                 }
                 st.coalescer.next_deadline()
             };
-            let timeout =
+            let mut timeout =
                 deadline.map_or(IDLE_WAIT, |d| d.saturating_duration_since(Instant::now()));
+            if exited.is_some() {
+                timeout = timeout.min(EXIT_GRACE);
+            }
             let received = chunks.recv_timeout(timeout);
-            let (out, eof) = {
+            if received.is_ok() {
+                last_data = Instant::now();
+            }
+            if exited.is_none() {
+                exited = exit_code.try_recv().ok();
+            }
+            let quiet_after_exit = exited.is_some() && last_data.elapsed() >= EXIT_GRACE;
+            let (out, done) = {
                 let mut st = self.flow.state.lock();
                 let now = Instant::now();
                 match received {
                     Ok(bytes) => {
                         (st.coalescer.push(&bytes, now).or_else(|| st.coalescer.poll(now)), false)
+                    }
+                    Err(RecvTimeoutError::Timeout) if quiet_after_exit => {
+                        (st.coalescer.flush(), true)
                     }
                     Err(RecvTimeoutError::Timeout) => (st.coalescer.poll(now), false),
                     Err(RecvTimeoutError::Disconnected) => (st.coalescer.flush(), true),
@@ -173,28 +199,32 @@ impl Session {
             if let Some(out) = out {
                 sink.data(out);
             }
-            if eof {
+            if done {
                 break;
             }
         }
-        let code = exit_code.recv_timeout(EXIT_CODE_WAIT).ok().flatten();
+        let code = match exited {
+            Some(code) => code,
+            None => exit_code.recv_timeout(EXIT_CODE_WAIT).ok().flatten(),
+        };
         if !self.flow.state.lock().closed {
             tracing::info!(pid = ?self.pid, ?code, "session exited");
             sink.exited(code);
         }
     }
 
-    /// Drops the writer and the pseudoconsole; the reader then reaches EOF.
+    /// Drops the input channel (the writer thread then exits and closes the PTY input)
+    /// and the pseudoconsole; the reader then reaches EOF.
     fn release_pty(&self) {
-        drop(self.writer.lock().take());
+        drop(self.input.lock().take());
         drop(self.master.lock().take());
     }
 
+    /// Queues input; never blocks, even if the program is not reading.
     pub(crate) fn write(&self, data: &[u8]) -> std::io::Result<()> {
-        let mut writer = self.writer.lock();
-        let w = writer.as_mut().ok_or(std::io::ErrorKind::BrokenPipe)?;
-        w.write_all(data)?;
-        w.flush()
+        let input = self.input.lock();
+        let tx = input.as_ref().ok_or(std::io::ErrorKind::BrokenPipe)?;
+        tx.send(data.to_vec()).map_err(|_| std::io::ErrorKind::BrokenPipe.into())
     }
 
     pub(crate) fn resize(&self, cols: u16, rows: u16) -> std::io::Result<()> {
@@ -222,13 +252,16 @@ impl Session {
     }
 
     /// Stops delivery, kills the process and frees the PTY. Threads wind down on their own.
-    pub(crate) fn close(&self) {
+    /// Releasing the pseudoconsole can block (`ClosePseudoConsole`), so it happens on a
+    /// background thread rather than the caller's.
+    pub(crate) fn close(self: &Arc<Self>) {
         self.flow.state.lock().closed = true;
         self.flow.cv.notify_all();
         if let Err(e) = self.killer.lock().kill() {
             tracing::debug!(error = %e, "kill on close (process may already be gone)");
         }
-        self.release_pty();
+        let this = Arc::clone(self);
+        let _ = thread::Builder::new().name("pty-release".into()).spawn(move || this.release_pty());
     }
 }
 
@@ -243,6 +276,14 @@ fn read_loop(mut reader: Box<dyn Read + Send>, tx: &mpsc::SyncSender<Vec<u8>>) {
                     break;
                 }
             }
+        }
+    }
+}
+
+fn write_loop(mut writer: Box<dyn Write + Send>, rx: &mpsc::Receiver<Vec<u8>>) {
+    for data in rx {
+        if writer.write_all(&data).and_then(|()| writer.flush()).is_err() {
+            break;
         }
     }
 }
