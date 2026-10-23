@@ -65,7 +65,7 @@
         "restoreSession": true,
         "quake": {
           "enabled": false,
-          "shortcut": "Ctrl+`"
+          "shortcut": "Alt+F12"
         }
       }
     },
@@ -325,7 +325,7 @@
           "$ref": "#/$defs/Quake",
           "default": {
             "enabled": false,
-            "shortcut": "Ctrl+`"
+            "shortcut": "Alt+F12"
           }
         }
       }
@@ -339,7 +339,7 @@
         },
         "shortcut": {
           "type": "string",
-          "default": "Ctrl+`"
+          "default": "Alt+F12"
         }
       }
     },

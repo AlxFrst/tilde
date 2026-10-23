@@ -6,8 +6,21 @@ import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { openThemesDir } from '@/ipc/themes';
 import { useSettings } from '@/stores/settings';
 import { bindingKeys } from '@/terminal/keyLabels';
+import type { Binding } from '@/terminal/keys';
 import { Row, Section, SwitchField } from './fields';
 import { ShortcutRecorder } from './ShortcutRecorder';
+
+/**
+ * A global shortcut is registered by virtual key, and symbol keys move with the layout
+ * (on AZERTY the « ` » virtual key is ù): only letters, digits and named keys are safe.
+ */
+function globalKeyProblem(b: Binding): string | null {
+  return /^([A-Z0-9]|F\d+|Arrow\w+|Tab|Enter|Escape|Space|Backspace|Delete|Insert|Home|End|PageUp|PageDown)$/.test(
+    b.key,
+  )
+    ? null
+    : 'Pour un raccourci global, choisissez une lettre, un chiffre ou une touche F : un symbole change de place selon la disposition du clavier.';
+}
 
 export function GeneralSection() {
   const settings = useSettings((s) => s.settings);
@@ -58,6 +71,7 @@ export function GeneralSection() {
               onCancel={() => {
                 setRecording(false);
               }}
+              validate={globalKeyProblem}
             />
           ) : (
             <>

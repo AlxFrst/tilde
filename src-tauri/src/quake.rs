@@ -20,19 +20,9 @@ pub struct QuakeState {
     shortcut: Option<Shortcut>,
 }
 
-const SYMBOLS: &[(&str, &str)] = &[
-    ("`", "Backquote"),
-    ("-", "Minus"),
-    ("=", "Equal"),
-    ("[", "BracketLeft"),
-    ("]", "BracketRight"),
-    ("\\", "Backslash"),
-    (";", "Semicolon"),
-    ("'", "Quote"),
-    (",", "Comma"),
-    (".", "Period"),
-    ("/", "Slash"),
-];
+/// Symbol keys: refused for a global shortcut, because the OS hotkey is registered by
+/// virtual key, and those move with the keyboard layout (on AZERTY, `Backquote` is ù).
+const SYMBOLS: &str = r"`-=[]\;',./";
 const NAMED: &[&str] = &[
     "ArrowLeft",
     "ArrowRight",
@@ -66,9 +56,6 @@ fn key_code(key: &str) -> Option<String> {
     {
         return Some(format!("F{n}"));
     }
-    if let Some((_, code)) = SYMBOLS.iter().find(|(s, _)| *s == key) {
-        return Some((*code).to_owned());
-    }
     NAMED.iter().find(|n| n.eq_ignore_ascii_case(key)).map(|n| (*n).to_owned())
 }
 
@@ -82,6 +69,11 @@ fn key_code(key: &str) -> Option<String> {
 pub fn to_accelerator(binding: &str) -> Result<String, String> {
     let mut parts: Vec<&str> = binding.trim().split('+').map(str::trim).collect();
     let key = parts.pop().filter(|k| !k.is_empty()).ok_or("raccourci vide")?;
+    if key.chars().count() == 1 && SYMBOLS.contains(key) {
+        return Err("choisissez une lettre, un chiffre ou une touche F : un symbole change de \
+                    place selon la disposition du clavier"
+            .into());
+    }
     let code = key_code(key).ok_or_else(|| format!("touche inconnue : « {key} »"))?;
     let mut out = Vec::new();
     for m in parts {
@@ -215,7 +207,7 @@ mod tests {
 
     #[test]
     fn to_accelerator_maps_tilde_syntax() {
-        assert_eq!(to_accelerator("Ctrl+`").unwrap(), "CommandOrControl+Backquote");
+        assert_eq!(to_accelerator("Alt+F12").unwrap(), "Alt+F12");
         assert_eq!(to_accelerator("Alt+Shift+F12").unwrap(), "Alt+Shift+F12");
         assert_eq!(to_accelerator("Ctrl+1").unwrap(), "CommandOrControl+Digit1");
         assert_eq!(to_accelerator("ctrl+alt+t").unwrap(), "CommandOrControl+Alt+KeyT");
@@ -225,7 +217,11 @@ mod tests {
 
     #[test]
     fn invalid_shortcut_is_an_error() {
-        for bad in ["", "Ctrl+", "Ctrl+Truc", "`", "Shift+A", "Hyper+A", "Ctrl+F25"] {
+        // Symbol keys move with the keyboard layout: on AZERTY, global-hotkey's Backquote
+        // is the ù key. Global shortcuts take letters, digits, F-keys and named keys only.
+        for bad in
+            ["", "Ctrl+", "Ctrl+Truc", "`", "Shift+A", "Hyper+A", "Ctrl+F25", "Ctrl+`", "Alt+-"]
+        {
             assert!(to_accelerator(bad).is_err(), "{bad:?} accepted");
         }
     }

@@ -1,6 +1,5 @@
 ---
 source: crates/tilde-config/src/settings.rs
-assertion_line: 376
 expression: settings_schema()
 ---
 {
@@ -70,7 +69,7 @@ expression: settings_schema()
         "restoreSession": true,
         "quake": {
           "enabled": false,
-          "shortcut": "Ctrl+`"
+          "shortcut": "Alt+F12"
         }
       }
     },
@@ -330,7 +329,7 @@ expression: settings_schema()
           "$ref": "#/$defs/Quake",
           "default": {
             "enabled": false,
-            "shortcut": "Ctrl+`"
+            "shortcut": "Alt+F12"
           }
         }
       }
@@ -344,7 +343,7 @@ expression: settings_schema()
         },
         "shortcut": {
           "type": "string",
-          "default": "Ctrl+`"
+          "default": "Alt+F12"
         }
       }
     },

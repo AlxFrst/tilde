@@ -34,6 +34,6 @@ export const defaultSettings: Settings = {
     confirmCloseSsh: true,
   },
   sftp: { concurrency: 3, editorMode: 'external', externalEditor: null },
-  general: { restoreSession: true, quake: { enabled: false, shortcut: 'Ctrl+`' } },
+  general: { restoreSession: true, quake: { enabled: false, shortcut: 'Alt+F12' } },
   profiles: [],
 };
