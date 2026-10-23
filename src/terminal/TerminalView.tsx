@@ -1,7 +1,7 @@
 import { readText, writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { SearchAddon } from '@xterm/addon-search';
 import { ClipboardPaste, Copy, Search } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
@@ -28,7 +28,7 @@ import {
   type SessionErrorDto,
 } from '@/ipc/session';
 import { useSettings } from '@/stores/settings';
-import { toXtermTheme } from '@/themes';
+import { terminalTheme } from '@/themes/opacity';
 import { useActiveTheme } from '@/themes/useActiveTheme';
 import { ConnectionBanner } from '@/app/ConnectionStatus';
 import type { ConnState } from '@/ipc/ssh';
@@ -96,7 +96,9 @@ function errorText(err: unknown): string {
 
 export function TerminalView(props: TerminalViewProps) {
   const terminalSettings = useSettings((s) => s.settings?.terminal);
-  const theme = useActiveTheme();
+  const activeTheme = useActiveTheme();
+  const opacity = useSettings((s) => s.settings?.appearance.window.opacity ?? 1);
+  const theme = useMemo(() => terminalTheme(activeTheme, opacity), [activeTheme, opacity]);
 
   const container = useRef<HTMLDivElement>(null);
   const handle = useRef<TerminalHandle | null>(null);
@@ -149,7 +151,7 @@ export function TerminalView(props: TerminalViewProps) {
     const el = container.current;
     const { terminalSettings: ts, theme: th } = latest.current;
     if (!el || !ts) return;
-    const h = createTerminal({ container: el, settings: ts, theme: toXtermTheme(th.terminal) });
+    const h = createTerminal({ container: el, settings: ts, theme: th });
     handle.current = h;
     setSearchAddon(h.search);
     const { term } = h;
@@ -310,7 +312,7 @@ export function TerminalView(props: TerminalViewProps) {
   useEffect(() => {
     const h = handle.current;
     if (!h || !terminalSettings) return;
-    h.term.options = terminalOptions(terminalSettings, toXtermTheme(theme.terminal));
+    h.term.options = terminalOptions(terminalSettings, theme);
     if (container.current) safeFit(h, container.current);
   }, [terminalSettings, theme]);
 
@@ -339,13 +341,13 @@ export function TerminalView(props: TerminalViewProps) {
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[var(--tilde-bg)]">
+    <div className="relative h-full w-full overflow-hidden bg-bg">
       <ContextMenu>
         <ContextMenuTrigger asChild disabled={rightClick !== 'menu'}>
           <div
             ref={container}
             className="h-full w-full px-2 pt-1"
-            style={{ backgroundColor: theme.terminal.background }}
+            style={{ backgroundColor: theme.background }}
             onContextMenu={onContextMenu}
           />
         </ContextMenuTrigger>
@@ -371,7 +373,7 @@ export function TerminalView(props: TerminalViewProps) {
       {searchOpen && searchAddon && (
         <SearchBar
           search={searchAddon}
-          theme={theme}
+          theme={activeTheme}
           onClose={() => {
             setSearchOpen(false);
             handle.current?.term.focus();

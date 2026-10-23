@@ -5600,6 +5600,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "windows-version",
 ]
 
 [[package]]

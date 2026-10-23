@@ -28,6 +28,8 @@ export function terminalOptions(s: TerminalSettings, theme: ITheme): ITerminalOp
     cursorBlink: s.cursorBlink,
     scrollback: s.scrollback,
     theme,
+    // A translucent background (window opacity below 1) needs it; it costs a little.
+    allowTransparency: (theme.background?.length ?? 0) > 7,
   };
 }
 

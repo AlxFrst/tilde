@@ -11,6 +11,8 @@ import { useKeybindings } from '@/stores/keybindings';
 import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { useTransfers } from '@/stores/transfers';
+import { useWindowEffects } from '@/stores/windowEffects';
+import { windowApplyEffects, windowSupportedEffects } from '@/ipc/window';
 import { applyTheme } from '@/themes';
 import { useActiveTheme } from '@/themes/useActiveTheme';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
@@ -24,6 +26,8 @@ export default function App() {
   const theme = useActiveTheme();
   const density = settings?.appearance.density ?? 'comfortable';
   const uiFontSize = settings?.appearance.uiFontSize ?? 13;
+  const effect = settings?.appearance.window.effect ?? 'none';
+  const opacity = settings?.appearance.window.opacity ?? 1;
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -128,6 +132,33 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  // Window effect (Mica, Acrylic, vibrancy) and translucent backgrounds.
+  const dark = theme.kind === 'dark';
+  useEffect(() => {
+    document.documentElement.style.setProperty('--tilde-bg-alpha', String(opacity));
+  }, [opacity]);
+  const loaded = settings !== null;
+  // Rust reads the effect from the settings; `effect` is listed so a change re-applies it.
+  useEffect(() => {
+    if (!loaded) return;
+    windowApplyEffects(dark).then(
+      (applied) => {
+        useWindowEffects.setState({ applied });
+      },
+      (err: unknown) => {
+        console.warn('window effect unavailable', err);
+      },
+    );
+  }, [loaded, effect, dark]);
+  useEffect(() => {
+    windowSupportedEffects().then(
+      (supported) => {
+        useWindowEffects.setState({ supported });
+      },
+      () => undefined,
+    );
+  }, []);
 
   // Everything is rem-based, so the root font size scales the whole UI.
   useEffect(() => {
