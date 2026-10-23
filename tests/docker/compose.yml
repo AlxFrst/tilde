@@ -1,0 +1,32 @@
+# Topology: host → bastion1 (2201) → bastion2 → target.
+# target is only reachable from bastion2's network; it is also published on 2203
+# for direct-connection tests.
+name: tilde-ssh-tests
+
+x-sshd: &sshd
+  build: .
+  volumes:
+    - ./keys:/keys:ro
+
+services:
+  bastion1:
+    <<: *sshd
+    hostname: bastion1
+    ports: ["127.0.0.1:2201:22"]
+    networks: [front, mid]
+  bastion2:
+    <<: *sshd
+    hostname: bastion2
+    networks: [mid, back]
+  target:
+    <<: *sshd
+    hostname: target
+    environment:
+      ECHO_PORT: "7777"
+    ports: ["127.0.0.1:2203:22"]
+    networks: [back]
+
+networks:
+  front: {}
+  mid: {}
+  back: {}

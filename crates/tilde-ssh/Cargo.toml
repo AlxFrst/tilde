@@ -16,6 +16,10 @@ sha1 = "0.10"
 thiserror = "2"
 tracing = "0.1"
 
+[features]
+# Integration tests against the Docker SSH bench (tests/docker).
+integration = []
+
 [dev-dependencies]
 tempfile = "3"
 
