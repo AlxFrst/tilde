@@ -56,6 +56,13 @@ impl Connection {
     pub fn target(&self) -> &Handle<ClientHandler> {
         self.handles.last().expect("a connection has at least one hop")
     }
+
+    /// Says goodbye to every hop, target first. Errors (connection already gone) are moot.
+    pub async fn disconnect(&self) {
+        for handle in self.handles.iter().rev() {
+            let _ = handle.disconnect(russh::Disconnect::ByApplication, "", "en").await;
+        }
+    }
 }
 
 impl Connector {

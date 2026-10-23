@@ -2,7 +2,10 @@
 
 use std::{
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::Duration,
 };
 
@@ -74,6 +77,8 @@ pub struct ClientHandler {
     prompter: Arc<dyn Prompter>,
     /// Why the host key was refused, to report it instead of a generic russh error.
     rejection: Arc<Mutex<Option<String>>>,
+    /// Set once the user is asked about the host key: the handshake may then take long.
+    prompting: Arc<AtomicBool>,
     /// `ForwardAgent yes`: serve the server's agent requests from the local agent.
     forward_agent: bool,
     agent_sources: Vec<AgentSource>,
@@ -130,6 +135,7 @@ impl client::Handler for ClientHandler {
             HostKeyStatus::Unknown | HostKeyStatus::Changed { .. } => {}
         }
         let changed = matches!(status, HostKeyStatus::Changed { .. });
+        self.prompting.store(true, Ordering::Release);
         let decision = self
             .prompter
             .host_key(HostKeyPrompt {
@@ -256,12 +262,14 @@ impl Connector {
         hop: HopLabel,
     ) -> Result<Handle<ClientHandler>, ConnectError> {
         let rejection = Arc::new(Mutex::new(None));
+        let prompting = Arc::new(AtomicBool::new(false));
         let handler = ClientHandler {
             host: host.hostname.clone(),
             port: host.port,
             known_hosts: self.known_hosts_for(host),
             prompter: Arc::clone(&self.prompter),
             rejection: Arc::clone(&rejection),
+            prompting: Arc::clone(&prompting),
             forward_agent: host.forward_agent,
             agent_sources: self.agent_sources(),
         };
@@ -282,7 +290,18 @@ impl Connector {
 
         // Bound the handshake too, but not the host-key question (the user may take time).
         let handshake = client::connect_stream(config, stream, handler);
-        let mut handle = match handshake.await {
+        tokio::pin!(handshake);
+        let result = loop {
+            tokio::select! {
+                r = &mut handshake => break r,
+                () = tokio::time::sleep(deadline) => {
+                    if !prompting.load(Ordering::Acquire) {
+                        return Err(ConnectError::Timeout { hop });
+                    }
+                }
+            }
+        };
+        let mut handle = match result {
             Ok(h) => h,
             Err(source) => {
                 if let Some(reason) = rejection.lock().take() {
@@ -511,5 +530,61 @@ mod tests {
         let home = Path::new("/home/me");
         assert_eq!(display_path(&home.join(".ssh/id_rsa"), home), "~/.ssh/id_rsa");
         assert_eq!(display_path(Path::new("/keys/k"), home), "/keys/k");
+    }
+
+    struct Silent;
+
+    #[async_trait::async_trait]
+    impl Prompter for Silent {
+        async fn host_key(&self, _req: HostKeyPrompt) -> HostKeyDecision {
+            HostKeyDecision::Reject
+        }
+        async fn secret(&self, _req: SecretPrompt) -> Option<SecretAnswer> {
+            None
+        }
+        async fn keyboard_interactive(&self, _req: KbdPrompt) -> Option<Vec<String>> {
+            None
+        }
+    }
+
+    /// A server that accepts TCP but never speaks (frozen host): the attempt must end.
+    #[tokio::test]
+    async fn silent_server_times_out_during_the_handshake() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let _keep = tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((socket, _)) = listener.accept().await {
+                held.push(socket);
+            }
+        });
+        let home = tempfile::TempDir::new().unwrap();
+        let connector = Connector {
+            known_hosts: Some(KnownHosts::new(vec![home.path().join("known_hosts")])),
+            prompter: Arc::new(Silent),
+            secrets: Arc::new(crate::MemoryStore::default()),
+            defaults: SshDefaults {
+                connect_timeout: Duration::from_millis(300),
+                ..SshDefaults::default()
+            },
+            home: home.path().to_path_buf(),
+            agent_sources: Some(Vec::new()),
+        };
+        let ctx = tilde_ssh_config::ResolveContext {
+            local_user: "me".into(),
+            home: home.path().to_path_buf(),
+        };
+        let config = tilde_ssh_config::parse_str(
+            &format!("Host frozen\n HostName 127.0.0.1\n Port {port}\n"),
+            &home.path().join("config"),
+        );
+        let host = config.resolve("frozen", &ctx);
+        let result = timeout(
+            Duration::from_secs(5),
+            connector.connect_direct(&host, None, HopLabel::target("127.0.0.1")),
+        )
+        .await
+        .expect("the handshake must be bounded by the connect timeout");
+        assert!(matches!(result, Err(ConnectError::Timeout { .. })), "{:?}", result.err());
     }
 }
