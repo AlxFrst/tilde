@@ -7,7 +7,8 @@ derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans 
 Le tout dans une interface soignée, rapide et entièrement personnalisable.
 
 > 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local), 3 (SSH), 4
-> (sidebar de connexions et palette), 5 (SFTP) et 6 (personnalisation) sont terminées. Voir la [feuille de route](#feuille-de-route).
+> (sidebar de connexions et palette), 5 (SFTP), 6 (personnalisation) et 7 (panneaux modulaires)
+> sont terminées. Voir la [feuille de route](#feuille-de-route).
 
 ## Fonctionnalités (aujourd'hui)
 
@@ -267,7 +268,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 4. ✅ Sidebar de connexions et palette de commandes
 5. ✅ SFTP
 6. ✅ Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence, mode Quake
-7. Panneaux modulaires : éditeur, preview, moniteur
+7. ✅ Panneaux modulaires : éditeur, aperçu, moniteur
 8. Packaging et CI multiplateforme
 
 ## Contribuer
