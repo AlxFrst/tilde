@@ -31,7 +31,32 @@ interface ConnectionsState {
   saveFolder: (f: Folder) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
   setFavorite: (id: string, favorite: boolean) => Promise<void>;
+  /** The connection in the form: an existing one, or `'new'` (with optional presets). */
+  editing: Connection | 'new' | null;
+  setEditing: (c: Connection | 'new' | null) => void;
+  editingFolder: Folder | 'new' | null;
+  setEditingFolder: (f: Folder | 'new' | null) => void;
+  /** Turns an ~/.ssh/config host into a saved connection, then opens its form. */
+  adopt: (alias: string) => Promise<void>;
 }
+
+/** A connection with every optional field empty. */
+export const blankConnection = (preset: Partial<Connection> = {}): Connection => ({
+  id: '',
+  name: '',
+  host: '',
+  port: null,
+  user: null,
+  identityFile: null,
+  proxyJump: null,
+  forwardAgent: null,
+  folderId: null,
+  color: null,
+  icon: null,
+  tags: [],
+  favorite: false,
+  ...preset,
+});
 
 const EMPTY: ConnectionsFile = { version: 1, folders: [], connections: [], recents: [] };
 
@@ -68,4 +93,16 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
   saveFolder: (f) => upsertFolder(f),
   removeFolder: (id) => removeFolder(id),
   setFavorite: (id, favorite) => setFavorite(id, favorite),
+  editing: null,
+  setEditing: (editing) => {
+    set({ editing });
+  },
+  editingFolder: null,
+  setEditingFolder: (editingFolder) => {
+    set({ editingFolder });
+  },
+  adopt: async (alias) => {
+    const saved = await get().save(blankConnection({ name: alias, host: alias }));
+    set({ editing: saved });
+  },
 }));
