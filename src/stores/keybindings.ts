@@ -14,6 +14,7 @@ import {
   DEFAULT_KEYBINDINGS,
   formatBinding,
   parseBinding,
+  requiresModifier,
   type BindingTable,
 } from '@/terminal/keys';
 
@@ -44,10 +45,23 @@ function compute(overrides: Record<string, string | null>) {
       continue;
     }
     const parsed = parseBinding(binding);
-    if (parsed) effective[id] = formatBinding(parsed);
+    // A key without Ctrl or Alt would fire on every keystroke typed in the terminal.
+    const typing = parsed && requiresModifier(parsed) && !parsed.ctrl && !parsed.alt;
+    if (parsed && !typing) effective[id] = formatBinding(parsed);
     else invalid.push(id);
   }
   return { overrides, effective, invalid, table: compileBindings(effective) };
+}
+
+/** One sentence per shortcut used by several commands (only the first one fires). */
+function duplicates(effective: Record<string, string | null>): string[] {
+  const byBinding = new Map<string, string[]>();
+  for (const [id, b] of Object.entries(effective)) {
+    if (b) byBinding.set(b, [...(byBinding.get(b) ?? []), id]);
+  }
+  return [...byBinding]
+    .filter(([, ids]) => ids.length > 1)
+    .map(([b, ids]) => `${b} est attribué à plusieurs commandes (${ids.join(', ')})`);
 }
 
 function describe(err: unknown): string {
@@ -63,9 +77,11 @@ export const useKeybindings = create<KeybindingsState>()((set, get) => {
     const before = new Set(get().invalid.map((id) => `${id}=${get().overrides[id] ?? ''}`));
     for (const id of next.invalid) {
       if (before.has(`${id}=${s.bindings[id] ?? ''}`)) continue;
-      toast.error(`keybindings.json : raccourci invalide pour ${id} (« ${s.bindings[id] ?? ''} »)`);
+      toast.error(
+        `keybindings.json : raccourci refusé pour ${id} (« ${s.bindings[id] ?? ''} ») : syntaxe inconnue, ou touche sans Ctrl ni Alt`,
+      );
     }
-    const warnings = new Set(s.warnings);
+    const warnings = new Set([...s.warnings, ...duplicates(next.effective)]);
     for (const w of warnings) if (!shownWarnings.has(w)) toast.error(`keybindings.json : ${w}`);
     shownWarnings = warnings;
     set({ ...next, readOnly: s.readOnly });

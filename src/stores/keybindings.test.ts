@@ -31,6 +31,7 @@ const key = (code: string, key: string, mods: Partial<KeyboardEvent>) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   snapshot = { bindings: {}, readOnly: false, error: null, warnings: [] };
+  vi.mocked(invoke).mockImplementation(() => Promise.resolve(snapshot));
 });
 
 test('defaults apply before init', () => {
@@ -97,4 +98,27 @@ test('set and reset call the backend', async () => {
   vi.mocked(invoke).mockRejectedValueOnce({ kind: 'readOnly', message: 'lecture seule' });
   expect(await useKeybindings.getState().set('tab.new', null)).toBe(false);
   expect(toast.error).toHaveBeenCalledWith('lecture seule');
+});
+
+test('a hand-written key that would break typing is refused, duplicates are reported', async () => {
+  snapshot = {
+    ...snapshot,
+    bindings: {
+      'tab.new': 'A',
+      'terminal.copy': 'Enter',
+      'tab.close': 'Ctrl+Shift+P',
+      'app.x': 'F5',
+    },
+  };
+  const off = await useKeybindings.getState().init();
+  // A lone key keeps the default; function keys are fine alone.
+  expect(bindingOf('tab.new')).toBe('Ctrl+Shift+T');
+  expect(bindingOf('terminal.copy')).toBe('Ctrl+Shift+C');
+  expect(bindingOf('app.x')).toBe('F5');
+  expect(useKeybindings.getState().invalid.sort()).toEqual(['tab.new', 'terminal.copy']);
+  // tab.close now shares Ctrl+Shift+P with the palette: the user is told.
+  expect(vi.mocked(toast.error).mock.calls.some(([m]) => String(m).includes('Ctrl+Shift+P'))).toBe(
+    true,
+  );
+  off();
 });
