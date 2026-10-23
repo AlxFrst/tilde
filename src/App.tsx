@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
+import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
@@ -167,6 +168,15 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
       },
     );
   }, [loaded, effect, dark]);
+  // Updates: checked once at startup by the main window (at most once a day).
+  const checkUpdates = settings?.general.checkUpdates;
+  useEffect(() => {
+    if (quake || checkUpdates === undefined) return;
+    autoCheckForUpdates(checkUpdates);
+    // Startup only: turning the setting on later waits for the next start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when settings arrive
+  }, [quake, checkUpdates === undefined]);
+
   // Quake shortcut errors (taken by another app, invalid) are reported in the main window,
   // including one from startup, before any page was listening.
   useEffect(() => {

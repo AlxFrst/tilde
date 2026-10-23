@@ -5,6 +5,7 @@ import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { openThemesDir } from '@/ipc/themes';
 import { quakeStatus } from '@/ipc/window';
+import { checkForUpdates } from '@/app/updates';
 import { useSettings } from '@/stores/settings';
 import { bindingKeys } from '@/terminal/keyLabels';
 import type { Binding } from '@/terminal/keys';
@@ -61,6 +62,28 @@ export function GeneralSection() {
             disabled={readOnly}
             onChange={(restoreSession) => void update({ general: { restoreSession } })}
           />
+        </Row>
+      </Section>
+
+      <Section title="Mises à jour">
+        <Row
+          label="Rechercher au démarrage"
+          hint="Une requête vers GitHub au plus une fois par jour ; rien d’autre n’est envoyé."
+        >
+          <SwitchField
+            setting="general.checkUpdates"
+            label="Rechercher les mises à jour au démarrage"
+            checked={g.checkUpdates}
+            disabled={readOnly}
+            onChange={(checkUpdates) => void update({ general: { checkUpdates } })}
+          />
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => void checkForUpdates({ manual: true })}
+          >
+            Rechercher maintenant
+          </Button>
         </Row>
       </Section>
 

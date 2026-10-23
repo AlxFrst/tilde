@@ -1,6 +1,7 @@
 // Tilde's own commands. Titles are what the palette shows.
 
 import { closeActivePane, closeTab, openDefaultTab } from '@/app/actions';
+import { checkForUpdates } from '@/app/updates';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
@@ -210,6 +211,12 @@ export function registerBuiltins(): () => void {
       title: 'Ouvrir le dossier des thèmes',
       group: 'Application',
       run: () => void openThemesDir().catch(noop),
+    },
+    {
+      id: 'app.checkUpdates',
+      title: 'Rechercher des mises à jour',
+      group: 'Application',
+      run: () => void checkForUpdates({ manual: true }),
     },
     {
       id: 'app.openLogs',

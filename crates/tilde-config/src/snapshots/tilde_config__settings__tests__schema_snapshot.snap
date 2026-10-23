@@ -70,7 +70,8 @@ expression: settings_schema()
         "quake": {
           "enabled": false,
           "shortcut": "Alt+F12"
-        }
+        },
+        "checkUpdates": true
       }
     },
     "profiles": {
@@ -331,6 +332,11 @@ expression: settings_schema()
             "enabled": false,
             "shortcut": "Alt+F12"
           }
+        },
+        "checkUpdates": {
+          "description": "Look for a new version on GitHub at startup (at most once a day).",
+          "type": "boolean",
+          "default": true
         }
       }
     },

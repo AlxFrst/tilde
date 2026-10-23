@@ -240,11 +240,13 @@ impl Default for Sftp {
 pub struct General {
     pub restore_session: bool,
     pub quake: Quake,
+    /// Look for a new version on GitHub at startup (at most once a day).
+    pub check_updates: bool,
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { restore_session: true, quake: Quake::default() }
+        Self { restore_session: true, quake: Quake::default(), check_updates: true }
     }
 }
 
@@ -336,6 +338,14 @@ mod tests {
         let s = Settings::default();
         assert!(s.validate().is_ok());
         assert_eq!(s.version, SETTINGS_VERSION);
+    }
+
+    #[test]
+    fn update_checks_are_on_by_default_and_can_be_turned_off() {
+        let s: Settings = serde_json::from_str(r#"{"general":{"restoreSession":false}}"#).unwrap();
+        assert!(s.general.check_updates);
+        let off: Settings = serde_json::from_str(r#"{"general":{"checkUpdates":false}}"#).unwrap();
+        assert!(!off.general.check_updates);
     }
 
     #[test]

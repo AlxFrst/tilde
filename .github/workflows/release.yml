@@ -84,6 +84,7 @@ jobs:
     env:
       HAS_WINDOWS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
       HAS_APPLE_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+      HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -109,6 +110,27 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # Updates are signed with Tilde's updater key (minisign). Without it the build
+      # skips the update artifacts instead of failing.
+      - name: Updater signing key
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ "$HAS_UPDATER_KEY" = "true" ]; then
+            {
+              echo "TAURI_SIGNING_PRIVATE_KEY<<TILDE_EOF"
+              echo "$TAURI_SIGNING_PRIVATE_KEY"
+              echo "TILDE_EOF"
+              echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+            } >> "$GITHUB_ENV"
+          else
+            echo '{"bundle":{"createUpdaterArtifacts":false}}' > "$RUNNER_TEMP/no-updater.json"
+            echo "EXTRA_ARGS=$EXTRA_ARGS --config $RUNNER_TEMP/no-updater.json" >> "$GITHUB_ENV"
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY is not set: no update artifacts (latest.json)."
+          fi
+
       # Signing is optional: without the secrets the installers are built unsigned.
       - name: Windows signing certificate (if configured)
         if: runner.os == 'Windows' && env.HAS_WINDOWS_CERT == 'true'
@@ -122,12 +144,13 @@ jobs:
           $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
           $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
           Remove-Item $pfx
-          $config = @{ bundle = @{ windows = @{
+          $config = Join-Path $env:RUNNER_TEMP 'windows-signing.json'
+          @{ bundle = @{ windows = @{
             certificateThumbprint = $cert.Thumbprint
             digestAlgorithm = 'sha256'
             timestampUrl = 'http://timestamp.digicert.com'
-          } } } | ConvertTo-Json -Depth 5 -Compress
-          "TAURI_CONFIG=$config" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } } } | ConvertTo-Json -Depth 5 | Set-Content -Path $config -Encoding utf8
+          "EXTRA_ARGS=$env:EXTRA_ARGS --config $config" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Apple signing and notarization (if configured)
         if: runner.os == 'macOS' && env.HAS_APPLE_CERT == 'true'
@@ -152,7 +175,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           releaseId: ${{ needs.prepare.outputs.release-id }}
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ env.EXTRA_ARGS }}
 
       - name: Keep the installers (pull requests and manual runs)
         if: env.IS_TAG != 'true'

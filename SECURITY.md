@@ -26,4 +26,8 @@ Sont notamment concernés :
 - Les secrets sont stockés uniquement dans le trousseau de l'OS.
 - La WebView n'a accès à aucun plugin `fs` ni `shell` : tout passe par des commandes Rust
   dédiées.
-- Aucune télémétrie, aucune requête réseau non initiée par l'utilisateur.
+- Aucune télémétrie. La seule requête réseau que Tilde fait de lui-même est la recherche de
+  mise à jour au démarrage (au plus une fois par jour, vers les releases GitHub, sans aucune
+  donnée envoyée). Elle se désactive dans Réglages → Général.
+- Les mises à jour sont signées (minisign) : une mise à jour dont la signature ne correspond
+  pas à la clé publique intégrée à Tilde est refusée.

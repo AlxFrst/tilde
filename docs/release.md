@@ -57,6 +57,29 @@ ensuite passée à Tauri (`certificateThumbprint`, SHA-256, horodatage DigiCert)
 Ces valeurs ne sont exportées que si elles existent : un fork sans secrets construit des
 installeurs non signés, sans erreur.
 
+## Mises à jour intégrées
+
+Tilde vérifie au démarrage, au plus une fois par jour, s'il existe une version plus récente.
+La vérification est désactivable dans Réglages → Général, et « Rechercher des mises à jour »
+est aussi disponible dans la palette. Le fichier consulté est le `latest.json` de la dernière
+release **publiée** : un brouillon n'est jamais proposé.
+
+Les mises à jour sont signées avec une clé propre à Tilde (minisign), indépendante des
+certificats Windows et Apple. Une mise à jour dont la signature ne correspond pas à la clé
+publique de `src-tauri/tauri.conf.json` est refusée.
+
+| Secret | Contenu |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | le contenu du fichier de clé privée (`~/.tauri/tilde-updater.key`) |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | son mot de passe (vide pour la clé actuelle) |
+
+Sans `TAURI_SIGNING_PRIVATE_KEY`, la release se construit sans fichiers de mise à jour (un
+avertissement l'indique) : les installations existantes ne sont pas mises à jour.
+
+**Ne perdez pas la clé privée.** Sans elle, les versions déjà installées ne pourront plus
+accepter de mise à jour. Il faudrait alors publier une nouvelle clé et faire réinstaller Tilde
+à la main. Gardez-en une copie dans un gestionnaire de mots de passe.
+
 ## Vérifier un téléchargement
 
 ```sh

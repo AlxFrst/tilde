@@ -54,6 +54,10 @@ export interface Sftp {
 export interface General {
   restoreSession: boolean;
   quake: Quake;
+  /**
+   * Look for a new version on GitHub at startup (at most once a day).
+   */
+  checkUpdates: boolean;
 }
 export interface Quake {
   enabled: boolean;

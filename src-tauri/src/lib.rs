@@ -5,6 +5,7 @@ mod logging;
 mod prompter;
 mod quake;
 mod state;
+mod updater;
 mod window_effects;
 
 use parking_lot::Mutex;
@@ -167,6 +168,8 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::themes::themes_export,
         commands::themes::open_themes_dir,
         quake::quake_status,
+        updater::update_check,
+        updater::update_install,
         window_effects::window_apply_effects,
         window_effects::window_supported_effects,
         commands::workspace::workspace_load,
@@ -220,6 +223,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
                 // Only the Quake shortcut is ever registered.
