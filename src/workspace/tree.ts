@@ -6,7 +6,7 @@ import type {
   LayoutNode,
   LeafNode,
   SplitNode,
-  TerminalPanel,
+  PanelPatch,
 } from './types';
 
 const equalSizes = (n: number) => Array.from({ length: n }, () => 100 / n);
@@ -76,11 +76,7 @@ export function removeLeaf(root: LayoutNode, leafId: string): LayoutNode | null 
   };
 }
 
-export function updatePanel(
-  root: LayoutNode,
-  leafId: string,
-  patch: Partial<TerminalPanel>,
-): LayoutNode {
+export function updatePanel(root: LayoutNode, leafId: string, patch: PanelPatch): LayoutNode {
   if (root.type === 'leaf') {
     return root.id === leafId ? { ...root, panel: { ...root.panel, ...patch } } : root;
   }

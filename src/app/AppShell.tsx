@@ -2,15 +2,19 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useEffect, useState } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
+import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { allSessions } from '@/terminal/sessionRegistry';
 import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
 import { PaneView } from './PaneView';
+import { PromptHost } from './PromptHost';
+import { QuickConnectDialog } from './QuickConnectDialog';
 import { QuickSettingsDialog } from './QuickSettingsDialog';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
+import { TunnelsDialog } from './TunnelsDialog';
 import { Titlebar } from './Titlebar';
 import { useShortcuts } from './useShortcuts';
 import { Welcome } from './Welcome';
@@ -35,6 +39,7 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
   const { sidebarPosition, sidebarWidth } = settings.appearance;
   const tabs = useWorkspace((s) => s.tabs);
   const activeTabId = useWorkspace((s) => s.activeTabId);
+  const quickConnectOpen = useSsh((s) => s.quickConnectOpen);
   useShortcuts();
   useWindowCloseGuard();
 
@@ -69,6 +74,15 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
       </div>
       <QuickSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ConfirmCloseDialog />
+      <QuickConnectDialog
+        open={quickConnectOpen}
+        onOpenChange={useSsh.getState().setQuickConnectOpen}
+        onConnect={(target) => {
+          useWorkspace.getState().openSshTab(target);
+        }}
+      />
+      <TunnelsDialog />
+      <PromptHost />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { matchShortcut, type CommandId } from '@/terminal/keys';
 import { closeActivePane, closeTab, openDefaultTab } from './actions';
@@ -34,6 +35,9 @@ const APP_COMMANDS: Partial<Record<CommandId, () => void>> = {
   },
   'pane.focusDown': () => {
     useWorkspace.getState().focusNeighbor('down');
+  },
+  'ssh.quickConnect': () => {
+    useSsh.getState().setQuickConnectOpen(true);
   },
 };
 

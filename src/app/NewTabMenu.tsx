@@ -1,4 +1,4 @@
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { ChevronDown, RefreshCw, Server } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useProfiles } from '@/stores/profiles';
+import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { profileIcon } from './profileIcon';
 
@@ -41,6 +42,14 @@ export function NewTabMenu() {
         })}
         {profiles.length === 0 && <DropdownMenuItem disabled>Aucun shell détecté</DropdownMenuItem>}
         <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            useSsh.getState().setQuickConnectOpen(true);
+          }}
+        >
+          <Server strokeWidth={1.5} />
+          Connexion SSH…
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
             void useProfiles.getState().refresh();

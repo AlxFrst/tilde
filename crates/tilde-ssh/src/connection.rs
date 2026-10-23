@@ -9,7 +9,7 @@ use std::{
 use russh::{Channel, ChannelMsg, client};
 use serde::Serialize;
 use tilde_session::OutputFeed;
-use tilde_ssh_config::{ResolveContext, ResolvedHost, SshConfig};
+use tilde_ssh_config::{JumpHost, ResolveContext, ResolvedHost, SshConfig, parse_proxy_jump};
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 use crate::{
@@ -58,6 +58,28 @@ pub enum SshTarget {
 }
 
 impl SshTarget {
+    /// What the user typed: an alias, or `[user@]host[:port]` (`[v6]:port` too).
+    ///
+    /// # Errors
+    ///
+    /// A French message for an empty or malformed target.
+    pub fn parse(text: &str) -> Result<Self, String> {
+        let text = text.trim();
+        if text.is_empty() {
+            return Err("indiquez un hôte (alias de ~/.ssh/config ou user@hôte:port)".into());
+        }
+        if text.contains(',') {
+            return Err(format!("« {text} » : un seul hôte attendu"));
+        }
+        match parse_proxy_jump(text)?.pop() {
+            Some(JumpHost { user, host, port }) if user.is_some() || port.is_some() => {
+                Ok(Self::Direct { user, host, port })
+            }
+            // A bare name (`none` included) is looked up in ssh_config, like `ssh name`.
+            _ => Ok(Self::Alias(text.to_owned())),
+        }
+    }
+
     #[must_use]
     pub fn resolve(&self, config: &SshConfig, ctx: &ResolveContext) -> ResolvedHost {
         match self {
@@ -376,6 +398,30 @@ mod tests {
         let bare =
             SshTarget::Direct { user: None, host: "srv".into(), port: None }.resolve(&config, &ctx);
         assert_eq!((bare.user.as_str(), bare.port), ("alice", 2222));
+    }
+
+    #[test]
+    fn targets_parse_like_the_ssh_command_line() {
+        assert_eq!(SshTarget::parse(" prod ").unwrap(), SshTarget::Alias("prod".into()));
+        assert_eq!(
+            SshTarget::parse("root@db.example:2222").unwrap(),
+            SshTarget::Direct {
+                user: Some("root".into()),
+                host: "db.example".into(),
+                port: Some(2222)
+            }
+        );
+        assert_eq!(
+            SshTarget::parse("db.example:22").unwrap(),
+            SshTarget::Direct { user: None, host: "db.example".into(), port: Some(22) }
+        );
+        assert_eq!(
+            SshTarget::parse("me@[::1]:2200").unwrap(),
+            SshTarget::Direct { user: Some("me".into()), host: "::1".into(), port: Some(2200) }
+        );
+        assert!(SshTarget::parse("").is_err());
+        assert!(SshTarget::parse("a,b").is_err());
+        assert!(SshTarget::parse("host:notaport").is_err());
     }
 
     #[test]

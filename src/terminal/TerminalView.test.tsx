@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-extraneous-class -- stand-ins for xterm addons */
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { OpenSessionOptions } from '@/ipc/session';
+import type { Panel } from '@/workspace/types';
 import { useSettings } from '@/stores/settings';
 import { defaultSettings } from '@/test/fixtures';
 import { TerminalView } from './TerminalView';
@@ -165,11 +166,11 @@ beforeEach(() => {
 
 const panel = { kind: 'terminal' as const, profileId: 'cmd', cwd: 'C:\\x', title: null };
 
-function renderView() {
+function renderView(p: Panel = panel) {
   const props = {
     tabId: 't',
     leafId: 'l',
-    panel,
+    panel: p,
     active: true,
     onExit: vi.fn(),
     onTitle: vi.fn(),
@@ -195,7 +196,12 @@ async function resolveSession(id = 9) {
 test('opens a session with the fitted size and acks written data', async () => {
   const { term } = renderView();
   expect(session.openSession).toHaveBeenCalledWith(
-    expect.objectContaining({ profileId: 'cmd', cwd: 'C:\\x', cols: 80, rows: 24 }),
+    expect.objectContaining({
+      target: { kind: 'local', profileId: 'cmd' },
+      cwd: 'C:\\x',
+      cols: 80,
+      rows: 24,
+    }),
   );
   await resolveSession(9);
   act(() => {
@@ -301,4 +307,21 @@ test('a hidden pane (zero size) is never refitted', async () => {
     });
   });
   expect(fitCalls.count).toBeGreaterThan(0);
+});
+
+test('an ssh pane shows its connection progress and offers to retry a failure', () => {
+  renderView({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  expect(session.openSession).toHaveBeenCalledWith(
+    expect.objectContaining({ target: { kind: 'ssh', target: 'prod' } }),
+  );
+  act(() => {
+    ipc.open?.onState?.({ kind: 'connecting', hop: 'bastion 1/2 (b1)' });
+  });
+  expect(screen.getByText('Connexion à bastion 1/2 (b1)…')).toBeInTheDocument();
+  act(() => {
+    ipc.open?.onState?.({ kind: 'failed', message: 'authentification refusée' });
+  });
+  expect(screen.getByText('authentification refusée')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+  expect(session.openSession).toHaveBeenCalledTimes(2);
 });

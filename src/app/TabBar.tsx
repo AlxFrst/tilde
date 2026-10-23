@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, X } from 'lucide-react';
+import { Plus, Server, X } from 'lucide-react';
 import { useState } from 'react';
 import {
   ContextMenu,
@@ -19,11 +19,14 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useProfiles } from '@/stores/profiles';
+import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { cn } from '@/lib/utils';
+import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf, leaves } from '@/workspace/tree';
 import type { Tab } from '@/workspace/types';
 import { closeTab, openDefaultTab } from './actions';
+import { StatusDot } from './ConnectionStatus';
 import { NewTabMenu } from './NewTabMenu';
 import { profileIcon } from './profileIcon';
 
@@ -38,15 +41,27 @@ const TAB_COLORS = [
 function useTabLabel(tab: Tab) {
   const profiles = useProfiles((s) => s.profiles);
   const leaf = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
-  const profile = profiles.find((p) => p.id === leaf?.panel.profileId);
-  const title =
-    tab.customTitle ?? leaf?.panel.title ?? profile?.name ?? leaf?.panel.profileId ?? '';
-  return { title, Icon: profileIcon(profile?.icon), profileColor: profile?.color ?? null };
+  const panel = leaf?.panel;
+  const connection = useSsh((s) => (leaf ? s.states[leaf.id] : undefined));
+  if (panel?.kind === 'ssh') {
+    const title = tab.customTitle ?? panel.title ?? panel.target;
+    return { title, Icon: Server, profileColor: null, leaf, panel, connection };
+  }
+  const profile = profiles.find((p) => p.id === panel?.profileId);
+  const title = tab.customTitle ?? panel?.title ?? profile?.name ?? panel?.profileId ?? '';
+  return {
+    title,
+    Icon: profileIcon(profile?.icon),
+    profileColor: profile?.color ?? null,
+    leaf,
+    panel,
+    connection,
+  };
 }
 
 function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
   const ws = useWorkspace.getState;
-  const { title, Icon, profileColor } = useTabLabel(tab);
+  const { title, Icon, profileColor, leaf, panel, connection } = useTabLabel(tab);
   const [editing, setEditing] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tab.id,
@@ -111,6 +126,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
           ) : (
             <span className="truncate">{title}</span>
           )}
+          {panel?.kind === 'ssh' && !editing && <StatusDot state={connection} />}
           {!editing && (
             <button
               type="button"
@@ -168,10 +184,20 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
           />
         </div>
         <ContextMenuSeparator />
+        {panel?.kind === 'ssh' && leaf && (
+          <ContextMenuItem
+            onSelect={() => {
+              const [sessionId] = sessionsFor([leaf.id]);
+              if (sessionId !== undefined) useSsh.getState().setTunnels({ sessionId, title });
+            }}
+          >
+            Tunnels…
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => {
-            const leaf = findLeaf(tab.root, tab.activeLeafId);
-            if (leaf) ws().openTab(leaf.panel.profileId, leaf.panel.cwd);
+            if (panel?.kind === 'ssh') ws().openSshTab(panel.target);
+            else if (panel) ws().openTab(panel.profileId, panel.cwd);
           }}
         >
           Dupliquer

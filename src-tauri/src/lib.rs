@@ -2,15 +2,22 @@
 
 mod commands;
 mod logging;
+mod prompter;
 mod state;
 
 use parking_lot::Mutex;
-use tauri::Manager;
+use std::sync::Arc;
+
+use tauri::{Emitter, Manager};
 use tauri_plugin_window_state::StateFlags;
 use tilde_config::{ConfigErrorDto, ConfigPaths, SettingsStore, watch_settings};
 use tilde_session::SessionManager;
 
-use crate::{commands::settings::on_settings_file_changed, state::AppState};
+use crate::{
+    commands::settings::on_settings_file_changed,
+    prompter::{DISMISS_EVENT, Notice, PROMPT_EVENT, PROMPT_TIMEOUT, UiPrompter},
+    state::AppState,
+};
 
 /// The front-end shows the (initially hidden) window once it has rendered. If it crashes
 /// before that, the window would stay invisible forever — and single-instance would only
@@ -70,8 +77,20 @@ pub fn run() {
             watcher: Mutex::new(None),
             sessions: SessionManager::new(),
             shells: Mutex::new(None),
+            ssh: state::SshState::default(),
         })
         .setup(move |app| {
+            let handle = app.handle().clone();
+            let prompter = UiPrompter::new(
+                Box::new(move |notice| {
+                    let _ = match notice {
+                        Notice::Ask(event) => handle.emit(PROMPT_EVENT, event),
+                        Notice::Dismiss(id) => handle.emit(DISMISS_EVENT, id),
+                    };
+                }),
+                PROMPT_TIMEOUT,
+            );
+            let _ = app.state::<AppState>().ssh.prompter.set(Arc::new(prompter));
             let handle = app.handle().clone();
             match watch_settings(&paths, move || on_settings_file_changed(&handle)) {
                 Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
@@ -100,6 +119,12 @@ pub fn run() {
             commands::session::session_ack,
             commands::session::session_close,
             commands::session::session_busy,
+            commands::ssh::ssh_hosts,
+            commands::ssh::ssh_prompt_reply,
+            commands::ssh::secrets_available,
+            commands::ssh::ssh_forwards,
+            commands::ssh::ssh_forward_add,
+            commands::ssh::ssh_forward_remove,
             commands::workspace::workspace_load,
             commands::workspace::workspace_save,
         ])

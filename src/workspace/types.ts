@@ -12,10 +12,24 @@ export interface TerminalPanel {
   title: string | null;
 }
 
+export interface SshPanel {
+  kind: 'ssh';
+  /** An alias of ~/.ssh/config or `user@host:port`. */
+  target: string;
+  /** Last known remote directory (OSC 7). */
+  cwd: string | null;
+  title: string | null;
+}
+
+export type Panel = TerminalPanel | SshPanel;
+
+/** The fields every panel kind shares and the terminal updates. */
+export type PanelPatch = Partial<Pick<Panel, 'cwd' | 'title'>>;
+
 export interface LeafNode {
   type: 'leaf';
   id: string;
-  panel: TerminalPanel;
+  panel: Panel;
 }
 
 export interface SplitNode {

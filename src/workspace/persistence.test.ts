@@ -22,7 +22,10 @@ const profile = (id: string): ResolvedProfile => ({
 });
 
 const ws = () => useWorkspace.getState();
-const profileIds = () => ws().tabs.flatMap((t) => leaves(t.root).map((l) => l.panel.profileId));
+const profileIds = () =>
+  ws().tabs.flatMap((t) =>
+    leaves(t.root).map((l) => (l.panel.kind === 'terminal' ? l.panel.profileId : l.panel.target)),
+  );
 
 beforeEach(() => {
   vi.mocked(loadWorkspace).mockReset();

@@ -5449,6 +5449,7 @@ dependencies = [
 name = "tilde"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dirs",
  "parking_lot",
  "serde",
@@ -5463,6 +5464,9 @@ dependencies = [
  "tilde-config",
  "tilde-pty",
  "tilde-session",
+ "tilde-ssh",
+ "tilde-ssh-config",
+ "tokio",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
