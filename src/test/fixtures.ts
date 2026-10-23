@@ -27,7 +27,12 @@ export const defaultSettings: Settings = {
     rightClick: 'menu',
     confirmClose: true,
   },
-  ssh: { keepaliveIntervalSecs: 15, keepaliveCountMax: 3, autoReconnect: true, confirmCloseSsh: true },
+  ssh: {
+    keepaliveIntervalSecs: 15,
+    keepaliveCountMax: 3,
+    autoReconnect: true,
+    confirmCloseSsh: true,
+  },
   sftp: { concurrency: 3, editorMode: 'external', externalEditor: null },
   general: { restoreSession: true, quake: { enabled: false, shortcut: 'Ctrl+`' } },
 };

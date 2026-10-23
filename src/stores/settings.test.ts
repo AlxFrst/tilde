@@ -62,7 +62,11 @@ test('changed event replaces settings and clears error', async () => {
 });
 
 test('error event toasts and turns read-only', async () => {
-  vi.mocked(invoke).mockResolvedValueOnce({ settings: defaultSettings, readOnly: false, error: null });
+  vi.mocked(invoke).mockResolvedValueOnce({
+    settings: defaultSettings,
+    readOnly: false,
+    error: null,
+  });
   await useSettings.getState().init();
   emit('settings://error', { kind: 'parse', message: 'boom', line: 3, column: 5 });
   expect(useSettings.getState().readOnly).toBe(true);
@@ -77,7 +81,9 @@ test('update failure keeps previous settings and toasts', async () => {
     path: 'terminal.fontSize',
   });
   await useSettings.getState().update({ terminal: { fontSize: 100 } });
-  expect(invoke).toHaveBeenCalledWith('settings_update', { patch: { terminal: { fontSize: 100 } } });
+  expect(invoke).toHaveBeenCalledWith('settings_update', {
+    patch: { terminal: { fontSize: 100 } },
+  });
   expect(useSettings.getState().settings).toEqual(defaultSettings);
   expect(vi.mocked(toast.error).mock.calls[0]?.[0]).toContain('terminal.fontSize');
 });
