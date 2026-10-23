@@ -211,3 +211,39 @@ test('a second Ctrl+S during a save waits for it instead of raising a false conf
     false,
   );
 });
+
+test('closing the SSH pane an unsaved editor depends on asks first', async () => {
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'ssh-1',
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          sizes: [50, 50],
+          children: [
+            {
+              type: 'leaf',
+              id: 'ssh-1',
+              panel: { kind: 'ssh', target: 'prod', connectionId: null, cwd: null, title: null },
+            },
+            { type: 'leaf', id: 'ed-1', panel: state },
+          ],
+        },
+      },
+    ],
+    activeTabId: 't1',
+  });
+  useEditors.setState({ docs: { 'ed-1': { name: 'config.yml', dirty: true, text: 'z' } } });
+  render(<ConfirmCloseDialog />);
+  act(() => {
+    void closePane('t1', 'ssh-1');
+  });
+  expect(
+    await screen.findByText(/Modifications non enregistrées dans config\.yml/),
+  ).toBeInTheDocument();
+});

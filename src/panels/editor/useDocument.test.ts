@@ -105,3 +105,23 @@ test('a remote document waits for its SSH session', () => {
   expect(result.current.status).toBe('loading');
   expect(editorOpenRemote).not.toHaveBeenCalled();
 });
+
+test('saving without the SSH session says so instead of sending a bad id', async () => {
+  vi.mocked(editorOpenRemote).mockResolvedValue({ text: 'a\n', stamp: v1 });
+  const initialProps: { sid: number | null } = { sid: 4 };
+  const { result, rerender } = renderHook((props) => useDocument(remote, props.sid), {
+    initialProps,
+  });
+  await waitFor(() => {
+    expect(result.current.status).toBe('ready');
+  });
+  rerender({ sid: null });
+  let outcome = '';
+  await act(async () => {
+    outcome = await result.current.save('b\n');
+  });
+  expect(outcome).toBe('error');
+  expect(editorSaveRemote).not.toHaveBeenCalled();
+  const { toast } = await import('sonner');
+  expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/Connexion SSH perdue/));
+});

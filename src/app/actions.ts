@@ -25,8 +25,27 @@ export function openConnection(c: Connection): void {
   useWorkspace.getState().openSshTab(c.host, c.id);
 }
 
+/**
+ * Files with unsaved changes that closing these panes would lose: editors among them,
+ * and remote editors that depend on one of them (their SSH pane).
+ */
+export function unsavedIn(leafIds: readonly string[]): string[] {
+  const closing = new Set(leafIds);
+  const linked = useWorkspace
+    .getState()
+    .tabs.flatMap((t) => leaves(t.root))
+    .filter(
+      (l) =>
+        l.panel.kind === 'editor' &&
+        l.panel.source.kind === 'remote' &&
+        closing.has(l.panel.source.linkedLeafId),
+    )
+    .map((l) => l.id);
+  return dirtyEditors([...new Set([...leafIds, ...linked])]);
+}
+
 export async function closePane(tabId: string, leafId: string): Promise<void> {
-  if (await confirmClose(sessionsFor([leafId]), dirtyEditors([leafId]))) {
+  if (await confirmClose(sessionsFor([leafId]), unsavedIn([leafId]))) {
     useWorkspace.getState().closeLeaf(tabId, leafId);
   }
 }
@@ -35,7 +54,7 @@ export async function closeTab(tabId: string): Promise<void> {
   const tab = useWorkspace.getState().tabs.find((t) => t.id === tabId);
   if (!tab) return;
   const leafIds = leaves(tab.root).map((l) => l.id);
-  if (await confirmClose(sessionsFor(leafIds), dirtyEditors(leafIds))) {
+  if (await confirmClose(sessionsFor(leafIds), unsavedIn(leafIds))) {
     useWorkspace.getState().closeTab(tabId);
   }
 }

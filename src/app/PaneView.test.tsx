@@ -185,7 +185,11 @@ test('a pane that crashes is contained; the others keep running', () => {
           direction: 'row',
           sizes: [50, 50],
           children: [
-            { type: 'leaf', id: 'a', panel: { kind: 'terminal', profileId: 'pwsh', cwd: null, title: null } },
+            {
+              type: 'leaf',
+              id: 'a',
+              panel: { kind: 'terminal', profileId: 'pwsh', cwd: null, title: null },
+            },
             { type: 'leaf', id: 'b', panel: { kind: 'boom' } },
           ],
         } as never,
@@ -198,4 +202,47 @@ test('a pane that crashes is contained; the others keep running', () => {
   expect(screen.getByRole('alert')).toHaveTextContent(/kaboom/);
   spy.mockRestore();
   off();
+});
+
+test('a clean exit keeps an SSH pane open while an editor linked to it has unsaved changes', async () => {
+  const { useEditors } = await import('@/stores/editors');
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'a',
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          sizes: [50, 50],
+          children: [
+            {
+              type: 'leaf',
+              id: 'a',
+              panel: { kind: 'ssh', target: 'prod', connectionId: null, cwd: null, title: null },
+            },
+            {
+              type: 'leaf',
+              id: 'ed',
+              panel: {
+                kind: 'editor',
+                source: { kind: 'remote', linkedLeafId: 'a', path: '/etc/x' },
+                cwd: null,
+                title: null,
+              },
+            },
+          ],
+        },
+      },
+    ],
+    activeTabId: 't1',
+  });
+  useEditors.setState({ docs: { ed: { name: 'x', dirty: true, text: 'y' } } });
+  render(<Live />);
+  fireEvent.click(screen.getByText('exit0-a'));
+  expect(leaves(tab().root).map((l) => l.id)).toContain('a');
+  useEditors.setState({ docs: {} });
 });

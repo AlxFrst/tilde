@@ -2,6 +2,7 @@
 
 import { FolderTree, Server, SquareTerminal } from 'lucide-react';
 import { toast } from 'sonner';
+import { unsavedIn } from '@/app/actions';
 import { SftpPanelView } from '@/panels/sftp/SftpPanel';
 import { TerminalView } from '@/terminal/TerminalView';
 import type { SftpPanel, SshPanel, TerminalPanel } from '@/workspace/types';
@@ -27,8 +28,9 @@ function TerminalPane({
       panel={state}
       active={active}
       onExit={(code) => {
-        // A clean exit closes the pane; otherwise the overlay shows the code.
-        if (code === 0) close();
+        // A clean exit closes the pane, unless an editor still needs its session to save;
+        // otherwise the overlay shows the code.
+        if (code === 0 && unsavedIn([leafId]).length === 0) close();
       }}
       onTitle={(title) => {
         update({ title });

@@ -90,6 +90,10 @@ export function useDocument(source: FileSource, sessionId: number | null): Docum
 
   const save = useCallback(
     async (next: string, force = false): Promise<SaveOutcome> => {
+      if (remotePath !== null && sessionId === null) {
+        toast.error('Connexion SSH perdue : reconnectez l’onglet SSH pour enregistrer ce fichier.');
+        return 'error';
+      }
       try {
         const written =
           remotePath !== null
