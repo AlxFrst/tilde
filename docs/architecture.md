@@ -58,6 +58,29 @@ CSS `--tilde-*`, que Tailwind et shadcn consomment via `src/styles/globals.css`.
 est résolu à partir de `appearance.colorScheme`, `themeDark`, `themeLight` et de la préférence
 de l'OS. Les tests vérifient le contraste WCAG de chaque thème intégré.
 
+```
+src/themes/builtin      ports intégrés
+src/themes/parse        validation d'un fichier de thème, tokens UI dérivés du terminal
+src/themes/importers    iTerm2 (DOMParser), Windows Terminal (JSONC), base16 (YAML ligne à ligne)
+crates/tilde-config/themes.rs  themes/<id>.json : ids sûrs, taille plafonnée, écriture atomique
+src/stores/themes       thèmes utilisateur + thème d'aperçu de l'éditeur
+src/themes/useActiveTheme  aperçu, sinon thème choisi : seule source pour le CSS et xterm
+```
+
+- **Rust garde le système de fichiers, le front garde les couleurs** : Rust refuse les ids
+  dangereux (`..`, séparateurs, noms réservés Windows) et les fichiers trop gros ; le front
+  valide chaque couleur avec le même code que pour les imports.
+- **Raccourcis** : `keybindings.json` (`KeybindingsStore`, même modèle que `connections.json`)
+  ne contient que les écarts aux défauts. Le front calcule la table effective
+  (`src/stores/keybindings`) et `src/terminal/keys` la compile pour `matchShortcut`, utilisé par
+  `useShortcuts` et le terminal.
+- **Transparence** : la fenêtre est créée transparente ; `window_apply_effects` applique Mica,
+  Acrylic ou vibrancy via `set_effects` de Tauri (`window-vibrancy`). L'opacité
+  (`--tilde-bg-alpha`) ne touche que les fonds de niveau fenêtre et celui du terminal.
+- **Quake** : raccourci global enregistré depuis Rust (`tauri-plugin-global-shortcut`, aucune
+  permission côté front) ; fenêtre `quake` créée à la première utilisation, masquée au lieu
+  d'être fermée. Le front la reconnaît à son label et n'y restaure ni n'enregistre rien.
+
 ## Sessions de terminal
 
 ```
@@ -199,4 +222,4 @@ n'exécute jamais les callbacks d'animation. La position et la taille sont resta
   `dangerousDisableAssetCspModification: ["style-src"]` pour que Tauri n'y injecte pas de
   nonce, qui désactiverait `'unsafe-inline'`.
 - Permissions minimales (`src-tauri/capabilities/default.json`) : aucun plugin `fs` ni `shell`
-  côté WebView ; `opener` n'est appelé que depuis Rust.
+  côté WebView ; `opener` et `global-shortcut` ne sont utilisés que depuis Rust.
