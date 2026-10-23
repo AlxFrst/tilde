@@ -1,4 +1,4 @@
-import { sameSource } from '@/panels/editor/fileName';
+import { sameSource, samePreviewSource } from '@/panels/editor/fileName';
 import { serializeSnapshot } from '@/workspace/serialize';
 import { create } from 'zustand';
 import {
@@ -13,6 +13,7 @@ import {
 import type {
   Direction,
   FileSource,
+  PreviewSource,
   FocusDirection,
   LayoutNode,
   LeafNode,
@@ -32,6 +33,8 @@ interface WorkspaceState {
   openSftpBeside: (sshLeafId: string) => void;
   /** Opens a file in the built-in editor beside a pane (new tab if `null`), or focuses it. */
   openEditor: (besideLeafId: string | null, source: FileSource) => void;
+  /** Opens a preview beside a pane, or focuses one already showing the same thing. */
+  openPreview: (besideLeafId: string, source: PreviewSource) => void;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
   activateRelative: (delta: 1 | -1) => void;
@@ -115,6 +118,36 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       };
       const tab = besideLeafId ? tabs.find((t) => findLeaf(t.root, besideLeafId)) : undefined;
       if (!tab || !besideLeafId) {
+        addTab(leaf);
+        return;
+      }
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, besideLeafId, 'row', leaf),
+        activeLeafId: leaf.id,
+      }));
+      set({ activeTabId: tab.id });
+    },
+
+    openPreview: (besideLeafId, source) => {
+      const { tabs } = get();
+      for (const t of tabs) {
+        const open = leaves(t.root).find(
+          (l) => l.panel.kind === 'preview' && samePreviewSource(l.panel.source, source),
+        );
+        if (open) {
+          set({ activeTabId: t.id });
+          get().focusLeaf(t.id, open.id);
+          return;
+        }
+      }
+      const leaf: LeafNode = {
+        type: 'leaf',
+        id: crypto.randomUUID(),
+        panel: { kind: 'preview', source, cwd: null, title: null },
+      };
+      const tab = tabs.find((t) => findLeaf(t.root, besideLeafId));
+      if (!tab) {
         addTab(leaf);
         return;
       }

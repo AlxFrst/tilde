@@ -59,7 +59,18 @@ export interface EditorPanel {
   title: null;
 }
 
-export type Panel = TerminalPanel | SshPanel | SftpPanel | EditorPanel;
+/** What a preview shows: a file, or an editor's text as it is typed. */
+export type PreviewSource = FileSource | { kind: 'editor'; editorLeafId: string; name: string };
+
+/** Markdown, image or JSON preview. Not saved in workspace.json. */
+export interface PreviewPanel {
+  kind: 'preview';
+  source: PreviewSource;
+  cwd: null;
+  title: null;
+}
+
+export type Panel = TerminalPanel | SshPanel | SftpPanel | EditorPanel | PreviewPanel;
 
 /** What a pane may update in its own panel (fields it does not have are ignored). */
 export type PanelPatch = Record<string, unknown>;

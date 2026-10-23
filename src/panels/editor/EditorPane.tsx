@@ -1,11 +1,12 @@
 // The built-in editor pane (loaded on demand: CodeMirror is not in the startup bundle).
 
-import { ExternalLink, RotateCcw, Save, TriangleAlert } from 'lucide-react';
+import { ExternalLink, Eye, RotateCcw, Save, TriangleAlert } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { editorCloseLocal } from '@/ipc/editor';
 import { sftpEdit } from '@/ipc/sftp';
+import { previewKind } from '@/panels/preview/previewKind';
 import type { PanelProps } from '@/panels/registry';
 import { useEditors } from '@/stores/editors';
 import { useSettings } from '@/stores/settings';
@@ -148,6 +149,20 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
         )}
         <span className="text-text-muted">{languageLabel(name)}</span>
         <span className="ml-auto flex items-center gap-1">
+          {previewKind(name) !== null && previewKind(name) !== 'image' && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                useWorkspace
+                  .getState()
+                  .openPreview(leafId, { kind: 'editor', editorLeafId: leafId, name });
+              }}
+            >
+              <Eye strokeWidth={1.5} />
+              Aperçu
+            </Button>
+          )}
           {source.kind === 'remote' && (
             <Button
               variant="ghost"
