@@ -28,3 +28,4 @@ pub use lexer::lex_line;
 pub use model::{Block, Diagnostic, Directive, SshConfig};
 pub use pattern::host_matches;
 pub use resolve::{ResolveContext, ResolvedHost};
+pub use tokens::tilde_expand;

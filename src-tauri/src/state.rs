@@ -5,7 +5,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use tilde_config::{ConfigErrorDto, SettingsStore, SettingsWatcher};
+use tilde_config::{ConfigErrorDto, ConfigWatcher, ConnectionsStore, SettingsStore};
 use tilde_pty::ShellCandidate;
 use tilde_session::SessionManager;
 use tilde_ssh::{KeyringStore, SshShell};
@@ -20,7 +20,10 @@ pub struct AppState {
     /// `None` when the OS gives no data directory; logs then go to stderr only.
     pub log_dir: Option<PathBuf>,
     /// Kept alive for hot reload; `None` if the watcher could not start.
-    pub watcher: Mutex<Option<SettingsWatcher>>,
+    pub watcher: Mutex<Option<ConfigWatcher>>,
+    pub connections: Mutex<ConnectionsStore>,
+    /// Why `connections.json` is currently unusable, if it is.
+    pub connections_error: Mutex<Option<ConfigErrorDto>>,
     pub sessions: SessionManager,
     /// Detected shells; filled in the background at startup, cleared by `profiles_refresh`.
     pub shells: Mutex<Option<Vec<ShellCandidate>>>,

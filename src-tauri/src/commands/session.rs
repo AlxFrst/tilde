@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-    State,
+    AppHandle, State,
     ipc::{Channel, InvokeBody, InvokeResponseBody, Request},
 };
 use tilde_session::{OutputSink, SessionError, SessionId, SessionSpec};
@@ -16,7 +16,13 @@ use tilde_ssh::{
 };
 use tilde_ssh_config::{ResolveContext, parse_file};
 
-use crate::{commands::profiles::current_profiles, state::AppState};
+use crate::{
+    commands::{
+        connections::{emit_changed, ssh_target_for},
+        profiles::current_profiles,
+    },
+    state::AppState,
+};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,9 +39,11 @@ pub enum OpenTarget {
     Local {
         profile_id: String,
     },
-    /// An alias of `~/.ssh/config` or `[user@]host[:port]`.
+    /// An alias of `~/.ssh/config` or `[user@]host[:port]`, or a saved connection
+    /// (`target` is then its host, used if the connection no longer exists).
     Ssh {
         target: String,
+        connection_id: Option<String>,
     },
 }
 
@@ -104,6 +112,7 @@ pub(crate) fn start_dir(requested: Option<&str>, profile_cwd: Option<&str>) -> O
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // Tauri command: one argument per IPC field
 pub async fn session_open(
+    app: AppHandle,
     state: State<'_, AppState>,
     target: OpenTarget,
     cwd: Option<String>,
@@ -116,8 +125,15 @@ pub async fn session_open(
         OpenTarget::Local { profile_id } => {
             open_local(&state, profile_id, cwd, cols, rows, output, events)
         }
-        OpenTarget::Ssh { target } => {
-            let id = open_ssh(&state, &target, cols, rows, output, events).await?;
+        OpenTarget::Ssh { target, connection_id } => {
+            let (ssh_target, (key, label)) = {
+                let store = state.connections.lock();
+                ssh_target_for(store.file(), &target, connection_id.as_deref())
+                    .map_err(|message| SessionErrorDto { kind: "ssh", message })?
+            };
+            let id = open_ssh(&state, ssh_target, cols, rows, output, events).await?;
+            state.connections.lock().record_recent(&key, &label);
+            emit_changed(&app);
             Ok(SessionOpened { id, profile_id: None })
         }
     }
@@ -158,14 +174,12 @@ fn open_local(
 /// Connects (asking the user through `ssh://prompt` as needed) and registers the shell.
 async fn open_ssh(
     state: &AppState,
-    text: &str,
+    target: SshTarget,
     cols: u16,
     rows: u16,
     output: Channel<InvokeResponseBody>,
     events: Channel<SessionEvent>,
 ) -> Result<u32, SessionErrorDto> {
-    let target =
-        SshTarget::parse(text).map_err(|message| SessionErrorDto { kind: "ssh", message })?;
     let settings = state.settings.lock().settings().ssh.clone();
     let prompter = state.ssh.prompter.get().cloned().ok_or_else(|| SessionErrorDto {
         kind: "ssh",

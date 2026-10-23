@@ -8,9 +8,12 @@ use std::{
     time::Duration,
 };
 
+use parking_lot::Mutex;
 use serde_json::json;
 use tempfile::TempDir;
-use tilde_config::{ConfigError, ConfigPaths, ReloadOutcome, SettingsStore, watch_settings};
+use tilde_config::{
+    ConfigError, ConfigFile, ConfigPaths, ReloadOutcome, SettingsStore, watch_config,
+};
 
 fn loaded() -> (TempDir, SettingsStore) {
     let dir = TempDir::new().unwrap();
@@ -105,7 +108,8 @@ fn atomic_rename_triggers_single_reload() {
     thread::sleep(Duration::from_millis(200));
     let count = Arc::new(AtomicUsize::new(0));
     let c = Arc::clone(&count);
-    let _watcher = watch_settings(&paths, move || {
+    let _watcher = watch_config(&paths, move |file| {
+        assert_eq!(file, ConfigFile::Settings);
         c.fetch_add(1, Ordering::SeqCst);
     })
     .unwrap();
@@ -116,4 +120,19 @@ fn atomic_rename_triggers_single_reload() {
 
     thread::sleep(Duration::from_millis(600));
     assert_eq!(count.load(Ordering::SeqCst), 1);
+}
+
+#[test]
+fn watch_reports_which_file_changed() {
+    let (_dir, store) = loaded();
+    let paths = store.paths().clone();
+    thread::sleep(Duration::from_millis(200));
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let s = Arc::clone(&seen);
+    let _watcher = watch_config(&paths, move |file| s.lock().push(file)).unwrap();
+
+    fs::write(paths.connections_file(), r#"{"version":1}"#).unwrap();
+    fs::write(paths.root.join("unrelated.txt"), "x").unwrap();
+    thread::sleep(Duration::from_millis(600));
+    assert_eq!(*seen.lock(), vec![ConfigFile::Connections]);
 }

@@ -20,6 +20,7 @@ tilde-ssh-config = { path = "../tilde-ssh-config" }
 tracing = "0.1"
 
 [dev-dependencies]
+parking_lot = "0.12"
 insta = { version = "1", features = ["json"] }
 tempfile = "3"
 

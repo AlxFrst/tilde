@@ -22,5 +22,5 @@ pub use migrate::migrate;
 pub use paths::ConfigPaths;
 pub use settings::*;
 pub use store::{ReloadOutcome, SettingsStore};
-pub use watch::{SettingsWatcher, watch_settings};
+pub use watch::{ConfigFile, ConfigWatcher, watch_config};
 pub use workspace::{load_workspace, save_workspace};
