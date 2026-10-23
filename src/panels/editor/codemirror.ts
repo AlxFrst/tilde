@@ -24,59 +24,75 @@ export interface EditorHandle {
   destroy: () => void;
 }
 
-export function createEditor(opts: {
-  parent: HTMLElement;
+/** The line ending most of the file uses (`\n` for a file without any). */
+export function detectLineEnding(text: string): '\r\n' | '\n' {
+  const crlf = text.split('\r\n').length - 1;
+  const lf = text.split('\n').length - 1 - crlf;
+  return crlf > lf ? '\r\n' : '\n';
+}
+
+export interface EditorOptions {
   doc: string;
   language: Extension | null;
   theme: Extension;
   readOnly?: boolean;
   onChange: (text: string) => void;
   onSave: () => void;
-}): EditorHandle {
-  const language = new Compartment();
-  const theme = new Compartment();
-  const view = new EditorView({
-    parent: opts.parent,
-    state: EditorState.create({
-      doc: opts.doc,
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        foldGutter(),
-        history(),
-        drawSelection(),
-        indentOnInput(),
-        bracketMatching(),
-        closeBrackets(),
-        autocompletion({ activateOnTyping: false }),
-        highlightActiveLine(),
-        highlightSelectionMatches(),
-        search({ top: true }),
-        EditorState.readOnly.of(opts.readOnly ?? false),
-        keymap.of([
-          {
-            key: 'Mod-s',
-            preventDefault: true,
-            run: () => {
-              opts.onSave();
-              return true;
-            },
+}
+
+const language = new Compartment();
+const theme = new Compartment();
+
+/**
+ * The editor state. The file's own line ending is kept: CodeMirror would otherwise
+ * write every line back with `\n` (rewriting a Windows file on save).
+ */
+export function createEditorState(opts: EditorOptions): EditorState {
+  return EditorState.create({
+    doc: opts.doc,
+    extensions: [
+      EditorState.lineSeparator.of(detectLineEnding(opts.doc)),
+      lineNumbers(),
+      highlightActiveLineGutter(),
+      foldGutter(),
+      history(),
+      drawSelection(),
+      indentOnInput(),
+      bracketMatching(),
+      closeBrackets(),
+      autocompletion({ activateOnTyping: false }),
+      highlightActiveLine(),
+      highlightSelectionMatches(),
+      search({ top: true }),
+      EditorState.readOnly.of(opts.readOnly ?? false),
+      keymap.of([
+        {
+          key: 'Mod-s',
+          preventDefault: true,
+          run: () => {
+            opts.onSave();
+            return true;
           },
-          indentWithTab,
-          ...closeBracketsKeymap,
-          ...defaultKeymap,
-          ...searchKeymap,
-          ...historyKeymap,
-          ...foldKeymap,
-        ]),
-        language.of(opts.language ?? []),
-        theme.of(opts.theme),
-        EditorView.updateListener.of((u) => {
-          if (u.docChanged) opts.onChange(u.state.doc.toString());
-        }),
-      ],
-    }),
+        },
+        indentWithTab,
+        ...closeBracketsKeymap,
+        ...defaultKeymap,
+        ...searchKeymap,
+        ...historyKeymap,
+        ...foldKeymap,
+      ]),
+      language.of(opts.language ?? []),
+      theme.of(opts.theme),
+      EditorView.updateListener.of((u) => {
+        // sliceDoc() joins lines with the file's own line ending; doc.toString() does not.
+        if (u.docChanged) opts.onChange(u.state.sliceDoc());
+      }),
+    ],
   });
+}
+
+export function createEditor(opts: EditorOptions & { parent: HTMLElement }): EditorHandle {
+  const view = new EditorView({ parent: opts.parent, state: createEditorState(opts) });
   return {
     view,
     setDoc: (text) => {
