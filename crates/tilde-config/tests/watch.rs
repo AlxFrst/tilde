@@ -53,6 +53,51 @@ fn reload_with_bad_file_keeps_previous() {
 }
 
 #[test]
+fn undo_to_last_app_write_after_broken_edit_unlocks() {
+    let (_dir, mut store) = loaded();
+    store.update(&json!({"terminal": {"fontSize": 16}})).unwrap();
+    let file = store.paths().settings_file();
+    let app_bytes = fs::read(&file).unwrap();
+
+    fs::write(&file, "{typo").unwrap();
+    assert!(store.reload_from_disk().is_err());
+    assert!(store.read_only());
+
+    // The user undoes the typo: the file is byte-for-byte what the app last wrote.
+    fs::write(&file, &app_bytes).unwrap();
+    assert!(matches!(store.reload_from_disk(), Ok(ReloadOutcome::Changed(_))));
+    assert!(!store.read_only());
+}
+
+#[test]
+fn undo_external_edit_back_to_app_bytes_is_applied() {
+    let (_dir, mut store) = loaded();
+    store.update(&json!({"terminal": {"fontSize": 16}})).unwrap();
+    let file = store.paths().settings_file();
+    let app_bytes = fs::read(&file).unwrap();
+
+    fs::write(&file, r#"{"version":1,"terminal":{"fontSize":20}}"#).unwrap();
+    store.reload_from_disk().unwrap();
+    assert_eq!(store.settings().terminal.font_size, 20);
+
+    fs::write(&file, &app_bytes).unwrap();
+    store.reload_from_disk().unwrap();
+    assert_eq!(store.settings().terminal.font_size, 16);
+}
+
+#[test]
+fn migration_on_reload_keeps_the_first_backup() {
+    let (_dir, mut store) = loaded();
+    let root = store.paths().root.clone();
+    let file = store.paths().settings_file();
+    fs::write(root.join("settings.json.v0.bak"), "original backup").unwrap();
+
+    fs::write(&file, r#"{"terminal":{"fontSize":17}}"#).unwrap();
+    assert!(matches!(store.reload_from_disk(), Ok(ReloadOutcome::Changed(_))));
+    assert_eq!(fs::read_to_string(root.join("settings.json.v0.bak")).unwrap(), "original backup");
+}
+
+#[test]
 fn atomic_rename_triggers_single_reload() {
     let (_dir, store) = loaded();
     let paths = store.paths().clone();

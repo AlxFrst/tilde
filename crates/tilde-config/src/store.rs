@@ -88,8 +88,7 @@ impl SettingsStore {
         self.raw = with_schema_first(parsed.raw);
         self.settings = parsed.settings;
         if let Some(from) = parsed.migrated_from {
-            let backup = root.join(format!("settings.json.v{from}.bak"));
-            fs::write(&backup, &text).map_err(|e| io_err(&backup, e))?;
+            self.backup_once(from, &text)?;
             self.write_raw(&self.raw.clone())?;
             tracing::info!(from, to = SETTINGS_VERSION, "settings.json migrated");
         }
@@ -149,22 +148,34 @@ impl SettingsStore {
     pub fn reload_from_disk(&mut self) -> Result<ReloadOutcome, ConfigError> {
         let file = self.paths.settings_file();
         let text = fs::read_to_string(&file).map_err(|e| io_err(&file, e))?;
-        if self.last_written_hash == Some(hash_bytes(text.as_bytes())) {
+        // One-shot: the hash only identifies the event caused by our own last write. A
+        // later file with the same bytes (e.g. the user undoing an edit) is a real change.
+        if self.last_written_hash.take() == Some(hash_bytes(text.as_bytes())) {
             return Ok(ReloadOutcome::SelfWrite);
         }
         let parsed = parse_document(&text).inspect_err(|_| self.read_only = true)?;
-        let was_read_only = std::mem::replace(&mut self.read_only, false);
-        self.raw = with_schema_first(parsed.raw);
+        let raw = with_schema_first(parsed.raw);
         if let Some(from) = parsed.migrated_from {
-            let backup = self.paths.root.join(format!("settings.json.v{from}.bak"));
-            fs::write(&backup, &text).map_err(|e| io_err(&backup, e))?;
-            self.write_raw(&self.raw.clone())?;
+            self.backup_once(from, &text)?;
+            self.write_raw(&raw)?;
         }
+        let was_read_only = std::mem::replace(&mut self.read_only, false);
+        self.raw = raw;
         if parsed.settings == self.settings && !was_read_only {
             return Ok(ReloadOutcome::Unchanged);
         }
         self.settings = parsed.settings.clone();
         Ok(ReloadOutcome::Changed(Box::new(parsed.settings)))
+    }
+
+    /// Saves the pre-migration file as `settings.json.v{from}.bak`, never replacing an
+    /// existing backup (the first one is the user's real original).
+    fn backup_once(&self, from: u32, text: &str) -> Result<(), ConfigError> {
+        let backup = self.paths.root.join(format!("settings.json.v{from}.bak"));
+        if backup.exists() {
+            return Ok(());
+        }
+        fs::write(&backup, text).map_err(|e| io_err(&backup, e))
     }
 
     fn write_schema(&self) {

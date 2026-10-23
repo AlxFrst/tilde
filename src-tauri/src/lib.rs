@@ -11,6 +11,22 @@ use tilde_config::{ConfigErrorDto, ConfigPaths, SettingsStore, watch_settings};
 
 use crate::{commands::settings::on_settings_file_changed, state::AppState};
 
+/// The front-end shows the (initially hidden) window once it has rendered. If it crashes
+/// before that, the window would stay invisible forever — and single-instance would only
+/// "focus" that ghost on relaunch — so Rust shows it anyway after a grace period.
+fn show_window_if_frontend_stalls(app: tauri::AppHandle) {
+    const GRACE: std::time::Duration = std::time::Duration::from_secs(5);
+    std::thread::spawn(move || {
+        std::thread::sleep(GRACE);
+        if let Some(window) = app.get_webview_window("main")
+            && !window.is_visible().unwrap_or(true)
+        {
+            tracing::warn!("front-end did not show the window in time; showing it as a fallback");
+            let _ = window.show();
+        }
+    });
+}
+
 /// Starts the Tauri application.
 ///
 /// # Panics
@@ -57,6 +73,7 @@ pub fn run() {
                 Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
                 Err(e) => tracing::error!(error = %e, "settings hot reload disabled"),
             }
+            show_window_if_frontend_stalls(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

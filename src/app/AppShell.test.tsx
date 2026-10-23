@@ -86,6 +86,19 @@ test('shows the hidden window once the shell is ready, without animation frames'
   raf.mockRestore();
 });
 
+test('a failing backend still shows the window with an error screen', async () => {
+  showWindow.mockClear();
+  vi.mocked(invoke).mockImplementation((cmd: string) =>
+    cmd === 'settings_get' ? Promise.reject(new Error('backend down')) : new Promise(() => undefined),
+  );
+  render(<App />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Tilde n’a pas pu démarrer');
+  expect(screen.getByRole('alert')).toHaveTextContent('backend down');
+  await vi.waitFor(() => {
+    expect(showWindow).toHaveBeenCalled();
+  });
+});
+
 test('sidebar moves to the right when sidebarPosition is right', async () => {
   mockBackend({
     settings: {
