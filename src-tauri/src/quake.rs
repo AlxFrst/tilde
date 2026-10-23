@@ -12,13 +12,20 @@ use tilde_config::Quake;
 pub const QUAKE_LABEL: &str = "quake";
 pub const QUAKE_HEIGHT_RATIO: f64 = 0.4;
 pub const EVENT_ERROR: &str = "quake://error";
+pub const EVENT_SHUTDOWN: &str = "quake://shutdown";
 
 /// What is currently applied, so a settings reload only re-registers on change.
 #[derive(Default)]
 pub struct QuakeState {
     applied: Option<Quake>,
     shortcut: Option<Shortcut>,
+    /// Why the enabled shortcut is not registered; kept for the settings page, since a
+    /// failure at startup happens before any page listens to `quake://error`.
+    error: Option<String>,
 }
+
+/// Serialises toggles: two quick presses must not both create the window.
+static TOGGLE: Mutex<()> = Mutex::new(());
 
 /// Symbol keys: refused for a global shortcut, because the OS hotkey is registered by
 /// virtual key, and those move with the keyboard layout (on AZERTY, `Backquote` is ù).
@@ -113,6 +120,7 @@ pub fn sync_quake(app: &AppHandle, quake: &Quake, state: &Mutex<QuakeState>) {
         return;
     }
     st.applied = Some(quake.clone());
+    st.error = None;
     let shortcuts = app.global_shortcut();
     if let Some(previous) = st.shortcut.take()
         && let Err(e) = shortcuts.unregister(previous)
@@ -120,7 +128,11 @@ pub fn sync_quake(app: &AppHandle, quake: &Quake, state: &Mutex<QuakeState>) {
         tracing::warn!(error = %e, "previous Quake shortcut could not be released");
     }
     if !quake.enabled {
-        if let Some(window) = app.get_webview_window(QUAKE_LABEL) {
+        // The page closes its tabs (ending their sessions), then destroys its window;
+        // destroying it from here would leave those sessions running.
+        if let Some(window) = app.get_webview_window(QUAKE_LABEL)
+            && window.emit_to(QUAKE_LABEL, EVENT_SHUTDOWN, ()).is_err()
+        {
             let _ = window.destroy();
         }
         return;
@@ -138,6 +150,7 @@ pub fn sync_quake(app: &AppHandle, quake: &Quake, state: &Mutex<QuakeState>) {
         Err(e) => {
             tracing::warn!(error = %e, shortcut = %quake.shortcut, "Quake shortcut unavailable");
             let message = format!("Raccourci Quake « {} » indisponible : {e}", quake.shortcut);
+            st.error = Some(message.clone());
             let _ = app.emit(EVENT_ERROR, message);
         }
     }
@@ -177,8 +190,26 @@ fn place(app: &AppHandle, window: &WebviewWindow) {
     let _ = window.set_position(PhysicalPosition::new(x, y));
 }
 
+/// Why the Quake shortcut is not active although enabled, if it is not.
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)] // Tauri hands command arguments over by value.
+pub fn quake_status(state: tauri::State<'_, crate::state::AppState>) -> Option<String> {
+    state.quake.lock().error.clone()
+}
+
 /// The global shortcut: hides the focused Quake window, otherwise shows and focuses it.
+///
+/// Runs on its own thread: the shortcut handler is called on the main thread, where
+/// building a webview window deadlocks on Windows (see `WebviewWindowBuilder::new`).
 pub fn toggle_quake(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let _serial = TOGGLE.lock();
+        toggle(&app);
+    });
+}
+
+fn toggle(app: &AppHandle) {
     let window = match app.get_webview_window(QUAKE_LABEL) {
         Some(w) => w,
         None => match create_window(app) {

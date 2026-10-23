@@ -156,6 +156,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::themes::themes_import_pick,
         commands::themes::themes_export,
         commands::themes::open_themes_dir,
+        quake::quake_status,
         window_effects::window_apply_effects,
         window_effects::window_supported_effects,
         commands::workspace::workspace_load,

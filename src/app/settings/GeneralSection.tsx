@@ -1,9 +1,10 @@
 import { FileJson, FolderOpen, Palette, ScrollText } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { openThemesDir } from '@/ipc/themes';
+import { quakeStatus } from '@/ipc/window';
 import { useSettings } from '@/stores/settings';
 import { bindingKeys } from '@/terminal/keyLabels';
 import type { Binding } from '@/terminal/keys';
@@ -27,6 +28,22 @@ export function GeneralSection() {
   const readOnly = useSettings((s) => s.readOnly);
   const update = useSettings((s) => s.update);
   const [recording, setRecording] = useState(false);
+  const [quakeError, setQuakeError] = useState<string | null>(null);
+  const quakeEnabled = settings?.general.quake.enabled;
+  const quakeShortcut = settings?.general.quake.shortcut;
+  // Rust re-registers the shortcut when these change; ask how it went.
+  useEffect(() => {
+    let cancelled = false;
+    quakeStatus().then(
+      (status) => {
+        if (!cancelled) setQuakeError(status);
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [quakeEnabled, quakeShortcut]);
   if (!settings) return null;
   const g = settings.general;
 
@@ -60,6 +77,11 @@ export function GeneralSection() {
             onChange={(enabled) => void update({ general: { quake: { enabled } } })}
           />
         </Row>
+        {quakeError && (
+          <p role="status" className="text-xs text-warning">
+            {quakeError}
+          </p>
+        )}
         <Row label="Raccourci global">
           {recording ? (
             <ShortcutRecorder

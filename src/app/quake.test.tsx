@@ -8,11 +8,18 @@ import { openDefaultTab } from './actions';
 import { isQuakeWindow, useQuakeTabs } from './quake';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(() => Promise.resolve(() => undefined)) }));
+const events = vi.hoisted(() => new Map<string, (e: { payload: unknown }) => void>());
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn((name: string, h: (e: { payload: unknown }) => void) => {
+    events.set(name, h);
+    return Promise.resolve(() => events.delete(name));
+  }),
+}));
 const win = vi.hoisted(() => ({
   label: 'quake',
   show: vi.fn(() => Promise.resolve()),
   hide: vi.fn(() => Promise.resolve()),
+  destroy: vi.fn(() => Promise.resolve()),
   minimize: vi.fn(() => Promise.resolve()),
   toggleMaximize: vi.fn(() => Promise.resolve()),
   close: vi.fn(() => Promise.resolve()),
@@ -93,4 +100,33 @@ test('closing the last tab hides the window and reopens a tab', () => {
     expect(win.hide).toHaveBeenCalledTimes(1);
     expect(openDefaultTab).toHaveBeenCalled();
   });
+});
+
+test('turning Quake off closes its tabs (and their sessions) before the window goes', async () => {
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        title: 'ssh',
+        color: null,
+        root: { kind: 'leaf', id: 'l1', panel: { kind: 'terminal', profileId: 'pwsh' } },
+        activeLeafId: 'l1',
+      },
+    ] as never,
+    activeTabId: 't1',
+  });
+  renderHook(() => {
+    useQuakeTabs();
+  });
+  await vi.waitFor(() => {
+    expect(events.has('quake://shutdown')).toBe(true);
+  });
+  events.get('quake://shutdown')?.({ payload: null });
+  expect(useWorkspace.getState().tabs).toEqual([]);
+  await vi.waitFor(() => {
+    expect(win.destroy).toHaveBeenCalled();
+  });
+  // Shutting down is not « last tab closed »: no hide, no fresh tab.
+  expect(win.hide).not.toHaveBeenCalled();
+  expect(openDefaultTab).not.toHaveBeenCalled();
 });

@@ -15,7 +15,7 @@ import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { useTransfers } from '@/stores/transfers';
 import { useWindowEffects } from '@/stores/windowEffects';
-import { windowApplyEffects, windowSupportedEffects } from '@/ipc/window';
+import { quakeStatus, windowApplyEffects, windowSupportedEffects } from '@/ipc/window';
 import { applyTheme } from '@/themes';
 import { cssFontName } from '@/themes/fonts';
 import { useActiveTheme } from '@/themes/useActiveTheme';
@@ -163,9 +163,16 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
       },
     );
   }, [loaded, effect, dark]);
-  // Quake shortcut errors (taken by another app, invalid) are reported in the main window.
+  // Quake shortcut errors (taken by another app, invalid) are reported in the main window,
+  // including one from startup, before any page was listening.
   useEffect(() => {
     if (quake) return;
+    quakeStatus().then(
+      (status) => {
+        if (status) toast.error(status);
+      },
+      () => undefined,
+    );
     const off = listen<string>('quake://error', (e) => {
       toast.error(e.payload);
     });

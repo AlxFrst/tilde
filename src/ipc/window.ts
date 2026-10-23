@@ -10,3 +10,5 @@ export const windowApplyEffects = (dark: boolean) =>
   invoke<AppliedEffect>('window_apply_effects', { dark });
 /** The effects this system shows as asked. */
 export const windowSupportedEffects = () => invoke<WindowEffect[]>('window_supported_effects');
+/** Why the Quake shortcut is not active although enabled (taken, invalid), if it is not. */
+export const quakeStatus = () => invoke<string | null>('quake_status');
