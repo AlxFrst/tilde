@@ -5,6 +5,11 @@ import { useWorkspace } from '@/stores/workspace';
 import { defaultSettings } from '@/test/fixtures';
 import { restoreWorkspace, startPersistence } from './persistence';
 import { leaves } from './tree';
+import { registerCorePanels } from '@/panels/core';
+
+beforeAll(() => {
+  registerCorePanels();
+});
 
 vi.mock('@/ipc/workspace', () => ({ loadWorkspace: vi.fn(), saveWorkspace: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { info: vi.fn(), error: vi.fn() } }));

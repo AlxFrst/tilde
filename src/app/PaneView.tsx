@@ -1,9 +1,7 @@
 import { useRef } from 'react';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getPanelModule } from '@/panels/registry';
 import { useWorkspace } from '@/stores/workspace';
-import { SftpPanelView } from '@/panels/sftp/SftpPanel';
-import { TerminalView } from '@/terminal/TerminalView';
 import {
   layoutRects,
   leaves,
@@ -31,6 +29,7 @@ function Leaf({
 }) {
   const ws = useWorkspace.getState;
   const active = tab.activeLeafId === leaf.id;
+  const Module = getPanelModule(leaf.panel.kind)?.component;
   return (
     <div
       className={cn(
@@ -42,36 +41,23 @@ function Leaf({
         if (!active) ws().focusLeaf(tab.id, leaf.id);
       }}
     >
-      {leaf.panel.kind === 'sftp' ? (
-        <SftpPanelView
+      {Module ? (
+        <Module
           tabId={tab.id}
           leafId={leaf.id}
-          panel={leaf.panel}
+          state={leaf.panel}
           active={visible && active}
-        />
-      ) : (
-        <TerminalView
-          tabId={tab.id}
-          leafId={leaf.id}
-          panel={leaf.panel}
-          active={visible && active}
-          onExit={(code) => {
-            // A clean exit closes the pane; otherwise the overlay shows the code.
-            if (code === 0) ws().closeLeaf(tab.id, leaf.id);
+          update={(patch) => {
+            ws().updatePanel(tab.id, leaf.id, patch);
           }}
-          onTitle={(title) => {
-            ws().updatePanel(tab.id, leaf.id, { title });
-          }}
-          onCwd={(cwd) => {
-            ws().updatePanel(tab.id, leaf.id, { cwd });
-          }}
-          onSessionError={(err) => {
-            toast.error(err.message);
-          }}
-          onClose={() => {
+          close={() => {
             ws().closeLeaf(tab.id, leaf.id);
           }}
         />
+      ) : (
+        <div className="flex h-full items-center justify-center text-sm text-text-muted">
+          Panneau inconnu : « {leaf.panel.kind} »
+        </div>
       )}
     </div>
   );
@@ -150,8 +136,9 @@ function findSplit(node: Tab['root'], id: string): Extract<Tab['root'], { type: 
 }
 
 /**
- * One tab's panes. Terminals are rendered as a flat, absolutely positioned list keyed by
- * pane id, so splitting or closing a pane never remounts (and restarts) the others.
+ * One tab's panes, each rendered by its module (src/panels/registry). Panes are rendered
+ * as a flat, absolutely positioned list keyed by pane id, so splitting or closing a pane
+ * never remounts (and restarts) the others.
  * Hidden tabs stay mounted so their shells keep running.
  */
 export function PaneView({ tab, visible }: { tab: Tab; visible: boolean }) {

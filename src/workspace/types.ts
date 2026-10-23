@@ -38,13 +38,8 @@ export interface SftpPanel {
 
 export type Panel = TerminalPanel | SshPanel | SftpPanel;
 
-/** What a pane may update in its own panel. */
-export interface PanelPatch {
-  cwd?: string | null;
-  title?: string | null;
-  path?: string | null;
-  follow?: boolean;
-}
+/** What a pane may update in its own panel (fields it does not have are ignored). */
+export type PanelPatch = Record<string, unknown>;
 
 export interface LeafNode {
   type: 'leaf';

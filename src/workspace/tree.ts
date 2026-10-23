@@ -87,7 +87,7 @@ export function updatePanel(root: LayoutNode, leafId: string, patch: PanelPatch)
   if (root.type === 'leaf') {
     // Each kind only takes the fields it has (an SFTP panel keeps cwd/title null).
     if (root.id !== leafId) return root;
-    return { ...root, panel: { ...root.panel, ...pick(root.panel, patch) } as Panel };
+    return { ...root, panel: { ...root.panel, ...pick(root.panel, patch) } };
   }
   return { ...root, children: root.children.map((c) => updatePanel(c, leafId, patch)) };
 }

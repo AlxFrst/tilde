@@ -1,3 +1,4 @@
+import { serializeSnapshot } from '@/workspace/serialize';
 import { create } from 'zustand';
 import {
   findLeaf,
@@ -230,7 +231,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       set((s) => ({ dormant: s.dormant.filter((id) => id !== leafId) }));
     },
 
-    snapshot: () => ({ version: 1, tabs: get().tabs, activeTabId: get().activeTabId }),
+    snapshot: () => serializeSnapshot(get().tabs, get().activeTabId),
 
     hydrate: (raw, available, fallback) => {
       // The snapshot comes from a user-reachable file: sanitize, never trust.

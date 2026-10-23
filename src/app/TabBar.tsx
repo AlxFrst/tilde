@@ -18,6 +18,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { getPanelModule } from '@/panels/registry';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
@@ -62,6 +63,19 @@ function useTabLabel(tab: Tab) {
     return {
       title: tab.customTitle ?? 'Fichiers',
       Icon: FolderTree,
+      profileColor: null,
+      leaf,
+      panel,
+      connection,
+    };
+  }
+  // Any other pane (editor, preview, monitor, plugins): its module names it.
+  const kind: string = panel?.kind ?? 'terminal';
+  if (panel && kind !== 'terminal') {
+    const module = getPanelModule(kind);
+    return {
+      title: tab.customTitle ?? module?.tabTitle?.(panel) ?? module?.title ?? kind,
+      Icon: module?.icon ?? FolderTree,
       profileColor: null,
       leaf,
       panel,

@@ -1,6 +1,7 @@
 // workspace.json is a user-reachable file: treat it as untrusted input. Whatever is
 // malformed is repaired or dropped; nothing in it may crash startup or rendering.
 
+import { getPanelModule } from '@/panels/registry';
 import type { Direction, LayoutNode, Panel, Tab, WorkspaceSnapshot } from './types';
 
 type Obj = Record<string, unknown>;
@@ -15,24 +16,13 @@ function uniqueId(raw: unknown, seen: Set<string>): string {
   return unique;
 }
 
+/** Each pane type checks its own saved state; an unknown kind is dropped. */
 function sanitizePanel(raw: unknown): Panel | null {
   if (!isObj(raw)) return null;
-  const common = { cwd: str(raw.cwd), title: str(raw.title) };
-  if (raw.kind === 'sftp') {
-    const linkedLeafId = str(raw.linkedLeafId);
-    if (!linkedLeafId) return null;
-    const follow = typeof raw.follow === 'boolean' ? raw.follow : true;
-    return { kind: 'sftp', linkedLeafId, path: str(raw.path), follow, cwd: null, title: null };
-  }
-  if (raw.kind === 'ssh') {
-    const target = str(raw.target)?.trim();
-    const connectionId = str(raw.connectionId);
-    return target ? { kind: 'ssh', target, connectionId, ...common } : null;
-  }
-  if (raw.kind !== 'terminal') return null;
-  const profileId = str(raw.profileId);
-  if (!profileId) return null;
-  return { kind: 'terminal', profileId, ...common };
+  const kind = str(raw.kind);
+  const module = kind ? getPanelModule(kind) : undefined;
+  const panel = module?.deserialize?.(raw) ?? null;
+  return panel as Panel | null;
 }
 
 function sanitizeSizes(raw: unknown, count: number): number[] {

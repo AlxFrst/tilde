@@ -3,6 +3,9 @@ import { useEffect } from 'react';
 import { useWorkspace } from '@/stores/workspace';
 import type { TerminalViewProps } from '@/terminal/TerminalView';
 import { leaves } from '@/workspace/tree';
+import { registerCorePanels } from '@/panels/core';
+import { registerPanel } from '@/panels/registry';
+import { Box } from 'lucide-react';
 import { PaneView } from './PaneView';
 
 const mounts = vi.hoisted(() => new Map<string, number>());
@@ -54,6 +57,10 @@ function Live() {
   const t = useWorkspace((s) => s.tabs[0]);
   return t ? <PaneView tab={t} visible /> : null;
 }
+
+beforeAll(() => {
+  registerCorePanels();
+});
 
 beforeEach(() => {
   mounts.clear();
@@ -127,4 +134,29 @@ test('cwd reported by the shell is stored on the panel', () => {
   render(<Live />);
   fireEvent.click(screen.getByText(`cwd-${first.id}`));
   expect(leaves(tab().root)[0]?.panel.cwd).toBe('/srv');
+});
+
+test('renders a pane through its module', () => {
+  const off = registerPanel<{ kind: 'thing'; label: string }>({
+    id: 'test.thing',
+    kind: 'thing',
+    title: 'Chose',
+    icon: Box,
+    component: ({ state }) => <div>chose-{state.label}</div>,
+  });
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'x',
+        root: { type: 'leaf', id: 'x', panel: { kind: 'thing', label: 'ok' } } as never,
+      },
+    ],
+    activeTabId: 't1',
+  });
+  render(<Live />);
+  expect(screen.getByText('chose-ok')).toBeInTheDocument();
+  off();
 });
