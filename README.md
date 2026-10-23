@@ -79,7 +79,7 @@ Dépendances système de Tauri :
 - **Windows** : WebView2 (présent sur Windows 10/11) et les « Build Tools for Visual Studio »
   (composant C++).
 - **Linux (Debian/Ubuntu)** :
-  `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf`
+  `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev patchelf libdbus-1-dev pkg-config`
 - **macOS** : Xcode Command Line Tools (`xcode-select --install`).
 
 Détails : [prérequis Tauri](https://tauri.app/start/prerequisites/).
