@@ -1,0 +1,21 @@
+# Rust
+/target/
+src-tauri/gen/schemas
+
+# Node
+node_modules
+dist
+dist-ssr
+*.local
+
+# Logs
+*.log
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+# Agent scratch
+.superpowers/
