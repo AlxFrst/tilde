@@ -1,0 +1,21 @@
+[package]
+name = "tilde-session"
+description = "PTY sessions with a coalescing, backpressured output pump"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+parking_lot = "0.12"
+portable-pty = "0.9"
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+tracing = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+
+[lints]
+workspace = true
