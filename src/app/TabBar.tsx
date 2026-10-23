@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Server, X } from 'lucide-react';
+import { FolderTree, Plus, Server, X } from 'lucide-react';
 import { useState } from 'react';
 import {
   ContextMenu,
@@ -41,7 +41,12 @@ const TAB_COLORS = [
 
 function useTabLabel(tab: Tab) {
   const profiles = useProfiles((s) => s.profiles);
-  const leaf = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
+  const active = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
+  // A files pane is labelled by the SSH pane it belongs to.
+  const leaf =
+    active?.panel.kind === 'sftp'
+      ? (findLeaf(tab.root, active.panel.linkedLeafId) ?? active)
+      : active;
   const panel = leaf?.panel;
   const connection = useSsh((s) => (leaf ? s.states[leaf.id] : undefined));
   const saved = useConnections((s) =>
@@ -52,6 +57,16 @@ function useTabLabel(tab: Tab) {
   if (panel?.kind === 'ssh') {
     const title = tab.customTitle ?? panel.title ?? saved?.name ?? panel.target;
     return { title, Icon: Server, profileColor: null, leaf, panel, connection };
+  }
+  if (panel?.kind === 'sftp') {
+    return {
+      title: tab.customTitle ?? 'Fichiers',
+      Icon: FolderTree,
+      profileColor: null,
+      leaf,
+      panel,
+      connection,
+    };
   }
   const profile = profiles.find((p) => p.id === panel?.profileId);
   const title = tab.customTitle ?? panel?.title ?? profile?.name ?? panel?.profileId ?? '';
@@ -193,6 +208,15 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
         {panel?.kind === 'ssh' && leaf && (
           <ContextMenuItem
             onSelect={() => {
+              ws().openSftpBeside(leaf.id);
+            }}
+          >
+            Fichiers…
+          </ContextMenuItem>
+        )}
+        {panel?.kind === 'ssh' && leaf && (
+          <ContextMenuItem
+            onSelect={() => {
               const [sessionId] = sessionsFor([leaf.id]);
               if (sessionId !== undefined) useSsh.getState().setTunnels({ sessionId, title });
             }}
@@ -203,7 +227,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
         <ContextMenuItem
           onSelect={() => {
             if (panel?.kind === 'ssh') ws().openSshTab(panel.target, panel.connectionId);
-            else if (panel) ws().openTab(panel.profileId, panel.cwd);
+            else if (panel?.kind === 'terminal') ws().openTab(panel.profileId, panel.cwd);
           }}
         >
           Dupliquer

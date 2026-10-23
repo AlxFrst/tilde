@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useWorkspace } from '@/stores/workspace';
+import { SftpPanelView } from '@/panels/sftp/SftpPanel';
 import { TerminalView } from '@/terminal/TerminalView';
 import {
   layoutRects,
@@ -41,28 +42,37 @@ function Leaf({
         if (!active) ws().focusLeaf(tab.id, leaf.id);
       }}
     >
-      <TerminalView
-        tabId={tab.id}
-        leafId={leaf.id}
-        panel={leaf.panel}
-        active={visible && active}
-        onExit={(code) => {
-          // A clean exit closes the pane; otherwise the overlay shows the code.
-          if (code === 0) ws().closeLeaf(tab.id, leaf.id);
-        }}
-        onTitle={(title) => {
-          ws().updatePanel(tab.id, leaf.id, { title });
-        }}
-        onCwd={(cwd) => {
-          ws().updatePanel(tab.id, leaf.id, { cwd });
-        }}
-        onSessionError={(err) => {
-          toast.error(err.message);
-        }}
-        onClose={() => {
-          ws().closeLeaf(tab.id, leaf.id);
-        }}
-      />
+      {leaf.panel.kind === 'sftp' ? (
+        <SftpPanelView
+          tabId={tab.id}
+          leafId={leaf.id}
+          panel={leaf.panel}
+          active={visible && active}
+        />
+      ) : (
+        <TerminalView
+          tabId={tab.id}
+          leafId={leaf.id}
+          panel={leaf.panel}
+          active={visible && active}
+          onExit={(code) => {
+            // A clean exit closes the pane; otherwise the overlay shows the code.
+            if (code === 0) ws().closeLeaf(tab.id, leaf.id);
+          }}
+          onTitle={(title) => {
+            ws().updatePanel(tab.id, leaf.id, { title });
+          }}
+          onCwd={(cwd) => {
+            ws().updatePanel(tab.id, leaf.id, { cwd });
+          }}
+          onSessionError={(err) => {
+            toast.error(err.message);
+          }}
+          onClose={() => {
+            ws().closeLeaf(tab.id, leaf.id);
+          }}
+        />
+      )}
     </div>
   );
 }

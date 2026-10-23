@@ -6,6 +6,7 @@ import type {
   LayoutNode,
   LeafNode,
   SplitNode,
+  Panel,
   PanelPatch,
 } from './types';
 
@@ -76,9 +77,17 @@ export function removeLeaf(root: LayoutNode, leafId: string): LayoutNode | null 
   };
 }
 
+function pick(panel: Panel, patch: PanelPatch): PanelPatch {
+  return Object.fromEntries(
+    Object.entries(patch).filter(([k, v]) => v !== undefined && k in panel),
+  );
+}
+
 export function updatePanel(root: LayoutNode, leafId: string, patch: PanelPatch): LayoutNode {
   if (root.type === 'leaf') {
-    return root.id === leafId ? { ...root, panel: { ...root.panel, ...patch } } : root;
+    // Each kind only takes the fields it has (an SFTP panel keeps cwd/title null).
+    if (root.id !== leafId) return root;
+    return { ...root, panel: { ...root.panel, ...pick(root.panel, patch) } as Panel };
   }
   return { ...root, children: root.children.map((c) => updatePanel(c, leafId, patch)) };
 }

@@ -18,6 +18,12 @@ function uniqueId(raw: unknown, seen: Set<string>): string {
 function sanitizePanel(raw: unknown): Panel | null {
   if (!isObj(raw)) return null;
   const common = { cwd: str(raw.cwd), title: str(raw.title) };
+  if (raw.kind === 'sftp') {
+    const linkedLeafId = str(raw.linkedLeafId);
+    if (!linkedLeafId) return null;
+    const follow = typeof raw.follow === 'boolean' ? raw.follow : true;
+    return { kind: 'sftp', linkedLeafId, path: str(raw.path), follow, cwd: null, title: null };
+  }
   if (raw.kind === 'ssh') {
     const target = str(raw.target)?.trim();
     const connectionId = str(raw.connectionId);

@@ -181,10 +181,15 @@ async fn concurrency_is_respected() {
     let _bench = BENCH.read().await;
     let Some(f) = fixture(2).await else { return };
     let mut ids = Vec::new();
+    // Create every file first, then queue them all at once: a transfer must not be able
+    // to finish before the next one is queued.
+    let mut remotes = Vec::new();
     for i in 0..5 {
-        let remote = f.put(&format!("c{i}.bin"), &data(3 * MIB, 10 + i)).await;
+        remotes.push(f.put(&format!("c{i}.bin"), &data(16 * MIB, 10 + i)).await);
+    }
+    for remote in &remotes {
         ids.extend(
-            f.queue.download(1, Arc::clone(&f.client), &remote, f.local.path()).await.unwrap(),
+            f.queue.download(1, Arc::clone(&f.client), remote, f.local.path()).await.unwrap(),
         );
     }
     for id in &ids {
