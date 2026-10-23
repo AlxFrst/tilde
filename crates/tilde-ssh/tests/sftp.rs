@@ -132,13 +132,13 @@ async fn read_text_refuses_large_files_before_downloading() {
     let _bench = BENCH.read().await;
     let Some((shell, sftp, dir)) = setup().await else { return };
     let file = format!("{dir}/big.log");
-    sh(&shell, &format!("head -c 6291456 /dev/zero | tr '\0' a > {file}")).await;
+    sh(&shell, &format!("head -c 6291456 /dev/zero | tr '\\0' a > {file}")).await;
     let started = Instant::now();
     let err = sftp.read_text(&file).await.unwrap_err();
     assert!(matches!(err, tilde_ssh::TextError::TooLarge { .. }), "{err}");
     // Refused from the size alone: no 6 MiB download.
     assert!(started.elapsed() < std::time::Duration::from_secs(2));
     let bin = format!("{dir}/a.bin");
-    sh(&shell, &format!("printf 'a\000b' > {bin}")).await;
+    sh(&shell, &format!("printf 'a\\000b' > {bin}")).await;
     assert!(matches!(sftp.read_text(&bin).await, Err(tilde_ssh::TextError::Binary)));
 }
