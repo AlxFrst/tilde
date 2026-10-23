@@ -211,3 +211,37 @@ async fn real_host_shell_round_trip() {
     shell.write(b"exit 4\n").unwrap();
     assert_eq!(out.exit_code().await, Some(4));
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn sftp_is_shared_until_the_connection_changes() {
+    let _bench = BENCH.read().await;
+    let Some(bench) = Bench::new() else { return };
+    let (shell, _out, _) = bench.open(false).await;
+    let a = shell.sftp().await.unwrap();
+    let b = shell.sftp().await.unwrap();
+    assert!(Arc::ptr_eq(&a, &b));
+    assert!(a.home().await.unwrap().starts_with('/'));
+    shell.close();
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn sftp_reopens_after_reconnect() {
+    let _bench = BENCH.write().await;
+    let Some(bench) = Bench::new() else { return };
+    let (shell, _out, states) = bench.open(true).await;
+    let before = shell.sftp().await.unwrap();
+    let home = before.home().await.unwrap();
+
+    tokio::task::spawn_blocking(|| docker(&["restart", "-t", "1", TARGET_CONTAINER]))
+        .await
+        .unwrap();
+    let lost =
+        states.wait(0, Duration::from_secs(15), |s| matches!(s, ConnState::Lost { .. })).await;
+    assert!(shell.sftp().await.is_err(), "no SFTP while reconnecting");
+    states.wait(lost, Duration::from_secs(40), |s| *s == ConnState::Ready).await;
+
+    let after = shell.sftp().await.unwrap();
+    assert!(!Arc::ptr_eq(&before, &after), "a new session on the new connection");
+    assert_ne!(after.list(&home).await.unwrap(), vec![]);
+    shell.close();
+}

@@ -22,7 +22,7 @@ use tilde_session::{Backend, FlowState};
 use tokio::sync::{Notify, mpsc::UnboundedSender};
 
 use crate::{
-    ForwardInfo, ForwardSpec,
+    ForwardInfo, ForwardSpec, SftpClient, SftpError,
     chain::Connection,
     forward::{Forwards, Routes},
 };
@@ -55,6 +55,8 @@ pub struct SshShell {
     held: AtomicUsize,
     connection: Mutex<Option<Arc<Connection>>>,
     pub(crate) forwards: Forwards,
+    /// The SFTP session and the connection it was opened on.
+    sftp: tokio::sync::Mutex<Option<(Arc<Connection>, Arc<SftpClient>)>>,
 }
 
 impl SshShell {
@@ -70,6 +72,7 @@ impl SshShell {
             held: AtomicUsize::new(0),
             connection: Mutex::new(None),
             forwards: Forwards::default(),
+            sftp: tokio::sync::Mutex::new(None),
         }
     }
 
@@ -126,6 +129,32 @@ impl SshShell {
     pub(crate) fn attach(&self, connection: Option<Arc<Connection>>) {
         self.ready.store(connection.is_some(), Ordering::Release);
         *self.connection.lock() = connection;
+    }
+
+    /// The SFTP session of this SSH session, opened on first use and reopened after a
+    /// reconnection (or after [`Self::reset_sftp`]).
+    ///
+    /// # Errors
+    ///
+    /// [`SftpError::Unavailable`] while reconnecting, or when the server has no SFTP.
+    pub async fn sftp(&self) -> Result<Arc<SftpClient>, SftpError> {
+        let Some(connection) = self.connection() else {
+            return Err(SftpError::Unavailable("connexion en cours de rétablissement".into()));
+        };
+        let mut cached = self.sftp.lock().await;
+        if let Some((on, client)) = cached.as_ref()
+            && Arc::ptr_eq(on, &connection)
+        {
+            return Ok(Arc::clone(client));
+        }
+        let client = Arc::new(SftpClient::open(&connection).await?);
+        *cached = Some((connection, Arc::clone(&client)));
+        Ok(client)
+    }
+
+    /// Forgets the SFTP session (its channel failed): the next call opens a new one.
+    pub async fn reset_sftp(&self) {
+        *self.sftp.lock().await = None;
     }
 
     pub(crate) fn end(&self) {
