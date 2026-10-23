@@ -39,12 +39,15 @@ export function normalizeHex(value: unknown): string | undefined {
 export function withDefaults(t: RawScheme['terminal']): RawScheme['terminal'] {
   const { foreground: fg, background: bg } = t;
   if (!fg || !bg) return t;
-  return {
+  const out: RawScheme['terminal'] = {
     cursor: fg,
     cursorAccent: bg,
-    selectionBackground: `${mix(fg, bg, 0.25)}`,
-    ...Object.fromEntries(Object.entries(t).filter(([, v]) => v !== undefined)),
+    selectionBackground: mix(fg, bg, 0.25),
   };
+  for (const [k, v] of Object.entries(t) as [keyof TerminalColors, string | undefined][]) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
 }
 
 export function fail(message: string): never {

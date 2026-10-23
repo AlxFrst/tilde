@@ -8,7 +8,7 @@ export function stripJsonc(text: string): string {
   let out = '';
   let i = 0;
   while (i < text.length) {
-    const c = text[i];
+    const c = text.charAt(i);
     if (c === '"') {
       let j = i + 1;
       while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
