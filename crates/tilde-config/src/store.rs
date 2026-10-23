@@ -1,0 +1,201 @@
+//! Loading, validating and persisting `settings.json`.
+//!
+//! The store keeps the **raw** JSON document alongside the typed [`Settings`] so that
+//! keys it does not know about (future settings, plugins, `$schema`) survive UI edits.
+
+use std::{
+    fs,
+    hash::{DefaultHasher, Hash, Hasher},
+    io,
+    path::Path,
+};
+
+use serde_json::{Map, Value};
+
+use crate::{
+    ConfigError, ConfigPaths, SETTINGS_VERSION, Settings, merge_patch::merge_patch,
+    migrate::migrate, settings_schema,
+};
+
+const SCHEMA_REF: &str = "./settings.schema.json";
+
+/// Owns the user's settings and is the only writer of `settings.json`.
+#[derive(Debug)]
+pub struct SettingsStore {
+    paths: ConfigPaths,
+    raw: Value,
+    settings: Settings,
+    read_only: bool,
+    last_written_hash: Option<u64>,
+}
+
+/// A successfully parsed, migrated and validated document.
+pub(crate) struct Parsed {
+    pub raw: Value,
+    pub settings: Settings,
+    pub migrated_from: Option<u32>,
+}
+
+impl SettingsStore {
+    /// Loads settings from disk, creating the file on first launch.
+    ///
+    /// Always returns a usable store. When the file cannot be used (syntax error, bad
+    /// type, out-of-range value, newer version) the store falls back to defaults, is
+    /// marked read-only and **never** overwrites the user's file; the error is returned
+    /// alongside so the caller can report it.
+    #[must_use]
+    pub fn load(paths: ConfigPaths) -> (Self, Option<ConfigError>) {
+        let mut store = Self {
+            paths,
+            raw: with_schema_first(defaults_value()),
+            settings: Settings::default(),
+            read_only: false,
+            last_written_hash: None,
+        };
+        let err = store.load_inner().err();
+        (store, err)
+    }
+
+    fn load_inner(&mut self) -> Result<(), ConfigError> {
+        let root = self.paths.root.clone();
+        fs::create_dir_all(&root).map_err(|e| io_err(&root, e))?;
+        self.write_schema();
+
+        let file = self.paths.settings_file();
+        let text = match fs::read_to_string(&file) {
+            Ok(text) => text,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                return self.write_raw(&self.raw.clone());
+            }
+            Err(e) => {
+                self.read_only = true;
+                return Err(io_err(&file, e));
+            }
+        };
+
+        let parsed = parse_document(&text).inspect_err(|_| self.read_only = true)?;
+        self.raw = with_schema_first(parsed.raw);
+        self.settings = parsed.settings;
+        if let Some(from) = parsed.migrated_from {
+            let backup = root.join(format!("settings.json.v{from}.bak"));
+            fs::write(&backup, &text).map_err(|e| io_err(&backup, e))?;
+            self.write_raw(&self.raw.clone())?;
+            tracing::info!(from, to = SETTINGS_VERSION, "settings.json migrated");
+        }
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn settings(&self) -> &Settings {
+        &self.settings
+    }
+
+    /// True while `settings.json` is unusable; UI edits are refused until it is fixed.
+    #[must_use]
+    pub fn read_only(&self) -> bool {
+        self.read_only
+    }
+
+    #[must_use]
+    pub fn paths(&self) -> &ConfigPaths {
+        &self.paths
+    }
+
+    /// Applies a JSON Merge Patch, validates the result and writes it atomically.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError::ReadOnly`] while the file on disk is broken, a type or range
+    /// error if the patched document is invalid, or an I/O error. On error nothing is
+    /// written and the current settings are kept.
+    pub fn update(&mut self, patch: &Value) -> Result<Settings, ConfigError> {
+        if self.read_only {
+            return Err(ConfigError::ReadOnly);
+        }
+        let mut candidate = self.raw.clone();
+        merge_patch(&mut candidate, patch);
+        if let Some(obj) = candidate.as_object_mut() {
+            obj.insert("version".into(), SETTINGS_VERSION.into());
+        }
+        let settings = deserialize(&candidate)?;
+        settings.validate()?;
+        let candidate = with_schema_first(candidate);
+        self.write_raw(&candidate)?;
+        self.raw = candidate;
+        self.settings = settings.clone();
+        Ok(settings)
+    }
+
+    fn write_schema(&self) {
+        let path = self.paths.schema_file();
+        let json = serde_json::to_string_pretty(&settings_schema()).unwrap_or_default() + "\n";
+        if let Err(e) = fs::write(&path, json) {
+            tracing::warn!(path = %path.display(), error = %e, "cannot write settings schema");
+        }
+    }
+
+    /// Writes `raw` via a temp file + rename so readers never see a half-written file.
+    fn write_raw(&mut self, raw: &Value) -> Result<(), ConfigError> {
+        let file = self.paths.settings_file();
+        let tmp = file.with_extension("json.tmp");
+        let text = serde_json::to_string_pretty(raw).unwrap_or_default() + "\n";
+        fs::write(&tmp, &text).map_err(|e| io_err(&tmp, e))?;
+        fs::rename(&tmp, &file).map_err(|e| io_err(&file, e))?;
+        self.last_written_hash = Some(hash_bytes(text.as_bytes()));
+        Ok(())
+    }
+}
+
+/// Parses, migrates, type-checks and validates a `settings.json` document.
+pub(crate) fn parse_document(text: &str) -> Result<Parsed, ConfigError> {
+    let raw: Value = serde_json::from_str(text).map_err(|e| ConfigError::Parse {
+        message: e.to_string(),
+        line: e.line(),
+        column: e.column(),
+    })?;
+    let (raw, migrated_from) = migrate(raw)?;
+    let settings = deserialize(&raw)?;
+    settings.validate()?;
+    Ok(Parsed {
+        raw,
+        settings,
+        migrated_from,
+    })
+}
+
+fn deserialize(raw: &Value) -> Result<Settings, ConfigError> {
+    serde_path_to_error::deserialize(raw.clone()).map_err(|e| ConfigError::Type {
+        path: e.path().to_string(),
+        message: e.inner().to_string(),
+    })
+}
+
+fn defaults_value() -> Value {
+    serde_json::to_value(Settings::default()).unwrap_or_else(|_| Value::Object(Map::new()))
+}
+
+/// Returns `raw` with a `$schema` key in first position (keeps an existing value).
+fn with_schema_first(raw: Value) -> Value {
+    let Value::Object(map) = raw else { return raw };
+    let mut out = Map::with_capacity(map.len() + 1);
+    let schema = map
+        .get("$schema")
+        .cloned()
+        .unwrap_or_else(|| SCHEMA_REF.into());
+    out.insert("$schema".into(), schema);
+    out.extend(map.into_iter().filter(|(k, _)| k != "$schema"));
+    Value::Object(out)
+}
+
+pub(crate) fn hash_bytes(bytes: &[u8]) -> u64 {
+    let mut h = DefaultHasher::new();
+    bytes.hash(&mut h);
+    h.finish()
+}
+
+fn io_err(path: &Path, source: io::Error) -> ConfigError {
+    ConfigError::Io {
+        path: path.to_path_buf(),
+        source,
+    }
+}

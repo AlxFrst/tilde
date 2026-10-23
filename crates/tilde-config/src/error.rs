@@ -34,6 +34,9 @@ pub enum ConfigError {
          version supportée {supported}) ; il est ouvert en lecture seule"
     )]
     FutureVersion { found: u32, supported: u32 },
+
+    #[error("settings.json contient une erreur : corrigez-le avant de modifier les réglages")]
+    ReadOnly,
 }
 
 fn format_fields(fields: &[FieldError]) -> String {
@@ -48,7 +51,7 @@ fn format_fields(fields: &[FieldError]) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfigErrorDto {
-    /// One of `io`, `parse`, `type`, `invalid`, `futureVersion`.
+    /// One of `io`, `parse`, `type`, `invalid`, `futureVersion`, `readOnly`.
     pub kind: &'static str,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -72,6 +75,7 @@ impl From<&ConfigError> for ConfigErrorDto {
                 fields.first().map(|f| f.path.clone()),
             ),
             ConfigError::FutureVersion { .. } => ("futureVersion", None, None, None),
+            ConfigError::ReadOnly => ("readOnly", None, None, None),
         };
         Self {
             kind,
