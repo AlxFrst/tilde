@@ -9,6 +9,8 @@ import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
 import { ConfirmDialog } from './ConfirmDialog';
+import { ConnectionDialog } from './ConnectionDialog';
+import { FolderDialog } from './FolderDialog';
 import { PaneView } from './PaneView';
 import { PromptHost } from './PromptHost';
 import { QuickConnectDialog } from './QuickConnectDialog';
@@ -76,6 +78,8 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
       <QuickSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <ConfirmCloseDialog />
       <ConfirmDialog />
+      <ConnectionDialog />
+      <FolderDialog />
       <QuickConnectDialog
         open={quickConnectOpen}
         onOpenChange={useSsh.getState().setQuickConnectOpen}
