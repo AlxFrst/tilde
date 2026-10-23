@@ -12,7 +12,13 @@ function count(value: unknown, limit: number): number {
   while (stack.length > 0 && n <= limit) {
     const v = stack.pop();
     n++;
-    if (v && typeof v === 'object') stack.push(...Object.values(v as Record<string, unknown>));
+    if (v && typeof v === 'object') {
+      // One at a time: spreading a huge array into push() overflows the call stack.
+      for (const child of Object.values(v as Record<string, unknown>)) {
+        if (n + stack.length > limit) break;
+        stack.push(child);
+      }
+    }
   }
   return n;
 }

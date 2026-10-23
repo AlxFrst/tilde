@@ -160,3 +160,42 @@ test('renders a pane through its module', () => {
   expect(screen.getByText('chose-ok')).toBeInTheDocument();
   off();
 });
+
+test('a pane that crashes is contained; the others keep running', () => {
+  const off = registerPanel<{ kind: 'boom' }>({
+    id: 'test.boom',
+    kind: 'boom',
+    title: 'Boum',
+    icon: Box,
+    component: () => {
+      throw new Error('kaboom');
+    },
+  });
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'a',
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          sizes: [50, 50],
+          children: [
+            { type: 'leaf', id: 'a', panel: { kind: 'terminal', profileId: 'pwsh', cwd: null, title: null } },
+            { type: 'leaf', id: 'b', panel: { kind: 'boom' } },
+          ],
+        } as never,
+      },
+    ],
+    activeTabId: 't1',
+  });
+  render(<Live />);
+  expect(screen.getByTestId('term-a')).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent(/kaboom/);
+  spy.mockRestore();
+  off();
+});

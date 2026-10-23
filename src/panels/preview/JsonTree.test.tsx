@@ -28,3 +28,10 @@ test('large documents start folded below the root', () => {
     screen.getByRole('button', { name: /Afficher 500 de plus \(5500 restants\)/ }),
   ).toBeInTheDocument();
 });
+
+test('a huge array renders instead of crashing', () => {
+  // Spreading 200k values into push() throws a RangeError in V8.
+  const huge = Array.from({ length: 200_000 }, (_, i) => i);
+  expect(() => render(<JsonTree value={huge} />)).not.toThrow();
+  expect(screen.getByRole('button', { name: /199500 restants/ })).toBeInTheDocument();
+});

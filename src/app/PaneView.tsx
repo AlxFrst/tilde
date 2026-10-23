@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { Component, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { getPanelModule } from '@/panels/registry';
 import { useWorkspace } from '@/stores/workspace';
@@ -13,6 +13,42 @@ import {
 import type { LeafNode, Tab } from '@/workspace/types';
 
 const pct = (f: number) => `${String(f * 100)}%`;
+
+/** A pane that throws while rendering shows its error; the tab and the app keep running. */
+class PaneErrorBoundary extends Component<
+  { title: string; onClose: () => void; children: ReactNode },
+  { error: Error | null }
+> {
+  override state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  override componentDidCatch(error: Error) {
+    console.error('pane crashed', error);
+  }
+
+  override render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div
+        role="alert"
+        className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm"
+      >
+        <p className="font-medium">Le panneau « {this.props.title} » a rencontré une erreur.</p>
+        <p className="max-w-md break-words text-text-muted">{this.state.error.message}</p>
+        <button
+          type="button"
+          className="rounded-md border px-3 py-1 hover:bg-surface-2"
+          onClick={this.props.onClose}
+        >
+          Fermer le panneau
+        </button>
+      </div>
+    );
+  }
+}
 
 function Leaf({
   tab,
@@ -29,7 +65,8 @@ function Leaf({
 }) {
   const ws = useWorkspace.getState;
   const active = tab.activeLeafId === leaf.id;
-  const Module = getPanelModule(leaf.panel.kind)?.component;
+  const module = getPanelModule(leaf.panel.kind);
+  const Module = module?.component;
   return (
     <div
       className={cn(
@@ -42,19 +79,26 @@ function Leaf({
       }}
     >
       {Module ? (
-        <Module
-          tabId={tab.id}
-          leafId={leaf.id}
-          state={leaf.panel}
-          active={visible && active}
-          visible={visible}
-          update={(patch) => {
-            ws().updatePanel(tab.id, leaf.id, patch);
-          }}
-          close={() => {
+        <PaneErrorBoundary
+          title={module.title}
+          onClose={() => {
             ws().closeLeaf(tab.id, leaf.id);
           }}
-        />
+        >
+          <Module
+            tabId={tab.id}
+            leafId={leaf.id}
+            state={leaf.panel}
+            active={visible && active}
+            visible={visible}
+            update={(patch) => {
+              ws().updatePanel(tab.id, leaf.id, patch);
+            }}
+            close={() => {
+              ws().closeLeaf(tab.id, leaf.id);
+            }}
+          />
+        </PaneErrorBoundary>
       ) : (
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
           Panneau inconnu : « {leaf.panel.kind} »
