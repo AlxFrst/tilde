@@ -1,0 +1,57 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+web1:
+  hostname: web1
+  port: 2200
+  user: admin
+  identity_files: [/home/alice/.ssh/id_ed25519, /home/alice/.ssh/deploy_ed25519]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 60
+  server_alive_count_max: 3
+  connect_timeout: -
+  strict_host_key_checking: accept-new
+
+web2:
+  hostname: web2
+  port: 2200
+  user: admin
+  identity_files: [/home/alice/.ssh/id_ed25519, /home/alice/.ssh/deploy_ed25519]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 60
+  server_alive_count_max: 3
+  connect_timeout: -
+  strict_host_key_checking: accept-new
+
+monitoring:
+  hostname: mon.example.org
+  port: 22
+  user: admin
+  identity_files: [/home/alice/.ssh/id_ed25519]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 60
+  server_alive_count_max: 3
+  connect_timeout: -
+  strict_host_key_checking: accept-new

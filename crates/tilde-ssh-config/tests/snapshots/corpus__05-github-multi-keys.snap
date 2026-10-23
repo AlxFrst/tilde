@@ -1,0 +1,74 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+github.com:
+  hostname: github.com
+  port: 22
+  user: git
+  identity_files: [/home/alice/.ssh/github_personal, /home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+github-work:
+  hostname: github.com
+  port: 22
+  user: git
+  identity_files: [/home/alice/.ssh/github_work, /home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+gitlab.com:
+  hostname: gitlab.com
+  port: 22
+  user: git
+  identity_files: [/home/alice/.ssh/id_ed25519]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+gitlab-work:
+  hostname: gitlab.com
+  port: 22
+  user: git
+  identity_files: [/home/alice/.ssh/gitlab_work, /home/alice/.ssh/id_ed25519]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -

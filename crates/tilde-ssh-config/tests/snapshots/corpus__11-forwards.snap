@@ -1,0 +1,23 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  <corpus>/11-forwards.conf:9 : redirection « 1080 » : cible manquante, ou redirection dynamique non prise en charge (attendu : [adresse:]port hôte:port)
+
+tunnels:
+  hostname: gw.example.com
+  port: 22
+  user: tunnel
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: [5432 -> db.internal:5432, 127.0.0.1:8080 -> web.internal:80, [::1]:9000 -> ::1:22]
+  remote_forwards: [0.0.0.0:9090 -> localhost:3000, 9091 -> localhost:3001]
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -

@@ -9,6 +9,7 @@ use std::{
 use crate::{
     lexer::{LexError, lex},
     model::{Block, Diagnostic, Directive, SshConfig},
+    validate::{check_directive, check_match},
 };
 
 /// Where `~` and relative `Include` paths point to.
@@ -203,6 +204,9 @@ impl<'a> Parser<'a> {
                     current = Some(self.push(cond.new_block()));
                 }
                 "match" => {
+                    if let Some(problem) = check_match(&args) {
+                        self.diag(file, line, problem);
+                    }
                     cond = outer.and(Cond::Match { criteria: args, file: file.into(), line });
                     current = Some(self.push(cond.new_block()));
                 }
@@ -212,6 +216,9 @@ impl<'a> Parser<'a> {
                     }
                 }
                 _ => {
+                    if let Some(problem) = check_directive(&keyword, &args) {
+                        self.diag(file, line, problem);
+                    }
                     let index = self.block_for(&cond, current);
                     current = Some(index);
                     self.blocks[index].directives_mut().push(Directive {

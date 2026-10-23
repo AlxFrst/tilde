@@ -1,0 +1,65 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  <corpus>/12-broken.conf:6 : « port » : valeur « 99999 » invalide (port de 1 à 65535)
+  <corpus>/12-broken.conf:7 : guillemets non fermés après « user » : ligne ignorée
+  <corpus>/12-broken.conf:10 : « host » sans argument : ligne ignorée
+  <corpus>/12-broken.conf:13 : Match localnetwork n'est pas pris en charge par Tilde : ce bloc ne s'appliquera jamais
+  <corpus>/12-broken.conf:16 : Match invalide, bloc ignoré : critère inconnu « frobnicate »
+  <corpus>/12-broken.conf:21 : « serveraliveinterval » : valeur « soon » invalide (durée : 30, 30s, 1m30s…)
+  <corpus>/12-broken.conf:22 : ProxyJump « bob@:22 » : hôte vide
+  <corpus>/12-broken.conf:23 : redirection « 8080 » : cible manquante, ou redirection dynamique non prise en charge (attendu : [adresse:]port hôte:port)
+  <corpus>/12-broken.conf:24 : « identitiesonly » : valeur « perhaps » invalide (yes ou no)
+
+ok:
+  hostname: ok.example.com
+  port: 22
+  user: alice
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+bad-port:
+  hostname: bad-port
+  port: 22
+  user: fallback
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+after-errors:
+  hostname: still.works
+  port: 22
+  user: alice
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
