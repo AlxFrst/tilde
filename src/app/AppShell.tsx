@@ -18,7 +18,7 @@ import { PaneView } from './PaneView';
 import { PromptHost } from './PromptHost';
 import { useQuakeTabs } from './quake';
 import { QuickConnectDialog } from './QuickConnectDialog';
-import { QuickSettingsDialog } from './QuickSettingsDialog';
+import { SettingsDialog } from './settings/SettingsDialog';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { TunnelsDialog } from './TunnelsDialog';
@@ -93,7 +93,7 @@ export function AppShell({
         </main>
         {!quake && sidebarPosition === 'right' && sidebar}
       </div>
-      <QuickSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <CommandPalette />
       <ConfirmCloseDialog />
       <ConfirmDialog />

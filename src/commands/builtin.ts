@@ -2,7 +2,9 @@
 
 import { closeActivePane, closeTab, openDefaultTab } from '@/app/actions';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
+import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
+import { openThemesDir } from '@/ipc/themes';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
@@ -196,6 +198,18 @@ export function registerBuiltins(): () => void {
       title: 'Ouvrir settings.json',
       group: 'Application',
       run: () => void openSettingsFile().catch(noop),
+    },
+    {
+      id: 'app.openKeybindingsFile',
+      title: 'Ouvrir keybindings.json',
+      group: 'Application',
+      run: () => void openKeybindingsFile().catch(noop),
+    },
+    {
+      id: 'app.openThemesDir',
+      title: 'Ouvrir le dossier des thèmes',
+      group: 'Application',
+      run: () => void openThemesDir().catch(noop),
     },
     {
       id: 'app.openLogs',

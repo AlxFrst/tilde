@@ -3,6 +3,7 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource-variable/geist-mono';
 
 @custom-variant dark (&:where([data-theme-kind='dark'], [data-theme-kind='dark'] *));
 
@@ -25,6 +26,8 @@
 
   /* --tilde-ui-font-size is set from settings; --tilde-density via [data-density] on <html>. */
   --tilde-ui-font-size: 13px;
+  /* appearance.uiFontFamily, quoted (set from settings). */
+  --tilde-font-ui: 'Geist Variable';
   --tilde-density: 1;
   /* appearance.window.opacity: window-level backgrounds let the effect or desktop through;
      dialogs, menus and popovers stay opaque. */
@@ -79,7 +82,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--tilde-font-ui), 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 

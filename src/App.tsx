@@ -17,6 +17,7 @@ import { useTransfers } from '@/stores/transfers';
 import { useWindowEffects } from '@/stores/windowEffects';
 import { windowApplyEffects, windowSupportedEffects } from '@/ipc/window';
 import { applyTheme } from '@/themes';
+import { cssFontName } from '@/themes/fonts';
 import { useActiveTheme } from '@/themes/useActiveTheme';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
 
@@ -31,6 +32,7 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
   const theme = useActiveTheme();
   const density = settings?.appearance.density ?? 'comfortable';
   const uiFontSize = settings?.appearance.uiFontSize ?? 13;
+  const uiFont = settings?.appearance.uiFontFamily ?? 'Geist Variable';
   const effect = settings?.appearance.window.effect ?? 'none';
   const opacity = settings?.appearance.window.opacity ?? 1;
 
@@ -187,7 +189,8 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     const root = document.documentElement;
     root.dataset.density = density;
     root.style.setProperty('--tilde-ui-font-size', `${uiFontSize}px`);
-  }, [density, uiFontSize]);
+    root.style.setProperty('--tilde-font-ui', `"${cssFontName(uiFont) || 'Geist Variable'}"`);
+  }, [density, uiFontSize, uiFont]);
 
   const ready = settings !== null && appInfo !== null && workspaceReady;
   const canShow = ready || startupError !== null;

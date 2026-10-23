@@ -1,0 +1,114 @@
+import { FileJson, FolderOpen, Palette, ScrollText } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { openKeybindingsFile } from '@/ipc/keybindings';
+import { openLogsDir, openSettingsFile } from '@/ipc/settings';
+import { openThemesDir } from '@/ipc/themes';
+import { useSettings } from '@/stores/settings';
+import { bindingKeys } from '@/terminal/keyLabels';
+import { Row, Section, SwitchField } from './fields';
+import { ShortcutRecorder } from './ShortcutRecorder';
+
+export function GeneralSection() {
+  const settings = useSettings((s) => s.settings);
+  const readOnly = useSettings((s) => s.readOnly);
+  const update = useSettings((s) => s.update);
+  const [recording, setRecording] = useState(false);
+  if (!settings) return null;
+  const g = settings.general;
+
+  return (
+    <div className="grid gap-6">
+      <Section title="Démarrage">
+        <Row
+          label="Restaurer la session"
+          hint="Onglets et panneaux rouverts au lancement ; les onglets SSH attendent Entrée."
+        >
+          <SwitchField
+            setting="general.restoreSession"
+            label="Restaurer la session"
+            checked={g.restoreSession}
+            disabled={readOnly}
+            onChange={(restoreSession) => void update({ general: { restoreSession } })}
+          />
+        </Row>
+      </Section>
+
+      <Section title="Mode Quake">
+        <Row
+          label="Terminal déroulant"
+          hint="Un raccourci global affiche ou masque un terminal en haut de l’écran."
+        >
+          <SwitchField
+            setting="general.quake.enabled"
+            label="Mode Quake"
+            checked={g.quake.enabled}
+            disabled={readOnly}
+            onChange={(enabled) => void update({ general: { quake: { enabled } } })}
+          />
+        </Row>
+        <Row label="Raccourci global">
+          {recording ? (
+            <ShortcutRecorder
+              label="Nouveau raccourci Quake"
+              onRecord={(shortcut) => {
+                setRecording(false);
+                void update({ general: { quake: { shortcut } } });
+              }}
+              onCancel={() => {
+                setRecording(false);
+              }}
+            />
+          ) : (
+            <>
+              <span className="flex gap-1">
+                {bindingKeys(g.quake.shortcut).map((k) => (
+                  <kbd key={k} className="rounded border bg-surface-2 px-1.5 font-mono text-xs">
+                    {k}
+                  </kbd>
+                ))}
+              </span>
+              <Button
+                variant="ghost"
+                size="xs"
+                data-setting="general.quake.shortcut"
+                aria-label="Modifier le raccourci Quake"
+                disabled={readOnly}
+                onClick={() => {
+                  setRecording(true);
+                }}
+              >
+                Modifier
+              </Button>
+            </>
+          )}
+        </Row>
+      </Section>
+
+      <Section title="Fichiers">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => void openSettingsFile()}>
+            <FileJson strokeWidth={1.5} />
+            settings.json
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void openKeybindingsFile()}>
+            <FileJson strokeWidth={1.5} />
+            keybindings.json
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void openThemesDir()}>
+            <Palette strokeWidth={1.5} />
+            Dossier des thèmes
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void openLogsDir()}>
+            <ScrollText strokeWidth={1.5} />
+            Logs
+          </Button>
+        </div>
+        <p className="flex items-center gap-1.5 text-xs text-text-muted">
+          <FolderOpen className="size-3.5" strokeWidth={1.5} />
+          Les fichiers sont rechargés à chaud : une modification s’applique sans redémarrer.
+        </p>
+      </Section>
+    </div>
+  );
+}
