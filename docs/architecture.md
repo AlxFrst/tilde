@@ -58,6 +58,42 @@ CSS `--tilde-*`, que Tailwind et shadcn consomment via `src/styles/globals.css`.
 est résolu à partir de `appearance.colorScheme`, `themeDark`, `themeLight` et de la préférence
 de l'OS. Les tests vérifient le contraste WCAG de chaque thème intégré.
 
+## Sessions de terminal
+
+```
+crates/tilde-pty      détection des shells (+ WSL), fusion avec les profils de settings.json
+crates/tilde-session  PTY (portable-pty / ConPTY) : lecteur → pompe → sink
+src-tauri commands    session_open / write / resize / ack / close / busy
+src/terminal          TerminalView (xterm.js + addons)
+src/workspace         arbre de splits (fonctions pures) ; src/stores/workspace : onglets
+```
+
+- **Sortie** : un thread lit le PTY par blocs de 64 Kio dans un canal **borné**. La pompe
+  regroupe les octets (toutes les 4 ms ou dès 64 Kio) et les envoie au front sur un
+  `Channel` Tauri, en binaire brut (`ArrayBuffer` côté JS).
+- **Contrôle de flux** : le front acquitte chaque bloc une fois qu'xterm l'a affiché
+  (`session_ack`). Au-delà de 1 Mio non acquitté, la pompe cesse de lire ; le canal se
+  remplit, le lecteur bloque et la contre-pression remonte jusqu'au processus. Reprise
+  sous 256 Kio. C'est ce qui évite de figer l'UI sur un gros `cat`.
+- **Entrée** : `session_write` reçoit un corps binaire ; l'id de session est dans l'en-tête
+  `x-session-id`.
+- **Démarrage sous Windows** : ConPTY demande la position du curseur (`ESC[6n`) et bloque le
+  shell jusqu'à la réponse, qu'xterm envoie. Cette demande arrive souvent *avant* que
+  `session_open` ait renvoyé l'id : `TerminalView` met donc en file les écritures et les
+  acquittements jusqu'à connaître l'id.
+- **Fin du processus** : le thread d'attente récupère le code, libère le pseudo-console
+  (ce qui débloque le lecteur sous Windows) ; la pompe envoie le reste puis l'événement
+  `exit`, et la session se retire du gestionnaire. Code 0 → le panneau se ferme ; sinon un
+  bandeau propose de relancer.
+- **Splits** : les terminaux sont rendus en **liste plate positionnée en absolu**
+  (`layoutRects`), avec une clé stable par panneau. Diviser ou fermer un panneau ne remonte
+  donc jamais les autres terminaux (ce qui redémarrerait leur shell).
+- **Fermeture** : « programme en cours » = sous Unix, le groupe de premier plan du PTY
+  diffère du shell ; sous Windows, le shell a un processus enfant (hors `conhost`).
+- **Restauration** : `workspace.json` (format possédé par le front, `version: 1`) est
+  sauvegardé 500 ms après chaque changement et à la fermeture. Au démarrage, les panneaux
+  dont le profil n'existe plus sont relancés avec le profil par défaut.
+
 ## Fenêtre
 
 La fenêtre démarre **cachée** et le front l'affiche une fois la coquille rendue, ce qui évite

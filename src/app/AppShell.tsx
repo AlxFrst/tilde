@@ -4,6 +4,7 @@ import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { useWorkspace } from '@/stores/workspace';
 import { allSessions } from '@/terminal/sessionRegistry';
+import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
 import { PaneView } from './PaneView';
@@ -18,7 +19,8 @@ import { Welcome } from './Welcome';
 function useWindowCloseGuard() {
   useEffect(() => {
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (!(await confirmClose(allSessions()))) event.preventDefault();
+      if (await confirmClose(allSessions())) flushWorkspace();
+      else event.preventDefault();
     });
     return () => {
       void unlisten.then((off) => {

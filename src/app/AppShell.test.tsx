@@ -42,6 +42,10 @@ function mockBackend({
         return Promise.resolve({ settings, readOnly, error });
       case 'app_info':
         return Promise.resolve({ version: '0.1.0', platform });
+      case 'workspace_load':
+        return Promise.resolve(null);
+      case 'workspace_save':
+        return Promise.resolve();
       case 'profiles_list':
         return Promise.resolve([]);
       case 'settings_update':

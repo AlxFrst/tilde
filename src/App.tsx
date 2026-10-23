@@ -8,6 +8,7 @@ import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { applyTheme, useResolvedTheme } from '@/themes';
+import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
 
 const DEFAULT_CHOICE = {
   colorScheme: 'system',
@@ -20,31 +21,49 @@ export default function App() {
   const init = useSettings((s) => s.init);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [startupError, setStartupError] = useState<string | null>(null);
+  const [workspaceReady, setWorkspaceReady] = useState(false);
   const theme = useResolvedTheme(settings?.appearance ?? DEFAULT_CHOICE);
   const density = settings?.appearance.density ?? 'comfortable';
   const uiFontSize = settings?.appearance.uiFontSize ?? 13;
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
-    let cancelled = false;
+    let stopPersistence: (() => void) | undefined;
+    const run = { cancelled: false };
+    // Read through a function: the cleanup flips the flag while awaits are pending.
+    const isCancelled = () => run.cancelled;
     const fail = (err: unknown) => {
       console.error('startup failed', err);
-      if (!cancelled) setStartupError(err instanceof Error ? err.message : String(err));
+      if (!isCancelled()) setStartupError(err instanceof Error ? err.message : String(err));
     };
-    init().then((off) => {
-      if (cancelled) off();
-      else unsubscribe = off;
-    }, fail);
-    getAppInfo().then(setAppInfo, fail);
-    useProfiles
+    const profiles = useProfiles
       .getState()
       .load()
       .catch((err: unknown) => {
         console.warn('shell detection failed', err);
       });
+    init()
+      .then(async (off) => {
+        if (isCancelled()) {
+          off();
+          return;
+        }
+        unsubscribe = off;
+        await profiles;
+        const loaded = useSettings.getState().settings;
+        // In StrictMode the first run is cancelled before this point: restore only once.
+        if (isCancelled() || !loaded) return;
+        await restoreWorkspace(useProfiles.getState().profiles, loaded);
+        if (isCancelled()) return;
+        stopPersistence = startPersistence();
+        setWorkspaceReady(true);
+      })
+      .catch(fail);
+    getAppInfo().then(setAppInfo, fail);
     return () => {
-      cancelled = true;
+      run.cancelled = true;
       unsubscribe?.();
+      stopPersistence?.();
     };
   }, [init]);
 
@@ -59,7 +78,7 @@ export default function App() {
     root.style.setProperty('--tilde-ui-font-size', `${uiFontSize}px`);
   }, [density, uiFontSize]);
 
-  const ready = settings !== null && appInfo !== null;
+  const ready = settings !== null && appInfo !== null && workspaceReady;
   const canShow = ready || startupError !== null;
 
   // The window starts hidden; show it once the shell (or the error screen) has rendered
