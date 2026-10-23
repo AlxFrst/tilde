@@ -38,6 +38,10 @@ interface WorkspaceState {
   openPreview: (besideLeafId: string, source: PreviewSource) => void;
   /** Opens a system monitor beside a pane (new tab if `null`), or focuses the same one. */
   openMonitor: (besideLeafId: string | null, source: MonitorPanel['source']) => void;
+  /** Shows the files of an SSH pane, or closes them if they are open. */
+  toggleSftp: (sshLeafId: string) => void;
+  /** Shows the server monitor of an SSH pane, or closes it if it is open. */
+  toggleRemoteMonitor: (sshLeafId: string) => void;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
   activateRelative: (delta: 1 | -1) => void;
@@ -76,11 +80,38 @@ const newSshLeaf = (target: string, connectionId: string | null = null): LeafNod
 /** Index of the tab to activate after removing the one at `index`. */
 const neighborIndex = (index: number, remaining: number) => Math.min(index, remaining - 1);
 
+/** The files or the server monitor attached to an SSH pane, in whichever tab they are. */
+export function findLinked(
+  tabs: readonly Tab[],
+  sshLeafId: string,
+  kind: 'sftp' | 'monitor',
+): { tabId: string; leafId: string } | null {
+  for (const t of tabs) {
+    const leaf = leaves(t.root).find(({ panel: p }) =>
+      p.kind === 'sftp'
+        ? kind === 'sftp' && p.linkedLeafId === sshLeafId
+        : p.kind === 'monitor' &&
+          kind === 'monitor' &&
+          p.source.kind === 'remote' &&
+          p.source.linkedLeafId === sshLeafId,
+    );
+    if (leaf) return { tabId: t.id, leafId: leaf.id };
+  }
+  return null;
+}
+
 export const useWorkspace = create<WorkspaceState>()((set, get) => {
   const mapTab = (tabId: string, f: (t: Tab) => Tab) => {
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === tabId ? f(t) : t)) }));
   };
   const activeTab = () => get().tabs.find((t) => t.id === get().activeTabId);
+  /** Puts the focus back on a pane after closing something attached to it. */
+  const refocus = (leafId: string) => {
+    const tab = get().tabs.find((t) => findLeaf(t.root, leafId));
+    if (!tab) return;
+    set({ activeTabId: tab.id });
+    get().focusLeaf(tab.id, leafId);
+  };
   const addTab = (leaf: LeafNode) => {
     const tab: Tab = {
       id: crypto.randomUUID(),
@@ -226,6 +257,26 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         activeLeafId: leaf.id,
       }));
       set({ activeTabId: tab.id });
+    },
+
+    toggleSftp: (sshLeafId) => {
+      const open = findLinked(get().tabs, sshLeafId, 'sftp');
+      if (!open) {
+        get().openSftpBeside(sshLeafId);
+        return;
+      }
+      get().closeLeaf(open.tabId, open.leafId);
+      refocus(sshLeafId);
+    },
+
+    toggleRemoteMonitor: (sshLeafId) => {
+      const open = findLinked(get().tabs, sshLeafId, 'monitor');
+      if (!open) {
+        get().openMonitor(sshLeafId, { kind: 'remote', linkedLeafId: sshLeafId });
+        return;
+      }
+      get().closeLeaf(open.tabId, open.leafId);
+      refocus(sshLeafId);
     },
 
     closeTab: (tabId) => {

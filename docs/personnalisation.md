@@ -160,7 +160,7 @@ fait avec la touche `)`.
 | `terminal.search`                    | Rechercher                 | Ctrl+Shift+F                |
 | `ssh.quickConnect`                   | Connexion SSH              | Ctrl+Shift+K                |
 | `palette.toggle`                     | Palette de commandes       | Ctrl+Shift+P                |
-| `sftp.open`                          | Fichiers (SFTP)            | Ctrl+Shift+E                |
+| `sftp.open`                          | Afficher / masquer les fichiers (SFTP) | Ctrl+Shift+E   |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 

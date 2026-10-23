@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FolderTree, Plus, Server, X } from 'lucide-react';
+import { Activity, FolderTree, Plus, Server, X, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
   ContextMenu,
@@ -22,7 +22,7 @@ import { getPanelModule } from '@/panels/registry';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
-import { useWorkspace } from '@/stores/workspace';
+import { findLinked, useWorkspace } from '@/stores/workspace';
 import { cn } from '@/lib/utils';
 import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf, leaves } from '@/workspace/tree';
@@ -262,6 +262,86 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
   );
 }
 
+/** The SSH pane the active pane belongs to: itself, or the one its files/monitor follow. */
+function useActiveSshLeaf(): string | null {
+  return useWorkspace((s) => {
+    const tab = s.tabs.find((t) => t.id === s.activeTabId);
+    const panel = tab ? findLeaf(tab.root, tab.activeLeafId)?.panel : undefined;
+    if (!tab || !panel) return null;
+    if (panel.kind === 'ssh') return tab.activeLeafId;
+    if (panel.kind === 'sftp') return panel.linkedLeafId;
+    if (panel.kind === 'monitor' && panel.source.kind === 'remote') {
+      return panel.source.linkedLeafId;
+    }
+    return null;
+  });
+}
+
+function ToggleButton({
+  label,
+  title,
+  Icon,
+  pressed,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  Icon: LucideIcon;
+  pressed: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      title={title}
+      className={cn(
+        'flex h-6 items-center gap-1.5 rounded-md px-2 text-xs text-text-muted transition-colors hover:bg-surface-2 hover:text-text',
+        pressed && 'bg-surface-2 text-text',
+      )}
+      onClick={onClick}
+    >
+      <Icon className={cn('size-3.5', pressed && 'text-accent')} strokeWidth={1.5} />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+/** Buttons showing or hiding the files and the monitor of the active SSH session. */
+function SessionActions() {
+  const sshLeafId = useActiveSshLeaf();
+  const filesOpen = useWorkspace((s) => !!sshLeafId && !!findLinked(s.tabs, sshLeafId, 'sftp'));
+  const monitorOpen = useWorkspace(
+    (s) => !!sshLeafId && !!findLinked(s.tabs, sshLeafId, 'monitor'),
+  );
+  if (!sshLeafId) return null;
+  return (
+    <div className="mb-1 flex items-center gap-0.5 self-center border-r pr-1">
+      <ToggleButton
+        label="Fichiers"
+        title={
+          filesOpen ? 'Masquer les fichiers (Ctrl+Maj+E)' : 'Afficher les fichiers (Ctrl+Maj+E)'
+        }
+        Icon={FolderTree}
+        pressed={filesOpen}
+        onClick={() => {
+          useWorkspace.getState().toggleSftp(sshLeafId);
+        }}
+      />
+      <ToggleButton
+        label="Moniteur du serveur"
+        title={monitorOpen ? 'Masquer le moniteur du serveur' : 'Afficher le moniteur du serveur'}
+        Icon={Activity}
+        pressed={monitorOpen}
+        onClick={() => {
+          useWorkspace.getState().toggleRemoteMonitor(sshLeafId);
+        }}
+      />
+    </div>
+  );
+}
+
 export function TabBar() {
   const tabs = useWorkspace((s) => s.tabs);
   const activeTabId = useWorkspace((s) => s.activeTabId);
@@ -280,7 +360,7 @@ export function TabBar() {
           <div
             role="tablist"
             aria-label="Onglets"
-            className="flex h-full min-w-0 items-end gap-1 overflow-x-auto"
+            className="flex h-full min-w-0 items-end gap-1 overflow-x-auto [scrollbar-width:none]"
           >
             {tabs.map((t) => (
               <TabItem key={t.id} tab={t} active={t.id === activeTabId} />
@@ -288,6 +368,7 @@ export function TabBar() {
           </div>
         </SortableContext>
       </DndContext>
+      <SessionActions />
       <div className="mb-1 flex items-center self-center">
         <button
           type="button"

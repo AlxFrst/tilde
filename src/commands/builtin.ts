@@ -17,13 +17,13 @@ import { registerCommands, type Command } from './registry';
 
 const ws = () => useWorkspace.getState();
 
-/** Opens (or focuses) the files of the active SSH pane. */
-function openFilesOfActivePane(): void {
+/** Shows or hides the files of the active SSH pane. */
+function toggleFilesOfActivePane(): void {
   const { tabs, activeTabId } = ws();
   const tab = tabs.find((t) => t.id === activeTabId);
   const leaf = tab ? findLeaf(tab.root, tab.activeLeafId) : null;
-  if (leaf?.panel.kind === 'ssh') ws().openSftpBeside(leaf.id);
-  else if (leaf?.panel.kind === 'sftp') ws().openSftpBeside(leaf.panel.linkedLeafId);
+  if (leaf?.panel.kind === 'ssh') ws().toggleSftp(leaf.id);
+  else if (leaf?.panel.kind === 'sftp') ws().toggleSftp(leaf.panel.linkedLeafId);
   else toast.info('Les fichiers s’ouvrent depuis un onglet SSH (Ctrl+Maj+K pour se connecter).');
 }
 const noop = () => undefined;
@@ -144,9 +144,9 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'sftp.open',
-      title: 'Fichiers (SFTP)',
+      title: 'Afficher / masquer les fichiers (SFTP)',
       group: 'Connexions',
-      run: openFilesOfActivePane,
+      run: toggleFilesOfActivePane,
     },
     {
       id: 'connections.new',
