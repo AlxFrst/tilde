@@ -108,3 +108,15 @@ test('app shortcuts are paused while recording', async () => {
   press({ key: 'P', code: 'KeyP', ctrlKey: true, shiftKey: true });
   expect(palette).toHaveBeenCalledTimes(1);
 });
+
+test('warns before taking a control key the shell uses', async () => {
+  render(<ShortcutsSection />);
+  await record('Nouvel onglet');
+  press({ key: 'r', code: 'KeyR', ctrlKey: true });
+  expect(await screen.findByText(/Utilisé par le shell/)).toBeInTheDocument();
+  expect(keybindingsSet).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Utiliser quand même' }));
+  await vi.waitFor(() => {
+    expect(keybindingsSet).toHaveBeenCalledWith('tab.new', 'Ctrl+R');
+  });
+});

@@ -117,8 +117,10 @@ test('a hand-written key that would break typing is refused, duplicates are repo
   expect(bindingOf('app.x')).toBe('F5');
   expect(useKeybindings.getState().invalid.sort()).toEqual(['tab.new', 'terminal.copy']);
   // tab.close now shares Ctrl+Shift+P with the palette: the user is told.
-  expect(vi.mocked(toast.error).mock.calls.some(([m]) => String(m).includes('Ctrl+Shift+P'))).toBe(
-    true,
-  );
+  expect(
+    vi
+      .mocked(toast.error)
+      .mock.calls.some(([m]) => typeof m === 'string' && m.includes('Ctrl+Shift+P')),
+  ).toBe(true);
   off();
 });

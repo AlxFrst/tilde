@@ -1,27 +1,45 @@
 import { Keyboard } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useUi } from '@/stores/ui';
 import { bindingKeys } from '@/terminal/keyLabels';
-import { eventToBinding, parseBinding, requiresModifier } from '@/terminal/keys';
+import { eventToBinding, parseBinding, requiresModifier, type Binding } from '@/terminal/keys';
+
+const isMac = () => typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+
+/** Ctrl+letter is a shell control key (Ctrl+C interrupts, Ctrl+W deletes a word…). */
+function isShellKey(b: Binding): boolean {
+  return !isMac() && b.ctrl && !b.alt && !b.shift && /^[A-Z]$/.test(b.key);
+}
+
+interface Pending {
+  binding: string;
+  message: string;
+  confirm: string;
+  /** `shell`: confirming goes on to the conflict check. */
+  stage: 'shell' | 'conflict';
+}
 
 /**
  * Records the next key combination. App shortcuts are paused meanwhile, and the keys
- * never reach the terminal. `conflictOf` names the command already using a binding.
+ * never reach the terminal. `conflictOf` names the command already using a binding;
+ * `validate` refuses bindings a caller cannot use (with the reason).
  */
 export function ShortcutRecorder({
   label,
   onRecord,
   onCancel,
   conflictOf,
+  validate,
 }: {
   label: string;
   onRecord: (binding: string) => void;
   onCancel: () => void;
   conflictOf?: (binding: string) => string | null;
+  validate?: (b: Binding) => string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
-  const [conflict, setConflict] = useState<{ binding: string; title: string } | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
 
   useEffect(() => {
     useUi.setState({ recordingShortcut: true });
@@ -30,9 +48,24 @@ export function ShortcutRecorder({
     };
   }, []);
 
+  const afterShellCheck = useCallback(
+    (binding: string) => {
+      const title = conflictOf?.(binding) ?? null;
+      if (title) {
+        setPending({
+          binding,
+          message: `Déjà utilisé par « ${title} »`,
+          confirm: 'Remplacer',
+          stage: 'conflict',
+        });
+      } else onRecord(binding);
+    },
+    [conflictOf, onRecord],
+  );
+
   useEffect(() => {
-    // While asking about a conflict, keys go to the buttons.
-    if (conflict) return;
+    // While asking for a confirmation, keys go to the buttons.
+    if (pending) return;
     const onKeyDown = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -47,29 +80,44 @@ export function ShortcutRecorder({
         setError('Ajoutez Ctrl ou Alt : une touche seule casserait la saisie dans le terminal.');
         return;
       }
-      const title = conflictOf?.(binding) ?? null;
-      if (title) setConflict({ binding, title });
-      else onRecord(binding);
+      const refused = validate?.(parsed) ?? null;
+      if (refused) {
+        setError(refused);
+        return;
+      }
+      if (isShellKey(parsed)) {
+        setPending({
+          binding,
+          message: 'Utilisé par le shell (interrompre, effacer un mot, rechercher…)',
+          confirm: 'Utiliser quand même',
+          stage: 'shell',
+        });
+        return;
+      }
+      afterShellCheck(binding);
     };
     window.addEventListener('keydown', onKeyDown, { capture: true });
     return () => {
       window.removeEventListener('keydown', onKeyDown, { capture: true });
     };
-  }, [conflict, conflictOf, onCancel, onRecord]);
+  }, [pending, validate, onCancel, afterShellCheck]);
 
-  if (conflict) {
+  if (pending) {
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs">
         <span>
-          {bindingKeys(conflict.binding).join(' + ')} — Déjà utilisé par « {conflict.title} »
+          {bindingKeys(pending.binding).join(' + ')} — {pending.message}
         </span>
         <Button
           size="xs"
           onClick={() => {
-            onRecord(conflict.binding);
+            const { binding, stage } = pending;
+            setPending(null);
+            if (stage === 'shell') afterShellCheck(binding);
+            else onRecord(binding);
           }}
         >
-          Remplacer
+          {pending.confirm}
         </Button>
         <Button size="xs" variant="outline" onClick={onCancel}>
           Annuler
