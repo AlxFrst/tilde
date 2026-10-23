@@ -52,7 +52,7 @@ function isNode(n: unknown): n is LayoutNode {
   if (typeof n !== 'object' || n === null) return false;
   const node = n as Partial<LayoutNode>;
   if (node.type === 'leaf') {
-    const p = (node).panel;
+    const p = node.panel;
     return typeof node.id === 'string' && p?.kind === 'terminal' && typeof p.profileId === 'string';
   }
   if (node.type === 'split') {

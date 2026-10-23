@@ -19,6 +19,7 @@ vi.mock('@tauri-apps/api/window', () => ({
     close: vi.fn(() => Promise.resolve()),
     isMaximized: vi.fn(() => Promise.resolve(false)),
     onResized: vi.fn(() => Promise.resolve(() => undefined)),
+    onCloseRequested: vi.fn(() => Promise.resolve(() => undefined)),
   }),
 }));
 
@@ -41,6 +42,8 @@ function mockBackend({
         return Promise.resolve({ settings, readOnly, error });
       case 'app_info':
         return Promise.resolve({ version: '0.1.0', platform });
+      case 'profiles_list':
+        return Promise.resolve([]);
       case 'settings_update':
         return Promise.resolve(settings);
       default:
@@ -68,7 +71,8 @@ test('renders titlebar, sidebar, tabbar and welcome', async () => {
   render(<App />);
   expect(await screen.findByRole('banner')).toHaveTextContent('Tilde');
   expect(screen.getByRole('complementary', { name: 'Connexions' })).toBeInTheDocument();
-  expect(screen.getByRole('tablist')).toHaveTextContent('Accueil');
+  expect(screen.getByRole('tablist')).toBeEmptyDOMElement();
+  expect(screen.getByRole('button', { name: 'Nouvel onglet' })).toBeInTheDocument();
   expect(screen.getByText('Aucune connexion pour l’instant')).toBeInTheDocument();
   expect(screen.getByText(/v0\.1\.0/)).toBeInTheDocument();
 });

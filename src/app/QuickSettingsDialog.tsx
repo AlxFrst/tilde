@@ -79,7 +79,11 @@ function ThemeSelect({
 }) {
   return (
     <Select value={value} disabled={disabled} onValueChange={onChange}>
-      <SelectTrigger size="sm" className="w-48" aria-label={`Thème ${kind === 'dark' ? 'sombre' : 'clair'}`}>
+      <SelectTrigger
+        size="sm"
+        className="w-48"
+        aria-label={`Thème ${kind === 'dark' ? 'sombre' : 'clair'}`}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -139,8 +143,8 @@ export function QuickSettingsDialog({
           >
             <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} />
             <p>
-              {error ? formatConfigError(error) : 'settings.json est invalide.'} Corrigez le
-              fichier pour modifier les réglages.
+              {error ? formatConfigError(error) : 'settings.json est invalide.'} Corrigez le fichier
+              pour modifier les réglages.
             </p>
           </div>
         )}

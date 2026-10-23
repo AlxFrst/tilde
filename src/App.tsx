@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppShell } from '@/app/AppShell';
 import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
+import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { applyTheme, useResolvedTheme } from '@/themes';
 
@@ -35,6 +36,12 @@ export default function App() {
       else unsubscribe = off;
     }, fail);
     getAppInfo().then(setAppInfo, fail);
+    useProfiles
+      .getState()
+      .load()
+      .catch((err: unknown) => {
+        console.warn('shell detection failed', err);
+      });
     return () => {
       cancelled = true;
       unsubscribe?.();

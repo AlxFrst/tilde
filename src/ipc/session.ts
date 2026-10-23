@@ -36,7 +36,9 @@ function toBytes(message: unknown): Uint8Array {
 }
 
 /** Starts a shell. Output is streamed as bytes; acknowledge it with `ackSession`. */
-export async function openSession(o: OpenSessionOptions): Promise<{ id: number; profileId: string }> {
+export async function openSession(
+  o: OpenSessionOptions,
+): Promise<{ id: number; profileId: string }> {
   const output = new Channel<unknown>();
   output.onmessage = (m) => {
     o.onData(toBytes(m));

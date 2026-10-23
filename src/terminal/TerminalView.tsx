@@ -37,6 +37,7 @@ import { parseOsc7 } from './osc7';
 import { needsPasteConfirmation, pastedLineCount } from './paste';
 import { createResizeScheduler } from './resize';
 import { SearchBar } from './SearchBar';
+import { registerSession, unregisterSession } from './sessionRegistry';
 
 export interface TerminalViewProps {
   tabId: string;
@@ -224,6 +225,7 @@ export function TerminalView(props: TerminalViewProps) {
       onExit: (code) => {
         if (s.disposed) return;
         s.ended = true;
+        unregisterSession(latest.current.props.leafId);
         setExitCode(code);
         latest.current.props.onExit(code);
       },
@@ -234,6 +236,7 @@ export function TerminalView(props: TerminalViewProps) {
           return;
         }
         s.id = id;
+        registerSession(latest.current.props.leafId, id);
         for (const d of s.pendingInput.splice(0)) writeSession(id, d).catch(noop);
         if (s.pendingAck > 0) ackSession(id, s.pendingAck).catch(noop);
         s.pendingAck = 0;
@@ -251,6 +254,7 @@ export function TerminalView(props: TerminalViewProps) {
 
     return () => {
       s.disposed = true;
+      unregisterSession(latest.current.props.leafId);
       if (s.id !== null && !s.ended) closeSession(s.id).catch(noop);
     };
   }, [generation]);

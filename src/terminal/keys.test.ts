@@ -30,6 +30,34 @@ test('modifiers must match exactly', () => {
   ).toBeNull();
 });
 
+test('falls back to the key when the physical code is missing', () => {
+  // Remote desktop, automation tools and some IMEs deliver an empty `code`.
+  expect(matchShortcut(ev({ code: '', key: 'T', ctrlKey: true, shiftKey: true }))).toBe('tab.new');
+  expect(matchShortcut(ev({ code: '', key: '+', altKey: true, shiftKey: true }))).toBe(
+    'pane.splitRight',
+  );
+  expect(matchShortcut(ev({ code: 'Unidentified', key: '_', altKey: true, shiftKey: true }))).toBe(
+    'pane.splitDown',
+  );
+  expect(matchShortcut(ev({ code: '', key: 'ArrowUp', altKey: true }))).toBe('pane.focusUp');
+});
+
+test('falls back to the key when the physical code does not match', () => {
+  // Numpad keys: the produced character still identifies the shortcut.
+  expect(
+    matchShortcut(ev({ code: 'NumpadSubtract', key: '-', altKey: true, shiftKey: true })),
+  ).toBe('pane.splitDown');
+  expect(matchShortcut(ev({ code: 'NumpadAdd', key: '+', altKey: true, shiftKey: true }))).toBe(
+    'pane.splitRight',
+  );
+  // Arrow keys reported as numpad keys (NumLock off).
+  expect(matchShortcut(ev({ code: 'Numpad4', key: 'ArrowLeft', altKey: true }))).toBe(
+    'pane.focusLeft',
+  );
+  // An unrelated key never matches through its character.
+  expect(matchShortcut(ev({ code: 'Digit6', key: '6', altKey: true, shiftKey: true }))).toBeNull();
+});
+
 test('arrows and tab', () => {
   expect(matchShortcut(ev({ code: 'ArrowLeft', key: 'ArrowLeft', altKey: true }))).toBe(
     'pane.focusLeft',

@@ -1,6 +1,13 @@
 // Pure, non-mutating operations on a tab's split tree.
 
-import type { Direction, FocusDirection, LayoutNode, LeafNode, TerminalPanel } from './types';
+import type {
+  Direction,
+  FocusDirection,
+  LayoutNode,
+  LeafNode,
+  SplitNode,
+  TerminalPanel,
+} from './types';
 
 const equalSizes = (n: number) => Array.from({ length: n }, () => 100 / n);
 
@@ -88,25 +95,89 @@ export function setSizes(root: LayoutNode, splitId: string, sizes: number[]): La
   return { ...root, children: root.children.map((c) => setSizes(c, splitId, sizes)) };
 }
 
-interface Rect {
+/** A rectangle in fractions (0–1) of the tab's area. */
+export interface Rect {
   x: number;
   y: number;
   w: number;
   h: number;
 }
 
-function rects(node: LayoutNode, r: Rect, out: Map<string, Rect>): Map<string, Rect> {
-  if (node.type === 'leaf') return out.set(node.id, r);
+function childRects(node: SplitNode, r: Rect): Rect[] {
   let offset = 0;
-  node.children.forEach((child, i) => {
+  return node.children.map((_, i) => {
     const share = (node.sizes[i] ?? 0) / 100;
     const sub =
       node.direction === 'row'
         ? { x: r.x + offset * r.w, y: r.y, w: share * r.w, h: r.h }
         : { x: r.x, y: r.y + offset * r.h, w: r.w, h: share * r.h };
     offset += share;
-    rects(child, sub, out);
+    return sub;
   });
+}
+
+function rects(node: LayoutNode, r: Rect, out: Map<string, Rect>): Map<string, Rect> {
+  if (node.type === 'leaf') return out.set(node.id, r);
+  const subs = childRects(node, r);
+  node.children.forEach((child, i) => {
+    rects(child, subs[i] ?? r, out);
+  });
+  return out;
+}
+
+/** Every leaf's rectangle, in fractions of the tab's area. */
+export function layoutRects(root: LayoutNode): Map<string, Rect> {
+  return rects(root, { x: 0, y: 0, w: 1, h: 1 }, new Map());
+}
+
+/** A draggable boundary between children `index` and `index + 1` of a split. */
+export interface SplitHandle {
+  splitId: string;
+  index: number;
+  direction: SplitNode['direction'];
+  /** The split's own rectangle (to convert pointer positions). */
+  rect: Rect;
+  /** Boundary position along the split axis, in fractions of the tab. */
+  position: number;
+  /** Extent across the split axis, in fractions of the tab. */
+  span: { start: number; length: number };
+}
+
+export function splitHandles(root: LayoutNode): SplitHandle[] {
+  const out: SplitHandle[] = [];
+  const walk = (node: LayoutNode, r: Rect) => {
+    if (node.type === 'leaf') return;
+    const subs = childRects(node, r);
+    subs.slice(1).forEach((sub, i) => {
+      const row = node.direction === 'row';
+      out.push({
+        splitId: node.id,
+        index: i,
+        direction: node.direction,
+        rect: r,
+        position: row ? sub.x : sub.y,
+        span: row ? { start: r.y, length: r.h } : { start: r.x, length: r.w },
+      });
+    });
+    node.children.forEach((child, i) => {
+      walk(child, subs[i] ?? r);
+    });
+  };
+  walk(root, { x: 0, y: 0, w: 1, h: 1 });
+  return out;
+}
+
+/**
+ * New sizes after dragging the boundary after child `index` to `position` (fraction of
+ * the split, 0–1). Only the two neighbours change; each keeps at least `minPct`.
+ */
+export function resizeAt(sizes: number[], index: number, position: number, minPct = 5): number[] {
+  const a = sizes.slice(0, index).reduce((x, y) => x + y, 0);
+  const pair = (sizes[index] ?? 0) + (sizes[index + 1] ?? 0);
+  const at = Math.min(Math.max(position * 100, a + minPct), a + pair - minPct);
+  const out = [...sizes];
+  out[index] = at - a;
+  out[index + 1] = a + pair - at;
   return out;
 }
 

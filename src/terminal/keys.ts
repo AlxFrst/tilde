@@ -78,15 +78,35 @@ const PARSED = Object.entries(DEFAULT_KEYBINDINGS).map(
 
 const isMac = () => typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
-/** The command bound to this key event, if any. On macOS, `Ctrl` in a binding means ⌘. */
+/** Characters produced by the shifted Equal/Minus keys on common layouts. */
+const SHIFTED_SYMBOLS: Record<string, string> = { '+': 'Equal', _: 'Minus' };
+
+/** The code a key *character* corresponds to (`+` → Equal, `ArrowLeft` → ArrowLeft…). */
+const codeFromKey = (key: string) => SHIFTED_SYMBOLS[key] ?? keyToCode(key);
+
+/**
+ * The command bound to this key event, if any. On macOS, `Ctrl` in a binding means ⌘.
+ *
+ * Matches the physical key first (layout independent), then the produced character:
+ * that covers numpad `+`/`-`, arrows reported as numpad keys, and sources that leave
+ * `code` empty (remote desktop, automation, some IMEs).
+ */
 export function matchShortcut(e: KeyEventLike, mac = isMac()): CommandId | null {
   const ctrl = mac ? e.metaKey : e.ctrlKey;
   const otherMod = mac ? e.ctrlKey : e.metaKey;
   if (otherMod) return null;
-  for (const [id, b] of PARSED) {
-    if (b.code === e.code && b.ctrl === ctrl && b.shift === e.shiftKey && b.alt === e.altKey) {
-      return id;
+  const candidates = [e.code, codeFromKey(e.key)].filter((c) => c && c !== 'Unidentified');
+  for (const code of candidates) {
+    for (const [id, b] of PARSED) {
+      if (b.code === code && b.ctrl === ctrl && b.shift === e.shiftKey && b.alt === e.altKey) {
+        return id;
+      }
     }
   }
   return null;
+}
+
+/** The physical `KeyboardEvent.code` of a binding's key, e.g. `Minus` for `Alt+Shift+-`. */
+export function bindingCode(id: CommandId): string {
+  return parse(DEFAULT_KEYBINDINGS[id]).code;
 }

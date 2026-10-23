@@ -1,0 +1,130 @@
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { useEffect } from 'react';
+import { useWorkspace } from '@/stores/workspace';
+import type { TerminalViewProps } from '@/terminal/TerminalView';
+import { leaves } from '@/workspace/tree';
+import { PaneView } from './PaneView';
+
+const mounts = vi.hoisted(() => new Map<string, number>());
+
+vi.mock('@/terminal/TerminalView', () => ({
+  TerminalView: (p: TerminalViewProps) => {
+    useEffect(() => {
+      mounts.set(p.leafId, (mounts.get(p.leafId) ?? 0) + 1);
+    }, [p.leafId]);
+    return (
+      <div data-testid={`term-${p.leafId}`} data-active={p.active}>
+        <button
+          type="button"
+          onClick={() => {
+            p.onExit(0);
+          }}
+        >
+          exit0-{p.leafId}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            p.onExit(3);
+          }}
+        >
+          exit3-{p.leafId}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            p.onCwd('/srv');
+          }}
+        >
+          cwd-{p.leafId}
+        </button>
+      </div>
+    );
+  },
+}));
+
+const ws = () => useWorkspace.getState();
+const tab = () => {
+  const t = ws().tabs[0];
+  if (!t) throw new Error('no tab');
+  return t;
+};
+
+function Live() {
+  const t = useWorkspace((s) => s.tabs[0]);
+  return t ? <PaneView tab={t} visible /> : null;
+}
+
+beforeEach(() => {
+  mounts.clear();
+  useWorkspace.setState({ tabs: [], activeTabId: null });
+  ws().openTab('cmd');
+  ws().splitActive('row');
+});
+
+test('renders one TerminalView per leaf', () => {
+  render(<Live />);
+  for (const l of leaves(tab().root)) {
+    expect(screen.getByTestId(`term-${l.id}`)).toBeInTheDocument();
+  }
+});
+
+test('splitting keeps existing terminals mounted', () => {
+  render(<Live />);
+  const before = leaves(tab().root).map((l) => l.id);
+  act(() => {
+    ws().splitActive('column');
+  });
+  act(() => {
+    ws().focusLeaf(tab().id, before[0] ?? '');
+    ws().splitActive('column');
+  });
+  expect(leaves(tab().root)).toHaveLength(4);
+  for (const id of before) expect(mounts.get(id)).toBe(1);
+});
+
+test('closing a pane keeps the others mounted', () => {
+  render(<Live />);
+  const [first, second] = leaves(tab().root);
+  if (!first || !second) throw new Error();
+  act(() => {
+    ws().closeLeaf(tab().id, second.id);
+  });
+  expect(mounts.get(first.id)).toBe(1);
+});
+
+test('panes are positioned from the layout sizes', () => {
+  render(<Live />);
+  const [first, second] = leaves(tab().root);
+  if (!first || !second) throw new Error();
+  const box = (id: string) => screen.getByTestId(`term-${id}`).parentElement as HTMLElement;
+  expect(box(first.id).style.left).toBe('0%');
+  expect(box(first.id).style.width).toBe('50%');
+  expect(box(second.id).style.left).toBe('50%');
+});
+
+test('clicking a pane focuses it', () => {
+  const [first] = leaves(tab().root);
+  if (!first) throw new Error();
+  render(<Live />);
+  fireEvent.mouseDown(screen.getByTestId(`term-${first.id}`));
+  expect(tab().activeLeafId).toBe(first.id);
+});
+
+test('pane closes on exit code 0 and shows the code otherwise', () => {
+  const [first, second] = leaves(tab().root);
+  if (!first || !second) throw new Error();
+  render(<Live />);
+  fireEvent.click(screen.getByText(`exit3-${first.id}`));
+  expect(leaves(tab().root)).toHaveLength(2);
+  fireEvent.click(screen.getByText(`exit0-${second.id}`));
+  expect(leaves(tab().root).map((l) => l.id)).toEqual([first.id]);
+});
+
+test('cwd reported by the shell is stored on the panel', () => {
+  const [first] = leaves(tab().root);
+  if (!first) throw new Error();
+  render(<Live />);
+  fireEvent.click(screen.getByText(`cwd-${first.id}`));
+  expect(leaves(tab().root)[0]?.panel.cwd).toBe('/srv');
+});

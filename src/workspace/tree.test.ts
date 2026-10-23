@@ -1,4 +1,12 @@
-import { leaves, neighbor, removeLeaf, splitLeaf } from './tree';
+import {
+  layoutRects,
+  leaves,
+  neighbor,
+  removeLeaf,
+  resizeAt,
+  splitHandles,
+  splitLeaf,
+} from './tree';
 import type { LayoutNode, LeafNode } from './types';
 
 const leaf = (id: string): LeafNode => ({
@@ -104,4 +112,48 @@ test('neighbor respects sizes', () => {
 test('leaves are in visual order', () => {
   const root = split('s', 'column', [split('t', 'row', [leaf('a'), leaf('b')]), leaf('c')]);
   expect(ids(root)).toEqual(['a', 'b', 'c']);
+});
+
+test('layoutRects gives each leaf its normalized rectangle', () => {
+  const root = split(
+    's',
+    'row',
+    [leaf('a'), split('t', 'column', [leaf('b'), leaf('c')], [25, 75])],
+    [40, 60],
+  );
+  const r = layoutRects(root);
+  expect(r.get('a')).toEqual({ x: 0, y: 0, w: 0.4, h: 1 });
+  const b = r.get('b');
+  const c = r.get('c');
+  expect(b?.x).toBeCloseTo(0.4);
+  expect(b?.h).toBeCloseTo(0.25);
+  expect(c?.y).toBeCloseTo(0.25);
+  expect(c?.h).toBeCloseTo(0.75);
+});
+
+test('splitHandles sit on child boundaries', () => {
+  const root = split(
+    's',
+    'row',
+    [leaf('a'), split('t', 'column', [leaf('b'), leaf('c')], [25, 75])],
+    [40, 60],
+  );
+  const handles = splitHandles(root);
+  expect(handles).toHaveLength(2);
+  const [outer, inner] = handles;
+  expect(outer).toMatchObject({ splitId: 's', index: 0, direction: 'row' });
+  expect(outer?.position).toBeCloseTo(0.4);
+  expect(outer?.span).toEqual({ start: 0, length: 1 });
+  expect(inner).toMatchObject({ splitId: 't', index: 0, direction: 'column' });
+  expect(inner?.position).toBeCloseTo(0.25);
+  expect(inner?.span.start).toBeCloseTo(0.4);
+  expect(inner?.span.length).toBeCloseTo(0.6);
+});
+
+test('resizeAt moves one boundary and clamps to a minimum size', () => {
+  expect(resizeAt([50, 50], 0, 0.3)).toEqual([30, 70]);
+  const [x = 0, y = 0, z = 0] = resizeAt([20, 30, 50], 1, 0.95);
+  expect(x).toBeCloseTo(20);
+  expect(y + z).toBeCloseTo(80);
+  expect(z).toBeCloseTo(5);
 });
