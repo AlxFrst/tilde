@@ -60,7 +60,8 @@ fn expand_with<'a>(s: &str, value: impl Fn(char) -> Option<&'a str>) -> String {
 }
 
 /// `~` or `~/…` at the start → home directory. `~user/…` is left as is.
-pub(crate) fn tilde_expand(s: &str, home: &str) -> String {
+#[must_use]
+pub fn tilde_expand(s: &str, home: &str) -> String {
     match s.strip_prefix('~') {
         Some("") => home.to_owned(),
         Some(rest) if rest.starts_with('/') || rest.starts_with('\\') => format!("{home}{rest}"),

@@ -24,7 +24,7 @@ interface WorkspaceState {
   activeTabId: string | null;
   openTab: (profileId: string, cwd?: string | null) => string;
   /** `target`: an alias of ~/.ssh/config or `user@host:port`. */
-  openSshTab: (target: string) => string;
+  openSshTab: (target: string, connectionId?: string | null) => string;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
   activateRelative: (delta: 1 | -1) => void;
@@ -54,10 +54,10 @@ const newLeaf = (profileId: string, cwd: string | null = null): LeafNode => ({
   panel: { kind: 'terminal', profileId, cwd, title: null },
 });
 
-const newSshLeaf = (target: string): LeafNode => ({
+const newSshLeaf = (target: string, connectionId: string | null = null): LeafNode => ({
   type: 'leaf',
   id: crypto.randomUUID(),
-  panel: { kind: 'ssh', target, cwd: null, title: null },
+  panel: { kind: 'ssh', target, connectionId, cwd: null, title: null },
 });
 
 /** Index of the tab to activate after removing the one at `index`. */
@@ -87,7 +87,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
 
     openTab: (profileId, cwd = null) => addTab(newLeaf(profileId, cwd)),
 
-    openSshTab: (target) => addTab(newSshLeaf(target)),
+    openSshTab: (target, connectionId = null) => addTab(newSshLeaf(target, connectionId)),
 
     closeTab: (tabId) => {
       set((s) => {
@@ -143,7 +143,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       const leaf = profileId
         ? newLeaf(profileId, panel.kind === 'terminal' ? panel.cwd : null)
         : panel.kind === 'ssh'
-          ? newSshLeaf(panel.target)
+          ? newSshLeaf(panel.target, panel.connectionId)
           : newLeaf(panel.profileId, panel.cwd);
       mapTab(tab.id, (t) => ({
         ...t,

@@ -1,13 +1,19 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
+import { registerBuiltins } from '@/commands/builtin';
 import { useSsh } from '@/stores/ssh';
+import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { allSessions } from '@/terminal/sessionRegistry';
 import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
+import { CommandPalette } from './CommandPalette';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
+import { ConfirmDialog } from './ConfirmDialog';
+import { ConnectionDialog } from './ConnectionDialog';
+import { FolderDialog } from './FolderDialog';
 import { PaneView } from './PaneView';
 import { PromptHost } from './PromptHost';
 import { QuickConnectDialog } from './QuickConnectDialog';
@@ -35,12 +41,14 @@ function useWindowCloseGuard() {
 }
 
 export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: AppInfo }) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsOpen = useUi((s) => s.settingsOpen);
+  const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const { sidebarPosition, sidebarWidth } = settings.appearance;
   const tabs = useWorkspace((s) => s.tabs);
   const activeTabId = useWorkspace((s) => s.activeTabId);
   const quickConnectOpen = useSsh((s) => s.quickConnectOpen);
   useShortcuts();
+  useEffect(() => registerBuiltins(), []);
   useWindowCloseGuard();
 
   const sidebar = (
@@ -73,7 +81,11 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
         {sidebarPosition === 'right' && sidebar}
       </div>
       <QuickSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <CommandPalette />
       <ConfirmCloseDialog />
+      <ConfirmDialog />
+      <ConnectionDialog />
+      <FolderDialog />
       <QuickConnectDialog
         open={quickConnectOpen}
         onOpenChange={useSsh.getState().setQuickConnectOpen}

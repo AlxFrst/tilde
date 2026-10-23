@@ -10,11 +10,13 @@ use std::sync::Arc;
 
 use tauri::{Emitter, Manager};
 use tauri_plugin_window_state::StateFlags;
-use tilde_config::{ConfigErrorDto, ConfigPaths, SettingsStore, watch_settings};
+use tilde_config::{
+    ConfigErrorDto, ConfigFile, ConfigPaths, ConnectionsStore, SettingsStore, watch_config,
+};
 use tilde_session::SessionManager;
 
 use crate::{
-    commands::settings::on_settings_file_changed,
+    commands::{connections::on_connections_file_changed, settings::on_settings_file_changed},
     prompter::{DISMISS_EVENT, Notice, PROMPT_EVENT, PROMPT_TIMEOUT, UiPrompter},
     state::AppState,
 };
@@ -33,6 +35,36 @@ fn show_window_if_frontend_stalls(app: tauri::AppHandle) {
             let _ = window.show();
         }
     });
+}
+
+/// Wires what needs the app handle: SSH prompts, config hot reload, shell cache warm-up.
+fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
+    let handle = app.clone();
+    let prompter = UiPrompter::new(
+        Box::new(move |notice| {
+            let _ = match notice {
+                Notice::Ask(event) => handle.emit(PROMPT_EVENT, event),
+                Notice::Dismiss(id) => handle.emit(DISMISS_EVENT, id),
+            };
+        }),
+        PROMPT_TIMEOUT,
+    );
+    let _ = app.state::<AppState>().ssh.prompter.set(Arc::new(prompter));
+    let handle = app.clone();
+    let on_change = move |file| match file {
+        ConfigFile::Settings => on_settings_file_changed(&handle),
+        ConfigFile::Connections => on_connections_file_changed(&handle),
+    };
+    match watch_config(paths, on_change) {
+        Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
+        Err(e) => tracing::error!(error = %e, "configuration hot reload disabled"),
+    }
+    // Warm the shell cache so the first new tab doesn't wait for `wsl.exe`.
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        commands::profiles::detected_shells(&handle.state::<AppState>());
+    });
+    show_window_if_frontend_stalls(app.clone());
 }
 
 /// Starts the Tauri application.
@@ -55,6 +87,11 @@ pub fn run() {
         tracing::error!(error = %e, "settings.json could not be loaded; using defaults");
     }
 
+    let (connections, connections_error) = ConnectionsStore::load(paths.clone());
+    if let Some(e) = &connections_error {
+        tracing::error!(error = %e, "connections.json cannot be used; it is left untouched");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
@@ -70,38 +107,20 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             settings: Mutex::new(store),
             settings_error: Mutex::new(load_error.as_ref().map(ConfigErrorDto::from)),
             log_dir,
             watcher: Mutex::new(None),
+            connections: Mutex::new(connections),
+            connections_error: Mutex::new(connections_error.as_ref().map(ConfigErrorDto::from)),
             sessions: SessionManager::new(),
             shells: Mutex::new(None),
             ssh: state::SshState::default(),
         })
         .setup(move |app| {
-            let handle = app.handle().clone();
-            let prompter = UiPrompter::new(
-                Box::new(move |notice| {
-                    let _ = match notice {
-                        Notice::Ask(event) => handle.emit(PROMPT_EVENT, event),
-                        Notice::Dismiss(id) => handle.emit(DISMISS_EVENT, id),
-                    };
-                }),
-                PROMPT_TIMEOUT,
-            );
-            let _ = app.state::<AppState>().ssh.prompter.set(Arc::new(prompter));
-            let handle = app.handle().clone();
-            match watch_settings(&paths, move || on_settings_file_changed(&handle)) {
-                Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
-                Err(e) => tracing::error!(error = %e, "settings hot reload disabled"),
-            }
-            // Warm the shell cache so the first new tab doesn't wait for `wsl.exe`.
-            let handle = app.handle().clone();
-            std::thread::spawn(move || {
-                commands::profiles::detected_shells(&handle.state::<AppState>());
-            });
-            show_window_if_frontend_stalls(app.handle().clone());
+            on_startup(app.handle(), &paths);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -110,6 +129,7 @@ pub fn run() {
             commands::app::app_info,
             commands::app::open_logs_dir,
             commands::app::open_settings_file,
+            commands::app::open_connections_file,
             commands::app::open_url,
             commands::profiles::profiles_list,
             commands::profiles::profiles_refresh,
@@ -119,6 +139,14 @@ pub fn run() {
             commands::session::session_ack,
             commands::session::session_close,
             commands::session::session_busy,
+            commands::connections::connections_get,
+            commands::connections::connections_upsert,
+            commands::connections::connections_remove,
+            commands::connections::connections_set_favorite,
+            commands::connections::folders_upsert,
+            commands::connections::folders_remove,
+            commands::connections::connections_import,
+            commands::connections::connections_export,
             commands::ssh::ssh_hosts,
             commands::ssh::ssh_prompt_reply,
             commands::ssh::secrets_available,

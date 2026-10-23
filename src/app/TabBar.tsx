@@ -18,6 +18,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
@@ -43,8 +44,13 @@ function useTabLabel(tab: Tab) {
   const leaf = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
   const panel = leaf?.panel;
   const connection = useSsh((s) => (leaf ? s.states[leaf.id] : undefined));
+  const saved = useConnections((s) =>
+    panel?.kind === 'ssh' && panel.connectionId
+      ? s.file.connections.find((c) => c.id === panel.connectionId)
+      : undefined,
+  );
   if (panel?.kind === 'ssh') {
-    const title = tab.customTitle ?? panel.title ?? panel.target;
+    const title = tab.customTitle ?? panel.title ?? saved?.name ?? panel.target;
     return { title, Icon: Server, profileColor: null, leaf, panel, connection };
   }
   const profile = profiles.find((p) => p.id === panel?.profileId);
@@ -196,7 +202,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
         )}
         <ContextMenuItem
           onSelect={() => {
-            if (panel?.kind === 'ssh') ws().openSshTab(panel.target);
+            if (panel?.kind === 'ssh') ws().openSshTab(panel.target, panel.connectionId);
             else if (panel) ws().openTab(panel.profileId, panel.cwd);
           }}
         >

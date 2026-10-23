@@ -2,6 +2,7 @@
 //! reconnection with backoff.
 
 use std::{
+    path::PathBuf,
     sync::{Arc, mpsc},
     time::Duration,
 };
@@ -9,7 +10,9 @@ use std::{
 use russh::{Channel, ChannelMsg, client};
 use serde::Serialize;
 use tilde_session::OutputFeed;
-use tilde_ssh_config::{JumpHost, ResolveContext, ResolvedHost, SshConfig, parse_proxy_jump};
+use tilde_ssh_config::{
+    JumpHost, ResolveContext, ResolvedHost, SshConfig, parse_proxy_jump, tilde_expand,
+};
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 use crate::{
@@ -56,6 +59,15 @@ pub enum SshTarget {
     Alias(String),
     /// `user@host:port`: `ssh_config` still applies to `host`; `user` and `port` win.
     Direct { user: Option<String>, host: String, port: Option<u16> },
+    /// A saved connection: `ssh_config` applies to `host`, then the fields set here win.
+    Custom {
+        host: String,
+        user: Option<String>,
+        port: Option<u16>,
+        identity_file: Option<String>,
+        proxy_jump: Option<String>,
+        forward_agent: Option<bool>,
+    },
 }
 
 impl SshTarget {
@@ -92,6 +104,30 @@ impl SshTarget {
                 }
                 if let Some(port) = port {
                     resolved.port = *port;
+                }
+                resolved
+            }
+            Self::Custom { host, user, port, identity_file, proxy_jump, forward_agent } => {
+                let mut resolved = config.resolve(host, ctx);
+                if let Some(user) = user {
+                    resolved.user.clone_from(user);
+                }
+                if let Some(port) = port {
+                    resolved.port = *port;
+                }
+                if let Some(key) = identity_file {
+                    let key = PathBuf::from(tilde_expand(key, &ctx.home.to_string_lossy()));
+                    resolved.identity_files.retain(|k| k != &key);
+                    resolved.identity_files.insert(0, key);
+                }
+                if let Some(jump) = proxy_jump {
+                    match parse_proxy_jump(jump) {
+                        Ok(hops) => resolved.proxy_jump = hops,
+                        Err(e) => tracing::warn!(error = %e, "saved ProxyJump ignored"),
+                    }
+                }
+                if let Some(forward) = forward_agent {
+                    resolved.forward_agent = *forward;
                 }
                 resolved
             }
@@ -387,6 +423,43 @@ mod tests {
         let secs: Vec<u64> = (1..=8).map(|a| backoff(a).as_secs()).collect();
         assert_eq!(secs, [1, 2, 4, 8, 16, 30, 30, 30]);
         assert_eq!(backoff(u32::MAX).as_secs(), 30);
+    }
+
+    #[test]
+    fn custom_target_overrides_config_and_prepends_identity() {
+        let ctx = ResolveContext { local_user: "me".into(), home: "/home/me".into() };
+        let config = parse_str(
+            "Host srv\n HostName srv.example\n User alice\n IdentityFile ~/.ssh/cfg\n ProxyJump b0\n",
+            Path::new("/home/me/.ssh/config"),
+        );
+        let host = SshTarget::Custom {
+            host: "srv".into(),
+            user: Some("bob".into()),
+            port: Some(2200),
+            identity_file: Some("~/.ssh/saved".into()),
+            proxy_jump: Some("j1,root@j2:22".into()),
+            forward_agent: Some(true),
+        }
+        .resolve(&config, &ctx);
+        assert_eq!(host.hostname, "srv.example", "ssh_config still applies to the alias");
+        assert_eq!((host.user.as_str(), host.port), ("bob", 2200));
+        let keys: Vec<String> =
+            host.identity_files.iter().map(|p| p.to_string_lossy().replace('\\', "/")).collect();
+        assert_eq!(keys, ["/home/me/.ssh/saved", "/home/me/.ssh/cfg"]);
+        let jumps: Vec<&str> = host.proxy_jump.iter().map(|j| j.host.as_str()).collect();
+        assert_eq!(jumps, ["j1", "j2"]);
+        assert!(host.forward_agent);
+
+        let plain = SshTarget::Custom {
+            host: "srv".into(),
+            user: None,
+            port: None,
+            identity_file: None,
+            proxy_jump: None,
+            forward_agent: None,
+        }
+        .resolve(&config, &ctx);
+        assert_eq!(plain, config.resolve("srv", &ctx));
     }
 
     #[test]

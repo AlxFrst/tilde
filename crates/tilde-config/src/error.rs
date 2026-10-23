@@ -33,6 +33,10 @@ pub enum ConfigError {
 
     #[error("settings.json contient une erreur : corrigez-le avant de modifier les réglages")]
     ReadOnly,
+
+    /// Another configuration file (`connections.json`…) is unusable and left untouched.
+    #[error("{0} contient une erreur : corrigez-le avant de le modifier")]
+    ReadOnlyFile(&'static str),
 }
 
 fn format_fields(fields: &[FieldError]) -> String {
@@ -64,7 +68,7 @@ impl From<&ConfigError> for ConfigErrorDto {
                 ("invalid", None, None, fields.first().map(|f| f.path.clone()))
             }
             ConfigError::FutureVersion { .. } => ("futureVersion", None, None, None),
-            ConfigError::ReadOnly => ("readOnly", None, None, None),
+            ConfigError::ReadOnly | ConfigError::ReadOnlyFile(_) => ("readOnly", None, None, None),
         };
         // For parse errors the UI formats the position itself from `line`/`column`.
         let message = match err {

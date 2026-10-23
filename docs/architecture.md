@@ -128,6 +128,31 @@ src-tauri commands/ssh   ssh_hosts, ssh_forwards / _add / _remove, secrets_avail
   jamais dans un fichier ni dans les logs ; les réponses aux questions n'implémentent pas
   `Debug`.
 
+## Connexions et commandes
+
+```
+crates/tilde-config/connections.rs  modèle, validation, store de connections.json (+ schéma)
+src-tauri commands/connections      commandes, import/export (dialogues natifs côté Rust)
+src/stores/connections               état du front, suit connections://changed
+src/app/Sidebar + sidebar/           sections, recherche floue (fuzzysort), glisser-déposer
+src/commands/registry                CommandRegistry : palette (cmdk) et raccourcis
+```
+
+- **`connections.json` appartient à Rust**, comme `settings.json` : Rust doit pouvoir résoudre
+  une connexion enregistrée en ouvrant la session (`SshTarget::Custom` : `ssh_config` s'applique
+  à l'hôte, puis les champs enregistrés gagnent). Le front n'écrit jamais le fichier ; il appelle
+  des commandes fines et reçoit le fichier entier après chaque changement.
+- **Jamais de perte** : une entrée de mauvais type rend le fichier lecture seule plutôt que d'être
+  ignorée (une réécriture l'effacerait). Seules les incohérences réparables sans perte le sont
+  (id en double, dossier ou icône inconnus). Les clés inconnues — y compris un éventuel
+  `password` — ne sont ni réécrites ni exportées.
+- **Panneaux SSH** : ils retiennent `connectionId` et leur `target`. Si la connexion est supprimée,
+  l'onglet se reconnecte à `target`. Une ouverture réussie alimente les récents (10 au plus).
+- **Commandes** : chaque action utilisateur est une commande du registre (id, titre, groupe,
+  raccourci). `useShortcuts` et la palette lisent le même registre. Les raccourcis sont ignorés
+  quand on tape dans un champ ou un dialogue, sauf l'ouverture de la palette. Copier, coller et
+  rechercher agissent sur le terminal du panneau actif (`terminalActions`).
+
 ## Fenêtre
 
 La fenêtre démarre **cachée** et le front l'affiche une fois la coquille rendue, ce qui évite

@@ -12,6 +12,7 @@ import { profileIcon } from './profileIcon';
 const SHORTCUTS: [CommandId, string][] = [
   ['tab.new', 'Nouvel onglet'],
   ['ssh.quickConnect', 'Connexion SSH'],
+  ['palette.toggle', 'Palette de commandes'],
   ['pane.splitRight', 'Diviser à droite'],
   ['pane.splitDown', 'Diviser en bas'],
   ['pane.focusLeft', 'Changer de panneau'],

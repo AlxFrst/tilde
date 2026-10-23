@@ -28,6 +28,13 @@ pub fn open_settings_file(app: AppHandle, state: State<'_, AppState>) -> Result<
     app.opener().open_path(file.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
 }
 
+/// Opens `connections.json` in the user's editor (to fix it when it is broken).
+#[tauri::command]
+pub fn open_connections_file(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    let file = state.connections.lock().paths().connections_file();
+    app.opener().open_path(file.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+}
+
 /// Only web links from terminal output may be opened: `file:`, custom protocol handlers
 /// or `javascript:` would let a remote host make the OS run something.
 pub(crate) fn is_allowed_url(url: &str) -> bool {

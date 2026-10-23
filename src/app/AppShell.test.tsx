@@ -6,6 +6,7 @@ import type { ConfigErrorDto } from '@/ipc/errors';
 import type { Settings } from '@/ipc/generated/settings';
 import type { Platform } from '@/ipc/app';
 import { useSettings } from '@/stores/settings';
+import { useUi } from '@/stores/ui';
 import { defaultSettings } from '@/test/fixtures';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
@@ -68,6 +69,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.mocked(invoke).mockReset();
   useSettings.setState({ settings: null, readOnly: false, error: null });
+  useUi.setState({ settingsOpen: false, paletteOpen: false });
 });
 
 test('renders titlebar, sidebar, tabbar and welcome', async () => {

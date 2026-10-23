@@ -16,10 +16,10 @@ export function isConfigError(value: unknown): value is ConfigErrorDto {
   );
 }
 
-/** Human-readable French message for a settings error. */
-export function formatConfigError(e: ConfigErrorDto): string {
+/** Human-readable French message for an error in a configuration file. */
+export function formatConfigError(e: ConfigErrorDto, file = 'settings.json'): string {
   if (e.kind === 'parse' && e.line !== undefined && e.column !== undefined) {
-    return `settings.json ligne ${e.line}, colonne ${e.column} : ${e.message}`;
+    return `${file} ligne ${e.line}, colonne ${e.column} : ${e.message}`;
   }
   return e.message;
 }

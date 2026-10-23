@@ -6,8 +6,8 @@ Tilde veut une chose avant tout : que la connexion SSH marche du premier coup, y
 derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans abonnement.
 Le tout dans une interface soignée, rapide et entièrement personnalisable.
 
-> 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local) et 3 (SSH) sont
-> terminées. Voir la [feuille de route](#feuille-de-route).
+> 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local), 3 (SSH) et 4
+> (sidebar de connexions et palette) sont terminées. Voir la [feuille de route](#feuille-de-route).
 
 ## Fonctionnalités (aujourd'hui)
 
@@ -28,6 +28,8 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 - Logs structurés, accessibles depuis l'interface
 - **SSH** (voir [plus bas](#ssh)) : votre `~/.ssh/config` tel quel, bastions en chaîne,
   agent, reconnexion automatique, tunnels
+- **Connexions enregistrées** dans la sidebar (voir [plus bas](#connexions)) et **palette de
+  commandes** (Ctrl+Maj+P)
 - Aucune télémétrie ; aucune requête réseau en dehors des connexions que vous ouvrez
 
 ## Raccourcis
@@ -44,6 +46,7 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 | Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller |
 | Ctrl+Maj+F | Rechercher |
 | Ctrl+Maj+K | Connexion SSH |
+| Ctrl+Maj+P | Palette de commandes (connexions et commandes) |
 
 Les lettres suivent la touche **imprimée** (Ctrl+Maj+W = la touche W, y compris en AZERTY).
 Les symboles suivent la **position physique** (disposition US) : sur un clavier AZERTY,
@@ -106,6 +109,27 @@ d'identification Windows, Trousseau macOS, Secret Service sous Linux), service
 Fermer un onglet SSH connecté demande toujours confirmation, sauf si
 `ssh.confirmCloseSsh` vaut `false`.
 
+## Connexions
+
+La sidebar range vos serveurs : **Favoris**, **Récents**, vos **dossiers** (couleur, repliables),
+**Sans dossier**, puis les hôtes de **`~/.ssh/config`** en lecture seule.
+
+- Double-clic ou Entrée ouvre un onglet ; ↑/↓ pour se déplacer ; Ctrl+F pour chercher
+  (recherche floue sur le nom, l'hôte, l'utilisateur et les tags, sans tenir compte des accents).
+- `+` → « Nouvelle connexion… » : nom, hôte (ou alias de `~/.ssh/config`), port, utilisateur,
+  clé, ProxyJump, transfert d'agent, dossier, tags, couleur, icône. Pour un alias, les réglages
+  de `~/.ssh/config` s'appliquent et les champs remplis les remplacent.
+- Un hôte de `~/.ssh/config` s'**adopte** d'un clic (`+` sur la ligne) pour lui donner un
+  dossier, une couleur ou des tags. Votre `~/.ssh/config` n'est jamais modifié.
+- Clic droit : ouvrir, modifier, dupliquer, favori, déplacer, supprimer. On peut aussi glisser
+  une connexion sur un dossier.
+- **Import / export** (menu `+` ou palette) : un fichier JSON **sans aucun secret**. À l'import,
+  les doublons (même hôte, utilisateur et port) sont ignorés et les dossiers fusionnés par nom.
+
+Tout est dans `connections.json`, à côté de `settings.json`, éditable à la main (schéma JSON
+fourni pour l'autocomplétion, rechargement à chaud). S'il contient une erreur, Tilde l'affiche
+avec la ligne et ne l'écrase jamais. Les mots de passe restent dans le trousseau du système.
+
 ## Prérequis
 
 | Outil | Version |
@@ -150,6 +174,7 @@ Les types TypeScript des réglages sont **générés** depuis Rust : après avoi
 | | Windows | Linux | macOS |
 |---|---|---|---|
 | Réglages | `%APPDATA%\Tilde\settings.json` | `~/.config/Tilde/settings.json` | `~/Library/Application Support/Tilde/settings.json` |
+| Connexions | `%APPDATA%\Tilde\connections.json` | `~/.config/Tilde/connections.json` | `~/Library/Application Support/Tilde/connections.json` |
 | Logs | `%LOCALAPPDATA%\Tilde\logs\` | `~/.local/share/Tilde/logs/` | `~/Library/Application Support/Tilde/logs/` |
 
 Les deux sont aussi accessibles depuis **Réglages** dans l'application. Si `settings.json`
@@ -166,7 +191,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 1. ✅ Fondations : coquille, thèmes, réglages
 2. ✅ Terminal local : PTY, onglets, splits, profils de shells
 3. ✅ SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand, tunnels
-4. Sidebar de connexions et palette de commandes
+4. ✅ Sidebar de connexions et palette de commandes
 5. SFTP
 6. Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence
 7. Panneaux modulaires : éditeur, preview, moniteur
