@@ -6,6 +6,7 @@ import { SftpPanelView } from '@/panels/sftp/SftpPanel';
 import { TerminalView } from '@/terminal/TerminalView';
 import type { SftpPanel, SshPanel, TerminalPanel } from '@/workspace/types';
 import { editorModule } from './editor/module';
+import { monitorModule } from './monitor/module';
 import { previewModule } from './preview/module';
 import { registerPanel, type PanelProps } from './registry';
 
@@ -97,4 +98,5 @@ export function registerCorePanels(): void {
 
   registerPanel(editorModule);
   registerPanel(previewModule);
+  registerPanel(monitorModule);
 }

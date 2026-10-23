@@ -47,6 +47,7 @@ function Leaf({
           leafId={leaf.id}
           state={leaf.panel}
           active={visible && active}
+          visible={visible}
           update={(patch) => {
             ws().updatePanel(tab.id, leaf.id, patch);
           }}

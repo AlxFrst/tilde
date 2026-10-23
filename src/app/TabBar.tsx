@@ -239,6 +239,15 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
             Tunnels…
           </ContextMenuItem>
         )}
+        {panel?.kind === 'ssh' && leaf && (
+          <ContextMenuItem
+            onSelect={() => {
+              ws().openMonitor(leaf.id, { kind: 'remote', linkedLeafId: leaf.id });
+            }}
+          >
+            Moniteur du serveur…
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => {
             if (panel?.kind === 'ssh') ws().openSshTab(panel.target, panel.connectionId);

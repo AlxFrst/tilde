@@ -60,7 +60,15 @@ const state: EditorPanel = {
 
 function Pane() {
   return (
-    <EditorPane tabId="t1" leafId="ed-1" state={state} active update={vi.fn()} close={vi.fn()} />
+    <EditorPane
+      tabId="t1"
+      leafId="ed-1"
+      state={state}
+      active
+      visible
+      update={vi.fn()}
+      close={vi.fn()}
+    />
   );
 }
 

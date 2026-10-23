@@ -14,7 +14,15 @@ vi.mock('@/ipc/editor', async (orig) => ({
 
 function pane(state: PreviewPanel) {
   return (
-    <PreviewPane tabId="t" leafId="pv" state={state} active update={vi.fn()} close={vi.fn()} />
+    <PreviewPane
+      tabId="t"
+      leafId="pv"
+      state={state}
+      active
+      visible
+      update={vi.fn()}
+      close={vi.fn()}
+    />
   );
 }
 

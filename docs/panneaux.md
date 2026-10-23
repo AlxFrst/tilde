@@ -11,23 +11,24 @@ n'est chargé.
 
 ```ts
 interface PanelModule<S> {
-  id: string;            // unique, ex. "core.editor"
-  kind: string;          // clé stockée dans le layout et dans workspace.json
-  title: string;         // nom affiché (libellé d'onglet par défaut)
+  id: string; // unique, ex. "core.editor"
+  kind: string; // clé stockée dans le layout et dans workspace.json
+  title: string; // nom affiché (libellé d'onglet par défaut)
   icon: LucideIcon;
   component: ComponentType<PanelProps<S>>;
   tabTitle?(state: S): string;
-  commands?: Command[];  // palette et raccourcis, actifs tant que le module l'est
-  settings?: SettingsContribution;    // réservé
-  serialize?(state: S): unknown;      // null : le panneau n'est pas sauvegardé
-  deserialize?(raw: Record<string, unknown>): S | null;  // null : panneau retiré
+  commands?: Command[]; // palette et raccourcis, actifs tant que le module l'est
+  settings?: SettingsContribution; // réservé
+  serialize?(state: S): unknown; // null : le panneau n'est pas sauvegardé
+  deserialize?(raw: Record<string, unknown>): S | null; // null : panneau retiré
 }
 
 interface PanelProps<S> {
   tabId: string;
   leafId: string;
-  state: S;              // l'état stocké dans le layout
-  active: boolean;       // onglet visible et panneau focalisé
+  state: S; // l'état stocké dans le layout
+  active: boolean; // onglet visible et panneau focalisé
+  visible: boolean; // onglet visible (focalisé ou non)
   update(patch: Partial<S>): void;
   close(): void;
 }
@@ -62,7 +63,10 @@ interface PanelProps<S> {
 import { Clock } from 'lucide-react';
 import { registerPanel, type PanelProps } from '@/panels/registry';
 
-interface ClockPanel { kind: 'clock'; zone: string }
+interface ClockPanel {
+  kind: 'clock';
+  zone: string;
+}
 
 function ClockPane({ state }: PanelProps<ClockPanel>) {
   return <div>{new Date().toLocaleTimeString('fr-FR', { timeZone: state.zone })}</div>;
@@ -74,8 +78,7 @@ registerPanel<ClockPanel>({
   title: 'Horloge',
   icon: Clock,
   component: ClockPane,
-  deserialize: (raw) =>
-    typeof raw.zone === 'string' ? { kind: 'clock', zone: raw.zone } : null,
+  deserialize: (raw) => (typeof raw.zone === 'string' ? { kind: 'clock', zone: raw.zone } : null),
 });
 ```
 

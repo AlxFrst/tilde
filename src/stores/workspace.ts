@@ -13,6 +13,7 @@ import {
 import type {
   Direction,
   FileSource,
+  MonitorPanel,
   PreviewSource,
   FocusDirection,
   LayoutNode,
@@ -35,6 +36,8 @@ interface WorkspaceState {
   openEditor: (besideLeafId: string | null, source: FileSource) => void;
   /** Opens a preview beside a pane, or focuses one already showing the same thing. */
   openPreview: (besideLeafId: string, source: PreviewSource) => void;
+  /** Opens a system monitor beside a pane (new tab if `null`), or focuses the same one. */
+  openMonitor: (besideLeafId: string | null, source: MonitorPanel['source']) => void;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
   activateRelative: (delta: 1 | -1) => void;
@@ -148,6 +151,41 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       };
       const tab = tabs.find((t) => findLeaf(t.root, besideLeafId));
       if (!tab) {
+        addTab(leaf);
+        return;
+      }
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, besideLeafId, 'row', leaf),
+        activeLeafId: leaf.id,
+      }));
+      set({ activeTabId: tab.id });
+    },
+
+    openMonitor: (besideLeafId, source) => {
+      const { tabs } = get();
+      for (const t of tabs) {
+        const open = leaves(t.root).find(
+          (l) =>
+            l.panel.kind === 'monitor' &&
+            l.panel.source.kind === source.kind &&
+            (source.kind === 'local' ||
+              (l.panel.source.kind === 'remote' &&
+                l.panel.source.linkedLeafId === source.linkedLeafId)),
+        );
+        if (open) {
+          set({ activeTabId: t.id });
+          get().focusLeaf(t.id, open.id);
+          return;
+        }
+      }
+      const leaf: LeafNode = {
+        type: 'leaf',
+        id: crypto.randomUUID(),
+        panel: { kind: 'monitor', source, cwd: null, title: null },
+      };
+      const tab = besideLeafId ? tabs.find((t) => findLeaf(t.root, besideLeafId)) : undefined;
+      if (!tab || !besideLeafId) {
         addTab(leaf);
         return;
       }

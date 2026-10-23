@@ -70,7 +70,16 @@ export interface PreviewPanel {
   title: null;
 }
 
-export type Panel = TerminalPanel | SshPanel | SftpPanel | EditorPanel | PreviewPanel;
+/** System monitor: this machine, or the server of an SSH pane. */
+export interface MonitorPanel {
+  kind: 'monitor';
+  source: { kind: 'local' } | { kind: 'remote'; linkedLeafId: string };
+  cwd: null;
+  title: null;
+}
+
+export type Panel =
+  TerminalPanel | SshPanel | SftpPanel | EditorPanel | PreviewPanel | MonitorPanel;
 
 /** What a pane may update in its own panel (fields it does not have are ignored). */
 export type PanelPatch = Record<string, unknown>;

@@ -14,6 +14,8 @@ export interface PanelProps<S> {
   state: S;
   /** Visible in the active tab and focused. */
   active: boolean;
+  /** In the visible tab (focused or not): what a live pane (monitor) polls on. */
+  visible: boolean;
   /** Updates fields of the pane's own state (unknown fields are ignored). */
   update: (patch: Partial<S>) => void;
   /** Closes the pane. */
