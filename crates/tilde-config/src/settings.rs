@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn no_ssh_host_is_tucked_away_and_the_status_bar_shows_by_default() {
         let s = Settings::default();
-        assert!(s.appearance.ssh_config_hosts.hidden.is_empty());
+        assert_eq!(s.appearance.ssh_config_hosts, SshConfigHosts::default());
         assert!(s.ssh.status_bar);
         let custom: Settings = serde_json::from_str(
             r#"{"appearance":{"sshConfigHosts":{"hidden":["old-box"]}},"ssh":{"statusBar":false}}"#,
