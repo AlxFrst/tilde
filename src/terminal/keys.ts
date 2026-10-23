@@ -87,15 +87,20 @@ const codeFromKey = (key: string) => SHIFTED_SYMBOLS[key] ?? keyToCode(key);
 /**
  * The command bound to this key event, if any. On macOS, `Ctrl` in a binding means ⌘.
  *
- * Matches the physical key first (layout independent), then the produced character:
- * that covers numpad `+`/`-`, arrows reported as numpad keys, and sources that leave
- * `code` empty (remote desktop, automation, some IMEs).
+ * Letters match the printed character; other keys match the physical key first, then the
+ * produced character (numpad `+`/`-`, arrows reported as numpad keys, and sources that
+ * leave `code` empty: remote desktop, automation, some IMEs).
  */
 export function matchShortcut(e: KeyEventLike, mac = isMac()): CommandId | null {
   const ctrl = mac ? e.metaKey : e.ctrlKey;
   const otherMod = mac ? e.ctrlKey : e.metaKey;
   if (otherMod) return null;
-  const candidates = [e.code, codeFromKey(e.key)].filter((c) => c && c !== 'Unidentified');
+  // Letters follow the printed character (Ctrl+Shift+W is the key labelled W, even on
+  // AZERTY); everything else follows the physical key, then the character.
+  const latinLetter = /^[a-z]$/i.test(e.key);
+  const candidates = latinLetter
+    ? [keyToCode(e.key)]
+    : [e.code, codeFromKey(e.key)].filter((c) => c && c !== 'Unidentified');
   for (const code of candidates) {
     for (const [id, b] of PARSED) {
       if (b.code === code && b.ctrl === ctrl && b.shift === e.shiftKey && b.alt === e.altKey) {

@@ -36,7 +36,9 @@ export async function resolveKeyLabels(
   const out: Partial<Record<CommandId, string[]>> = {};
   for (const id of ids) {
     const keys = bindingKeys(id);
-    const printed = layout?.get(bindingCode(id));
+    const code = bindingCode(id);
+    // Letter shortcuts match the printed letter, so their label never changes.
+    const printed = code.startsWith('Key') ? undefined : layout?.get(code);
     if (printed && printed.trim()) keys[keys.length - 1] = printed.toUpperCase();
     out[id] = keys;
   }
