@@ -42,8 +42,9 @@ export async function openSession(o: OpenSessionOptions): Promise<{ id: number; 
     o.onData(toBytes(m));
   };
   const events = new Channel<SessionEvent>();
+  // `exit` is the only event today; dispatch on `e.type` once there are more.
   events.onmessage = (e) => {
-    if (e.type === 'exit') o.onExit(e.code);
+    o.onExit(e.code);
   };
   return invoke('session_open', {
     profileId: o.profileId,
