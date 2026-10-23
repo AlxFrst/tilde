@@ -6,6 +6,8 @@ interface UiState {
   setSettingsOpen: (open: boolean) => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
+  /** A shortcut is being recorded: app shortcuts are paused. */
+  recordingShortcut: boolean;
 }
 
 export const useUi = create<UiState>()((set) => ({
@@ -17,4 +19,5 @@ export const useUi = create<UiState>()((set) => ({
   setPaletteOpen: (paletteOpen) => {
     set({ paletteOpen });
   },
+  recordingShortcut: false,
 }));
