@@ -1,25 +1,11 @@
-// Built-in keyboard shortcuts. Phase 6 makes them configurable; keep the ids stable.
+// Keyboard shortcuts: the default bindings and the matcher. The effective table
+// (defaults + keybindings.json) comes from the keybindings store.
+//
+// Syntax: modifiers `Ctrl`, `Alt`, `Shift` then one key, joined by `+`
+// (`Ctrl+Shift+T`, `Alt+ArrowLeft`, `F11`). On macOS `Ctrl` means ⌘.
 
-export type CommandId =
-  | 'tab.new'
-  | 'tab.close'
-  | 'tab.next'
-  | 'tab.prev'
-  | 'pane.splitRight'
-  | 'pane.splitDown'
-  | 'pane.close'
-  | 'pane.focusLeft'
-  | 'pane.focusRight'
-  | 'pane.focusUp'
-  | 'pane.focusDown'
-  | 'terminal.copy'
-  | 'terminal.paste'
-  | 'terminal.search'
-  | 'ssh.quickConnect'
-  | 'palette.toggle'
-  | 'sftp.open';
-
-export const DEFAULT_KEYBINDINGS: Record<CommandId, string> = {
+/** Built-in shortcuts by command id. Keep the ids stable: keybindings.json uses them. */
+export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'tab.new': 'Ctrl+Shift+T',
   'tab.close': 'Ctrl+Shift+W',
   'tab.next': 'Ctrl+Tab',
@@ -44,43 +30,103 @@ type KeyEventLike = Pick<
   'key' | 'code' | 'ctrlKey' | 'shiftKey' | 'altKey' | 'metaKey'
 >;
 
-interface Binding {
+export interface Binding {
   ctrl: boolean;
-  shift: boolean;
   alt: boolean;
+  shift: boolean;
+  /** The key as written in a binding (`T`, `-`, `ArrowLeft`, `F5`). */
+  key: string;
+  /** Its physical `KeyboardEvent.code` (`KeyT`, `Minus`…). */
   code: string;
 }
 
+/** Command id → parsed binding, in priority order. */
+export type BindingTable = ReadonlyMap<string, Binding>;
+
 const SYMBOL_CODES: Record<string, string> = {
-  '=': 'Equal',
+  '`': 'Backquote',
   '-': 'Minus',
+  '=': 'Equal',
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '\\': 'Backslash',
+  ';': 'Semicolon',
+  "'": 'Quote',
   ',': 'Comma',
   '.': 'Period',
+  '/': 'Slash',
 };
+const CODE_SYMBOLS = Object.fromEntries(Object.entries(SYMBOL_CODES).map(([k, c]) => [c, k]));
 
-/** Maps the key part of a binding to a physical `KeyboardEvent.code`, so shortcuts
- *  don't depend on the keyboard layout (AZERTY…). */
-function keyToCode(key: string): string {
-  if (/^[A-Z]$/i.test(key)) return `Key${key.toUpperCase()}`;
-  if (/^[0-9]$/.test(key)) return `Digit${key}`;
-  return SYMBOL_CODES[key] ?? key;
+/** Named keys, whose code is their name. */
+const NAMED = [
+  'ArrowLeft',
+  'ArrowRight',
+  'ArrowUp',
+  'ArrowDown',
+  'Tab',
+  'Enter',
+  'Escape',
+  'Space',
+  'Backspace',
+  'Delete',
+  'Insert',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+];
+const NAMED_LOWER = new Map(NAMED.map((n) => [n.toLowerCase(), n]));
+
+/** The canonical key token and its code, or null if the key is not supported. */
+function keyToken(raw: string): { key: string; code: string } | null {
+  if (/^[a-z]$/i.test(raw)) return { key: raw.toUpperCase(), code: `Key${raw.toUpperCase()}` };
+  if (/^[0-9]$/.test(raw)) return { key: raw, code: `Digit${raw}` };
+  const f = /^f([1-9]|1[0-9]|2[0-4])$/i.exec(raw);
+  if (f) return { key: `F${f[1] ?? ''}`, code: `F${f[1] ?? ''}` };
+  const symbol = SYMBOL_CODES[raw];
+  if (symbol) return { key: raw, code: symbol };
+  const named = NAMED_LOWER.get(raw.toLowerCase());
+  return named ? { key: named, code: named } : null;
 }
 
-function parse(binding: string): Binding {
-  const parts = binding.split('+');
-  // "Alt+Shift+=" splits cleanly; a binding ending in "+" itself would need care.
-  const key = parts.pop() ?? '';
-  return {
-    ctrl: parts.includes('Ctrl'),
-    shift: parts.includes('Shift'),
-    alt: parts.includes('Alt'),
-    code: keyToCode(key),
-  };
+/** Parses `Ctrl+Shift+T`; `null` if the syntax or the key is unknown. */
+export function parseBinding(s: string): Binding | null {
+  const parts = s.trim().split('+');
+  const last = parts.pop();
+  if (!last) return null;
+  const token = keyToken(last.trim());
+  if (!token) return null;
+  const b: Binding = { ctrl: false, alt: false, shift: false, ...token };
+  for (const raw of parts) {
+    const m = raw.trim().toLowerCase();
+    if (m === 'ctrl' || m === 'control') b.ctrl = true;
+    else if (m === 'alt') b.alt = true;
+    else if (m === 'shift') b.shift = true;
+    else return null;
+  }
+  return b;
 }
 
-const PARSED = Object.entries(DEFAULT_KEYBINDINGS).map(
-  ([id, b]) => [id as CommandId, parse(b)] as const,
-);
+/** The canonical form: `Ctrl+Alt+Shift+<Key>`. */
+export function formatBinding(b: Binding): string {
+  return [b.ctrl && 'Ctrl', b.alt && 'Alt', b.shift && 'Shift', b.key].filter(Boolean).join('+');
+}
+
+/** A key alone would break typing in the terminal; only function keys may go without. */
+export function requiresModifier(b: Binding): boolean {
+  return !/^F\d+$/.test(b.key);
+}
+
+/** The match table for the effective bindings (`null` = unbound; unparsable = skipped). */
+export function compileBindings(effective: Readonly<Record<string, string | null>>): BindingTable {
+  const table = new Map<string, Binding>();
+  for (const [id, s] of Object.entries(effective)) {
+    const b = s === null ? null : parseBinding(s);
+    if (b) table.set(id, b);
+  }
+  return table;
+}
 
 const isMac = () => typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
@@ -88,7 +134,7 @@ const isMac = () => typeof navigator !== 'undefined' && /Mac/i.test(navigator.pl
 const SHIFTED_SYMBOLS: Record<string, string> = { '+': 'Equal', _: 'Minus' };
 
 /** The code a key *character* corresponds to (`+` → Equal, `ArrowLeft` → ArrowLeft…). */
-const codeFromKey = (key: string) => SHIFTED_SYMBOLS[key] ?? keyToCode(key);
+const codeFromKey = (key: string) => SHIFTED_SYMBOLS[key] ?? keyToken(key)?.code ?? key;
 
 /**
  * The command bound to this key event, if any. On macOS, `Ctrl` in a binding means ⌘.
@@ -97,7 +143,7 @@ const codeFromKey = (key: string) => SHIFTED_SYMBOLS[key] ?? keyToCode(key);
  * produced character (numpad `+`/`-`, arrows reported as numpad keys, and sources that
  * leave `code` empty: remote desktop, automation, some IMEs).
  */
-export function matchShortcut(e: KeyEventLike, mac = isMac()): CommandId | null {
+export function matchShortcut(e: KeyEventLike, table: BindingTable, mac = isMac()): string | null {
   const ctrl = mac ? e.metaKey : e.ctrlKey;
   const otherMod = mac ? e.ctrlKey : e.metaKey;
   if (otherMod) return null;
@@ -105,10 +151,10 @@ export function matchShortcut(e: KeyEventLike, mac = isMac()): CommandId | null 
   // AZERTY); everything else follows the physical key, then the character.
   const latinLetter = /^[a-z]$/i.test(e.key);
   const candidates = latinLetter
-    ? [keyToCode(e.key)]
+    ? [`Key${e.key.toUpperCase()}`]
     : [e.code, codeFromKey(e.key)].filter((c) => c && c !== 'Unidentified');
   for (const code of candidates) {
-    for (const [id, b] of PARSED) {
+    for (const [id, b] of table) {
       if (b.code === code && b.ctrl === ctrl && b.shift === e.shiftKey && b.alt === e.altKey) {
         return id;
       }
@@ -117,7 +163,31 @@ export function matchShortcut(e: KeyEventLike, mac = isMac()): CommandId | null 
   return null;
 }
 
+const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'OS']);
+
+/**
+ * The binding a key press records, in canonical form; `null` for a lone modifier or an
+ * unsupported key. Letters are recorded by printed character, other keys by physical key
+ * (on AZERTY, Alt+Shift+`)` records `Alt+Shift+-`, which is how it will match).
+ */
+export function eventToBinding(e: KeyEventLike, mac = isMac()): string | null {
+  if (MODIFIER_KEYS.has(e.key)) return null;
+  let key: string | undefined;
+  if (/^[a-z]$/i.test(e.key)) key = e.key.toUpperCase();
+  else if (/^Key[A-Z]$/.test(e.code)) key = e.code.slice(3);
+  else if (/^Digit[0-9]$/.test(e.code)) key = e.code.slice(5);
+  else if (/^F([1-9]|1[0-9]|2[0-4])$/.test(e.code)) key = e.code;
+  else key = CODE_SYMBOLS[e.code] ?? NAMED_LOWER.get(e.code.toLowerCase());
+  if (!key) return null;
+  const b = parseBinding(key);
+  if (!b) return null;
+  b.ctrl = mac ? e.metaKey : e.ctrlKey;
+  b.alt = e.altKey;
+  b.shift = e.shiftKey;
+  return formatBinding(b);
+}
+
 /** The physical `KeyboardEvent.code` of a binding's key, e.g. `Minus` for `Alt+Shift+-`. */
-export function bindingCode(id: CommandId): string {
-  return parse(DEFAULT_KEYBINDINGS[id]).code;
+export function bindingCode(binding: string): string | null {
+  return parseBinding(binding)?.code ?? null;
 }

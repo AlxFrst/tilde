@@ -42,4 +42,20 @@ impl ConfigPaths {
     pub fn workspace_file(&self) -> PathBuf {
         self.root.join("workspace.json")
     }
+
+    /// User themes, one `<id>.json` each.
+    #[must_use]
+    pub fn themes_dir(&self) -> PathBuf {
+        self.root.join("themes")
+    }
+
+    #[must_use]
+    pub fn keybindings_file(&self) -> PathBuf {
+        self.root.join("keybindings.json")
+    }
+
+    #[must_use]
+    pub fn keybindings_schema_file(&self) -> PathBuf {
+        self.root.join("keybindings.schema.json")
+    }
 }

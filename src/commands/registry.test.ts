@@ -1,4 +1,4 @@
-import { DEFAULT_KEYBINDINGS, type CommandId } from '@/terminal/keys';
+import { DEFAULT_KEYBINDINGS } from '@/terminal/keys';
 import { registerBuiltins } from './builtin';
 import { listCommands, registerCommands, runCommand } from './registry';
 
@@ -19,10 +19,10 @@ test('registry runs, lists and unregisters commands', () => {
   expect(listCommands().some((c) => c.id === 'test.hello')).toBe(false);
 });
 
-test('every CommandId has a registered command', () => {
+test('every default shortcut has a registered command', () => {
   const off = registerBuiltins();
   const ids = new Set(listCommands().map((c) => c.id));
-  const missing = (Object.keys(DEFAULT_KEYBINDINGS) as CommandId[]).filter((id) => !ids.has(id));
+  const missing = Object.keys(DEFAULT_KEYBINDINGS).filter((id) => !ids.has(id));
   expect(missing).toEqual([]);
   for (const extra of [
     'connections.new',

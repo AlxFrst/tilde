@@ -26,6 +26,7 @@ pub fn settings_get(state: State<'_, AppState>) -> SettingsSnapshot {
 /// Applies a JSON Merge Patch to the settings and persists it.
 #[tauri::command]
 pub fn settings_update(
+    app: AppHandle,
     state: State<'_, AppState>,
     patch: serde_json::Value,
 ) -> Result<Settings, ConfigErrorDto> {
@@ -33,15 +34,17 @@ pub fn settings_update(
         tracing::warn!(error = %e, "settings update rejected");
         ConfigErrorDto::from(&e)
     })?;
-    apply_live(&state, &settings);
+    apply_live(&app, &settings);
     Ok(settings)
 }
 
 /// Settings that running services pick up without a restart.
-fn apply_live(state: &AppState, settings: &Settings) {
+pub fn apply_live(app: &AppHandle, settings: &Settings) {
+    let state = app.state::<AppState>();
     if let Some(q) = state.sftp.transfers.get() {
         q.set_concurrency(usize::from(settings.sftp.concurrency));
     }
+    crate::quake::sync_quake(app, &settings.general.quake, &state.quake);
 }
 
 /// Called by the file watcher: reloads `settings.json` and notifies the front-end.
@@ -52,7 +55,7 @@ pub fn on_settings_file_changed(app: &AppHandle) {
         Ok(ReloadOutcome::Changed(settings)) => {
             tracing::info!("settings.json reloaded");
             *state.settings_error.lock() = None;
-            apply_live(&state, &settings);
+            apply_live(app, &settings);
             let _ = app.emit(EVENT_CHANGED, *settings);
         }
         Ok(ReloadOutcome::Unchanged | ReloadOutcome::SelfWrite) => {}

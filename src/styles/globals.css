@@ -3,6 +3,7 @@
 @import 'shadcn/tailwind.css';
 @import '@fontsource-variable/geist';
 @import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource-variable/geist-mono';
 
 @custom-variant dark (&:where([data-theme-kind='dark'], [data-theme-kind='dark'] *));
 
@@ -25,7 +26,22 @@
 
   /* --tilde-ui-font-size is set from settings; --tilde-density via [data-density] on <html>. */
   --tilde-ui-font-size: 13px;
+  /* appearance.uiFontFamily, quoted (set from settings). */
+  --tilde-font-ui: 'Geist Variable';
   --tilde-density: 1;
+  /* appearance.window.opacity: window-level backgrounds let the effect or desktop through;
+     dialogs, menus and popovers stay opaque. */
+  --tilde-bg-alpha: 1;
+  --tilde-window-bg: color-mix(
+    in srgb,
+    var(--tilde-bg) calc(var(--tilde-bg-alpha) * 100%),
+    transparent
+  );
+  --tilde-window-surface: color-mix(
+    in srgb,
+    var(--tilde-surface-1) calc(var(--tilde-bg-alpha) * 100%),
+    transparent
+  );
   --radius: 0.5rem;
   color-scheme: dark;
 
@@ -48,7 +64,7 @@
   --border: var(--tilde-border);
   --input: var(--tilde-border);
   --ring: var(--tilde-accent);
-  --sidebar: var(--tilde-surface-1);
+  --sidebar: var(--tilde-window-surface);
   --sidebar-foreground: var(--tilde-text);
   --sidebar-primary: var(--tilde-accent);
   --sidebar-primary-foreground: var(--tilde-bg);
@@ -66,13 +82,13 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--tilde-font-ui), 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
   --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
   /* Tilde tokens as Tailwind colors: bg-surface-1, text-text-muted, border-border… */
-  --color-bg: var(--tilde-bg);
-  --color-surface-1: var(--tilde-surface-1);
+  --color-bg: var(--tilde-window-bg);
+  --color-surface-1: var(--tilde-window-surface);
   --color-surface-2: var(--tilde-surface-2);
   --color-text: var(--tilde-text);
   --color-text-muted: var(--tilde-text-muted);
@@ -131,7 +147,8 @@
     font-size: calc(var(--tilde-ui-font-size) * var(--tilde-density));
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
+    background: var(--tilde-window-bg);
     overflow: hidden;
     user-select: none;
     -webkit-font-smoothing: antialiased;

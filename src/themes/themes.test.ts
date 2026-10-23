@@ -24,8 +24,28 @@ test('every builtin theme has all tokens as valid hex', () => {
     }
   }
   expect(ids).toEqual(
-    expect.arrayContaining(['tilde-dark', 'tilde-light', 'catppuccin-mocha', 'catppuccin-latte']),
+    expect.arrayContaining([
+      'tilde-dark',
+      'tilde-light',
+      'catppuccin-mocha',
+      'catppuccin-latte',
+      'tokyo-night',
+      'tokyo-night-day',
+      'dracula',
+      'nord',
+      'gruvbox-dark',
+      'gruvbox-light',
+      'one-dark',
+      'one-light',
+      'rose-pine',
+      'rose-pine-dawn',
+    ]),
   );
+});
+
+test('every kind has at least four themes', () => {
+  expect(builtinThemes.filter((t) => t.kind === 'dark').length).toBeGreaterThanOrEqual(4);
+  expect(builtinThemes.filter((t) => t.kind === 'light').length).toBeGreaterThanOrEqual(4);
 });
 
 test.each(builtinThemes.map((t) => [t.id, t] as const))(

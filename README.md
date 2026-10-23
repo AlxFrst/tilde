@@ -7,7 +7,7 @@ derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans 
 Le tout dans une interface soignée, rapide et entièrement personnalisable.
 
 > 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local), 3 (SSH), 4
-> (sidebar de connexions et palette) et 5 (SFTP) sont terminées. Voir la [feuille de route](#feuille-de-route).
+> (sidebar de connexions et palette), 5 (SFTP) et 6 (personnalisation) sont terminées. Voir la [feuille de route](#feuille-de-route).
 
 ## Fonctionnalités (aujourd'hui)
 
@@ -21,8 +21,16 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 - Profils personnalisés dans `settings.json` (commande, arguments, dossier, variables,
   couleur), ou masquage d'un shell détecté
 - Fenêtre sans bordure avec titlebar intégrée
-- Thèmes par design tokens : **Tilde** (sombre/clair), **Catppuccin** (Mocha/Latte), suivi
-  automatique du thème de l'OS
+- **14 thèmes** : Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine
+  (sombres et clairs), suivi automatique du thème de l'OS
+- **Personnalisation** (voir [docs/personnalisation.md](docs/personnalisation.md)) :
+  - éditeur de thèmes avec aperçu en direct ;
+  - import iTerm2, Windows Terminal et base16, et export ;
+  - raccourcis reconfigurables ;
+  - Mica, Acrylic, vibrancy et opacité ;
+  - mode Quake ;
+  - ligatures ;
+  - une page de réglages qui couvre tout
 - `settings.json` versionné, validé et **rechargé à chaud**, avec autocomplétion dans VS Code
   grâce au JSON Schema fourni
 - Logs structurés, accessibles depuis l'interface
@@ -53,8 +61,10 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 Les lettres suivent la touche **imprimée** (Ctrl+Maj+W = la touche W, y compris en AZERTY).
 Les symboles suivent la **position physique** (disposition US) : sur un clavier AZERTY,
 « Alt+Maj+- » se fait avec la touche `)`, et l’écran d’accueil affiche les touches de votre
-clavier. Le `+` et le `-` du pavé numérique fonctionnent aussi. Ils deviendront
-configurables en phase 6.
+clavier. Le `+` et le `-` du pavé numérique fonctionnent aussi.
+
+Tous ces raccourcis se changent dans **Réglages → Raccourcis** ou dans `keybindings.json`
+(voir [docs/personnalisation.md](docs/personnalisation.md#raccourcis)).
 
 ### Profils personnalisés
 
@@ -202,9 +212,11 @@ Les types TypeScript des réglages sont **générés** depuis Rust : après avoi
 |---|---|---|---|
 | Réglages | `%APPDATA%\Tilde\settings.json` | `~/.config/Tilde/settings.json` | `~/Library/Application Support/Tilde/settings.json` |
 | Connexions | `%APPDATA%\Tilde\connections.json` | `~/.config/Tilde/connections.json` | `~/Library/Application Support/Tilde/connections.json` |
+| Raccourcis | `%APPDATA%\Tilde\keybindings.json` | `~/.config/Tilde/keybindings.json` | `~/Library/Application Support/Tilde/keybindings.json` |
+| Thèmes | `%APPDATA%\Tilde	hemes\` | `~/.config/Tilde/themes/` | `~/Library/Application Support/Tilde/themes/` |
 | Logs | `%LOCALAPPDATA%\Tilde\logs\` | `~/.local/share/Tilde/logs/` | `~/Library/Application Support/Tilde/logs/` |
 
-Les deux sont aussi accessibles depuis **Réglages** dans l'application. Si `settings.json`
+Ils sont aussi accessibles depuis **Réglages → Général** dans l'application. Si `settings.json`
 contient une erreur, Tilde garde la dernière configuration valide, vous indique la ligne
 fautive et n'écrase jamais votre fichier.
 
@@ -220,7 +232,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 3. ✅ SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand, tunnels
 4. ✅ Sidebar de connexions et palette de commandes
 5. ✅ SFTP
-6. Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence
+6. ✅ Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence, mode Quake
 7. Panneaux modulaires : éditeur, preview, moniteur
 8. Packaging et CI multiplateforme
 

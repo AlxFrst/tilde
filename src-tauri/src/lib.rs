@@ -3,15 +3,19 @@
 mod commands;
 mod logging;
 mod prompter;
+mod quake;
 mod state;
+mod window_effects;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
 
 use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_window_state::StateFlags;
 use tilde_config::{
-    ConfigErrorDto, ConfigFile, ConfigPaths, ConnectionsStore, SettingsStore, watch_config,
+    ConfigErrorDto, ConfigFile, ConfigPaths, ConnectionsStore, KeybindingsStore, SettingsStore,
+    watch_config,
 };
 use tilde_session::SessionManager;
 
@@ -37,6 +41,21 @@ fn show_window_if_frontend_stalls(app: tauri::AppHandle) {
     });
 }
 
+/// The Quake window hides instead of closing; closing the main window quits the app
+/// (a hidden Quake window must not keep it running).
+fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
+    match event {
+        tauri::WindowEvent::CloseRequested { api, .. } if window.label() == quake::QUAKE_LABEL => {
+            api.prevent_close();
+            let _ = window.hide();
+        }
+        tauri::WindowEvent::Destroyed if window.label() == "main" => {
+            window.app_handle().exit(0);
+        }
+        _ => {}
+    }
+}
+
 /// Wires what needs the app handle: SSH prompts, config hot reload, shell cache warm-up.
 fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     let handle = app.clone();
@@ -59,10 +78,14 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     );
     let _ = app.state::<AppState>().sftp.transfers.set(transfers);
     std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
+    let quake = app.state::<AppState>().settings.lock().settings().general.quake.clone();
+    quake::sync_quake(app, &quake, &app.state::<AppState>().quake);
     let handle = app.clone();
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
         ConfigFile::Connections => on_connections_file_changed(&handle),
+        ConfigFile::Themes => commands::themes::on_themes_changed(&handle),
+        ConfigFile::Keybindings => commands::keybindings::on_keybindings_file_changed(&handle),
     };
     match watch_config(paths, on_change) {
         Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
@@ -74,6 +97,71 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
         commands::profiles::detected_shells(&handle.state::<AppState>());
     });
     show_window_if_frontend_stalls(app.clone());
+}
+
+/// Every command the front-end may invoke.
+fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    tauri::generate_handler![
+        commands::settings::settings_get,
+        commands::settings::settings_update,
+        commands::app::app_info,
+        commands::app::open_logs_dir,
+        commands::app::open_settings_file,
+        commands::app::open_connections_file,
+        commands::app::open_url,
+        commands::profiles::profiles_list,
+        commands::profiles::profiles_refresh,
+        commands::session::session_open,
+        commands::session::session_write,
+        commands::session::session_resize,
+        commands::session::session_ack,
+        commands::session::session_close,
+        commands::session::session_busy,
+        commands::connections::connections_get,
+        commands::connections::connections_upsert,
+        commands::connections::connections_remove,
+        commands::connections::connections_set_favorite,
+        commands::connections::folders_upsert,
+        commands::connections::folders_remove,
+        commands::connections::connections_import,
+        commands::connections::connections_export,
+        commands::sftp::sftp_home,
+        commands::sftp::sftp_list,
+        commands::sftp::sftp_mkdir,
+        commands::sftp::sftp_rename,
+        commands::sftp::sftp_remove,
+        commands::sftp::sftp_chmod,
+        commands::sftp::sftp_download,
+        commands::sftp::sftp_upload,
+        commands::sftp::sftp_edit,
+        commands::sftp::edit_resolve,
+        commands::sftp::transfers_list,
+        commands::sftp::transfer_cancel,
+        commands::sftp::transfer_retry,
+        commands::sftp::transfers_clear,
+        commands::sftp::transfer_reveal,
+        commands::ssh::ssh_hosts,
+        commands::ssh::ssh_prompt_reply,
+        commands::ssh::secrets_available,
+        commands::ssh::ssh_forwards,
+        commands::ssh::ssh_forward_add,
+        commands::ssh::ssh_forward_remove,
+        commands::keybindings::keybindings_get,
+        commands::keybindings::keybindings_set,
+        commands::keybindings::keybindings_reset,
+        commands::keybindings::open_keybindings_file,
+        commands::themes::themes_list,
+        commands::themes::themes_save,
+        commands::themes::themes_delete,
+        commands::themes::themes_import_pick,
+        commands::themes::themes_export,
+        commands::themes::open_themes_dir,
+        quake::quake_status,
+        window_effects::window_apply_effects,
+        window_effects::window_supported_effects,
+        commands::workspace::workspace_load,
+        commands::workspace::workspace_save,
+    ]
 }
 
 /// Starts the Tauri application.
@@ -100,6 +188,10 @@ pub fn run() {
     if let Some(e) = &connections_error {
         tracing::error!(error = %e, "connections.json cannot be used; it is left untouched");
     }
+    let (keybindings, keybindings_error) = KeybindingsStore::load(paths.clone());
+    if let Some(e) = &keybindings_error {
+        tracing::error!(error = %e, "keybindings.json cannot be used; defaults apply");
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -112,11 +204,23 @@ pub fn run() {
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
+                .with_denylist(&[quake::QUAKE_LABEL])
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                // Only the Quake shortcut is ever registered.
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        quake::toggle_quake(app);
+                    }
+                })
+                .build(),
+        )
+        .on_window_event(on_window_event)
         .manage(AppState {
             settings: Mutex::new(store),
             settings_error: Mutex::new(load_error.as_ref().map(ConfigErrorDto::from)),
@@ -124,63 +228,19 @@ pub fn run() {
             watcher: Mutex::new(None),
             connections: Mutex::new(connections),
             connections_error: Mutex::new(connections_error.as_ref().map(ConfigErrorDto::from)),
+            keybindings: Mutex::new(keybindings),
+            keybindings_error: Mutex::new(keybindings_error.as_ref().map(ConfigErrorDto::from)),
             sessions: SessionManager::new(),
             shells: Mutex::new(None),
             ssh: state::SshState::default(),
             sftp: state::SftpState::default(),
+            quake: Mutex::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::settings::settings_get,
-            commands::settings::settings_update,
-            commands::app::app_info,
-            commands::app::open_logs_dir,
-            commands::app::open_settings_file,
-            commands::app::open_connections_file,
-            commands::app::open_url,
-            commands::profiles::profiles_list,
-            commands::profiles::profiles_refresh,
-            commands::session::session_open,
-            commands::session::session_write,
-            commands::session::session_resize,
-            commands::session::session_ack,
-            commands::session::session_close,
-            commands::session::session_busy,
-            commands::connections::connections_get,
-            commands::connections::connections_upsert,
-            commands::connections::connections_remove,
-            commands::connections::connections_set_favorite,
-            commands::connections::folders_upsert,
-            commands::connections::folders_remove,
-            commands::connections::connections_import,
-            commands::connections::connections_export,
-            commands::sftp::sftp_home,
-            commands::sftp::sftp_list,
-            commands::sftp::sftp_mkdir,
-            commands::sftp::sftp_rename,
-            commands::sftp::sftp_remove,
-            commands::sftp::sftp_chmod,
-            commands::sftp::sftp_download,
-            commands::sftp::sftp_upload,
-            commands::sftp::sftp_edit,
-            commands::sftp::edit_resolve,
-            commands::sftp::transfers_list,
-            commands::sftp::transfer_cancel,
-            commands::sftp::transfer_retry,
-            commands::sftp::transfers_clear,
-            commands::sftp::transfer_reveal,
-            commands::ssh::ssh_hosts,
-            commands::ssh::ssh_prompt_reply,
-            commands::ssh::secrets_available,
-            commands::ssh::ssh_forwards,
-            commands::ssh::ssh_forward_add,
-            commands::ssh::ssh_forward_remove,
-            commands::workspace::workspace_load,
-            commands::workspace::workspace_save,
-        ])
+        .invoke_handler(command_handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {

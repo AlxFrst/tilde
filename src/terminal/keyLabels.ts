@@ -1,4 +1,4 @@
-import { bindingCode, DEFAULT_KEYBINDINGS, type CommandId } from './keys';
+import { bindingCode } from './keys';
 
 const MODIFIER_LABELS: Record<string, string> = { Ctrl: 'Ctrl', Shift: 'Maj', Alt: 'Alt' };
 const ARROWS: Record<string, string> = {
@@ -9,8 +9,8 @@ const ARROWS: Record<string, string> = {
 };
 
 /** A binding as keycaps, e.g. `['Alt', 'Maj', '-']` (US layout labels). */
-export function bindingKeys(id: CommandId): string[] {
-  const parts = DEFAULT_KEYBINDINGS[id].split('+');
+export function bindingKeys(binding: string): string[] {
+  const parts = binding.split('+');
   const key = parts.pop() ?? '';
   return [...parts.map((m) => MODIFIER_LABELS[m] ?? m), ARROWS[key] ?? key];
 }
@@ -25,22 +25,22 @@ function browserKeyboard(): LayoutSource | undefined {
 }
 
 /**
- * Keycaps for each command, with the main key labelled as printed on the user's keyboard
+ * Keycaps for each binding, with the main key labelled as printed on the user's keyboard
  * (shortcuts match physical keys: on AZERTY, "Alt+Maj+-" is pressed on the `)` key).
  */
 export async function resolveKeyLabels(
-  ids: CommandId[],
+  bindings: string[],
   keyboard: LayoutSource | undefined = browserKeyboard(),
-): Promise<Partial<Record<CommandId, string[]>>> {
+): Promise<Record<string, string[]>> {
   const layout = keyboard ? await keyboard.getLayoutMap().catch(() => null) : null;
-  const out: Partial<Record<CommandId, string[]>> = {};
-  for (const id of ids) {
-    const keys = bindingKeys(id);
-    const code = bindingCode(id);
+  const out: Record<string, string[]> = {};
+  for (const binding of bindings) {
+    const keys = bindingKeys(binding);
+    const code = bindingCode(binding);
     // Letter shortcuts match the printed letter, so their label never changes.
-    const printed = code.startsWith('Key') ? undefined : layout?.get(code);
-    if (printed && printed.trim()) keys[keys.length - 1] = printed.toUpperCase();
-    out[id] = keys;
+    const printed = !code || code.startsWith('Key') ? undefined : layout?.get(code);
+    if (printed?.trim()) keys[keys.length - 1] = printed.toUpperCase();
+    out[binding] = keys;
   }
   return out;
 }

@@ -2,12 +2,13 @@
 
 import { closeActivePane, closeTab, openDefaultTab } from '@/app/actions';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
+import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
+import { openThemesDir } from '@/ipc/themes';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
-import { DEFAULT_KEYBINDINGS, type CommandId } from '@/terminal/keys';
 import { activeTerminal } from '@/terminal/terminalActions';
 import { findLeaf } from '@/workspace/tree';
 import { toast } from 'sonner';
@@ -199,13 +200,23 @@ export function registerBuiltins(): () => void {
       run: () => void openSettingsFile().catch(noop),
     },
     {
+      id: 'app.openKeybindingsFile',
+      title: 'Ouvrir keybindings.json',
+      group: 'Application',
+      run: () => void openKeybindingsFile().catch(noop),
+    },
+    {
+      id: 'app.openThemesDir',
+      title: 'Ouvrir le dossier des thèmes',
+      group: 'Application',
+      run: () => void openThemesDir().catch(noop),
+    },
+    {
       id: 'app.openLogs',
       title: 'Ouvrir le dossier des logs',
       group: 'Application',
       run: () => void openLogsDir().catch(noop),
     },
   ];
-  // A command whose id is a CommandId shows that shortcut.
-  for (const c of commands) if (c.id in DEFAULT_KEYBINDINGS) c.keybinding = c.id as CommandId;
   return registerCommands(commands);
 }

@@ -257,7 +257,8 @@ pub struct Quake {
 
 impl Default for Quake {
     fn default() -> Self {
-        Self { enabled: false, shortcut: "Ctrl+`".into() }
+        // Not a symbol key: global shortcuts follow virtual keys, which move with the layout.
+        Self { enabled: false, shortcut: "Alt+F12".into() }
     }
 }
 

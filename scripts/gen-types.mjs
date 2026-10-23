@@ -41,3 +41,17 @@ const connTs = await compile(connSchema, 'ConnectionsFile', {
 });
 await writeFile('src/ipc/generated/connections.ts', connTs);
 console.log('wrote src/ipc/generated/connections.ts');
+
+// keybindings.json: same treatment.
+const kbSchema = JSON.parse(await readFile('schemas/keybindings.schema.json', 'utf8'));
+delete kbSchema.properties.$schema;
+requireAll(kbSchema);
+const kbTs = await compile(kbSchema, 'KeybindingsFile', {
+  bannerComment:
+    '/* Généré par scripts/gen-types.mjs depuis schemas/keybindings.schema.json — ne pas éditer. */',
+  additionalProperties: false,
+  strictIndexSignatures: true,
+  style: { singleQuote: true, printWidth: 100 },
+});
+await writeFile('src/ipc/generated/keybindings.ts', kbTs);
+console.log('wrote src/ipc/generated/keybindings.ts');

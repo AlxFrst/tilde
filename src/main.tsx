@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { isQuakeWindow } from './app/quake';
 import './styles/globals.css';
 
 const root = document.getElementById('root');
@@ -8,6 +9,6 @@ if (!root) throw new Error('#root element missing');
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <App mode={isQuakeWindow() ? 'quake' : 'main'} />
   </StrictMode>,
 );

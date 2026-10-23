@@ -1,0 +1,45 @@
+import type { ThemeDefinition } from '../types';
+
+// Palette: draculatheme.com/contribute (official Windows Terminal port).
+
+export const dracula: ThemeDefinition = {
+  id: 'dracula',
+  name: 'Dracula',
+  kind: 'dark',
+  ui: {
+    bg: '#282A36',
+    surface1: '#21222C',
+    surface2: '#343746',
+    border: '#44475A',
+    text: '#F8F8F2',
+    textMuted: '#7D8AB8',
+    accent: '#BD93F9',
+    accent2: '#8BE9FD',
+    success: '#50FA7B',
+    warning: '#F1FA8C',
+    error: '#FF5555',
+  },
+  terminal: {
+    foreground: '#F8F8F2',
+    background: '#282A36',
+    cursor: '#F8F8F2',
+    cursorAccent: '#282A36',
+    selectionBackground: '#44475A',
+    black: '#21222C',
+    red: '#FF5555',
+    green: '#50FA7B',
+    yellow: '#F1FA8C',
+    blue: '#BD93F9',
+    magenta: '#FF79C6',
+    cyan: '#8BE9FD',
+    white: '#F8F8F2',
+    brightBlack: '#6272A4',
+    brightRed: '#FF6E6E',
+    brightGreen: '#69FF94',
+    brightYellow: '#FFFFA5',
+    brightBlue: '#D6ACFF',
+    brightMagenta: '#FF92DF',
+    brightCyan: '#A4FFFF',
+    brightWhite: '#FFFFFF',
+  },
+};
