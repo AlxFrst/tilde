@@ -1,5 +1,6 @@
 // User-level actions shared by the tab bar, shortcuts and menus.
 
+import type { Connection } from '@/ipc/connections';
 import { pickDefaultProfile } from '@/ipc/profiles';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
@@ -16,6 +17,11 @@ export function defaultProfileId(): string | null {
 export function openDefaultTab(): void {
   const id = defaultProfileId();
   if (id) useWorkspace.getState().openTab(id);
+}
+
+/** Opens a saved connection in a new tab. */
+export function openConnection(c: Connection): void {
+  useWorkspace.getState().openSshTab(c.host, c.id);
 }
 
 export async function closePane(tabId: string, leafId: string): Promise<void> {

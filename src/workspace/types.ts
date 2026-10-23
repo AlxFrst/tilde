@@ -14,8 +14,10 @@ export interface TerminalPanel {
 
 export interface SshPanel {
   kind: 'ssh';
-  /** An alias of ~/.ssh/config or `user@host:port`. */
+  /** An alias of ~/.ssh/config or `user@host:port` (a saved connection's host). */
   target: string;
+  /** The saved connection opened here; `target` is used if it no longer exists. */
+  connectionId: string | null;
   /** Last known remote directory (OSC 7). */
   cwd: string | null;
   title: string | null;

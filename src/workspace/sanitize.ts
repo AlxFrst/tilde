@@ -20,7 +20,8 @@ function sanitizePanel(raw: unknown): Panel | null {
   const common = { cwd: str(raw.cwd), title: str(raw.title) };
   if (raw.kind === 'ssh') {
     const target = str(raw.target)?.trim();
-    return target ? { kind: 'ssh', target, ...common } : null;
+    const connectionId = str(raw.connectionId);
+    return target ? { kind: 'ssh', target, connectionId, ...common } : null;
   }
   if (raw.kind !== 'terminal') return null;
   const profileId = str(raw.profileId);

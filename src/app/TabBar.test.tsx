@@ -118,3 +118,38 @@ test('ssh state events update the tab status', async () => {
   });
   expect(screen.getByRole('status', { name: 'Connecté' })).toBeInTheDocument();
 });
+
+test('an ssh tab opened from a saved connection shows its name', async () => {
+  const { useConnections } = await import('@/stores/connections');
+  useConnections.setState({
+    file: {
+      version: 1,
+      folders: [],
+      recents: [],
+      connections: [
+        {
+          id: 'c1',
+          name: 'Base de prod',
+          host: 'db.example',
+          port: null,
+          user: null,
+          identityFile: null,
+          proxyJump: null,
+          forwardAgent: null,
+          folderId: null,
+          color: null,
+          icon: null,
+          tags: [],
+          favorite: false,
+        },
+      ],
+    },
+  });
+  ws().openSshTab('db.example', 'c1');
+  ws().openSshTab('db.example', 'deleted');
+  render(<TabBar />);
+  expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual([
+    'Base de prod',
+    'db.example',
+  ]);
+});

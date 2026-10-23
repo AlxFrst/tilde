@@ -19,7 +19,9 @@ export function isSessionError(value: unknown): value is SessionErrorDto {
 type SessionEvent = { type: 'exit'; code: number | null } | { type: 'state'; state: ConnState };
 
 /** What a pane runs. Mirrors `OpenTarget` in src-tauri/src/commands/session.rs. */
-export type SessionTarget = { kind: 'local'; profileId: string } | { kind: 'ssh'; target: string };
+export type SessionTarget =
+  | { kind: 'local'; profileId: string }
+  | { kind: 'ssh'; target: string; connectionId?: string | null };
 
 export interface OpenSessionOptions {
   target: SessionTarget;

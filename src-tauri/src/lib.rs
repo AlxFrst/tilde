@@ -129,6 +129,7 @@ pub fn run() {
             commands::app::app_info,
             commands::app::open_logs_dir,
             commands::app::open_settings_file,
+            commands::app::open_connections_file,
             commands::app::open_url,
             commands::profiles::profiles_list,
             commands::profiles::profiles_refresh,

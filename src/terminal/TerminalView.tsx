@@ -241,7 +241,7 @@ export function TerminalView(props: TerminalViewProps) {
     openSession({
       target:
         panel.kind === 'ssh'
-          ? { kind: 'ssh', target: panel.target }
+          ? { kind: 'ssh', target: panel.target, connectionId: panel.connectionId }
           : { kind: 'local', profileId: panel.profileId },
       cwd: panel.kind === 'terminal' ? panel.cwd : null,
       onState: showState,

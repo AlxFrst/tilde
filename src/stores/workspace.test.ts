@@ -224,9 +224,21 @@ test('duplicate leaf ids are made unique', () => {
 
 test('openSshTab opens an ssh panel and splitting it reconnects to the same target', () => {
   ws().openSshTab('prod');
-  expect(activeLeaf().leaf.panel).toEqual({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  expect(activeLeaf().leaf.panel).toEqual({
+    kind: 'ssh',
+    target: 'prod',
+    connectionId: null,
+    cwd: null,
+    title: null,
+  });
   ws().splitActive('row');
-  expect(activeLeaf().leaf.panel).toEqual({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  expect(activeLeaf().leaf.panel).toEqual({
+    kind: 'ssh',
+    target: 'prod',
+    connectionId: null,
+    cwd: null,
+    title: null,
+  });
   ws().splitActive('row', 'cmd');
   expect(activeLeaf().leaf.panel).toMatchObject({ kind: 'terminal', profileId: 'cmd' });
 });
@@ -239,7 +251,13 @@ test('hydrate keeps ssh panels and never replaces them with a local profile', ()
   const { replaced } = ws().hydrate(snap, ['pwsh'], 'pwsh');
   expect(replaced).toBe(1);
   const panels = ws().tabs.map((t) => leaves(t.root)[0]?.panel);
-  expect(panels[0]).toEqual({ kind: 'ssh', target: 'root@db:2222', cwd: null, title: null });
+  expect(panels[0]).toEqual({
+    kind: 'ssh',
+    target: 'root@db:2222',
+    connectionId: null,
+    cwd: null,
+    title: null,
+  });
   expect(panels[1]).toMatchObject({ kind: 'terminal', profileId: 'pwsh' });
 });
 
@@ -266,4 +284,37 @@ test('restored ssh panels stay disconnected until woken; new ones connect at onc
   expect(ws().snapshot()).toEqual(snap);
   ws().wake(live);
   expect(ws().dormant).toEqual([]);
+});
+
+test('opening a saved connection stores its id on the ssh panel', () => {
+  ws().openSshTab('prod.example', 'c1');
+  expect(activeLeaf().leaf.panel).toEqual({
+    kind: 'ssh',
+    target: 'prod.example',
+    connectionId: 'c1',
+    cwd: null,
+    title: null,
+  });
+  ws().splitActive('row');
+  expect(activeLeaf().leaf.panel).toMatchObject({ kind: 'ssh', connectionId: 'c1' });
+});
+
+test('an ssh panel with a connectionId survives sanitize', () => {
+  hydrateRaw({
+    version: 1,
+    tabs: [
+      {
+        id: 'a',
+        root: { type: 'leaf', id: 'x', panel: { kind: 'ssh', target: 'h', connectionId: 'c1' } },
+      },
+      {
+        id: 'b',
+        root: { type: 'leaf', id: 'y', panel: { kind: 'ssh', target: 'h', connectionId: 42 } },
+      },
+    ],
+    activeTabId: 'a',
+  });
+  const panels = ws().tabs.map((t) => leaves(t.root)[0]?.panel);
+  expect(panels[0]).toMatchObject({ connectionId: 'c1' });
+  expect(panels[1]).toMatchObject({ connectionId: null });
 });

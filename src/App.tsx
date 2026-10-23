@@ -6,6 +6,7 @@ import { AppShell } from '@/app/AppShell';
 import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
+import { useConnections } from '@/stores/connections';
 import { useSettings } from '@/stores/settings';
 import { applyTheme, useResolvedTheme } from '@/themes';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
@@ -60,9 +61,24 @@ export default function App() {
       })
       .catch(fail);
     getAppInfo().then(setAppInfo, fail);
+    let stopConnections: (() => void) | undefined;
+    useConnections
+      .getState()
+      .init()
+      .then(
+        (off) => {
+          if (isCancelled()) off();
+          else stopConnections = off;
+        },
+        (err: unknown) => {
+          // The sidebar shows an empty list; the rest of the app works without it.
+          console.warn('connections unavailable', err);
+        },
+      );
     return () => {
       run.cancelled = true;
       unsubscribe?.();
+      stopConnections?.();
       stopPersistence?.();
     };
   }, [init]);

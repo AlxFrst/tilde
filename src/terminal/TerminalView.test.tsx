@@ -310,9 +310,9 @@ test('a hidden pane (zero size) is never refitted', async () => {
 });
 
 test('an ssh pane shows its connection progress and offers to retry a failure', () => {
-  renderView({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  renderView({ kind: 'ssh', target: 'prod', connectionId: null, cwd: null, title: null });
   expect(session.openSession).toHaveBeenCalledWith(
-    expect.objectContaining({ target: { kind: 'ssh', target: 'prod' } }),
+    expect.objectContaining({ target: { kind: 'ssh', target: 'prod', connectionId: null } }),
   );
   act(() => {
     ipc.open?.onState?.({ kind: 'connecting', hop: 'bastion 1/2 (b1)' });
@@ -329,7 +329,13 @@ test('an ssh pane shows its connection progress and offers to retry a failure', 
 test('a restored ssh pane waits for Enter before connecting', async () => {
   const { useWorkspace } = await import('@/stores/workspace');
   useWorkspace.setState({ dormant: ['l'] });
-  const { term } = renderView({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  const { term } = renderView({
+    kind: 'ssh',
+    target: 'prod',
+    connectionId: null,
+    cwd: null,
+    title: null,
+  });
   expect(session.openSession).not.toHaveBeenCalled();
   expect(screen.getByText(/Déconnecté — Entrée pour reconnecter/)).toBeInTheDocument();
   act(() => {
