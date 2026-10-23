@@ -4,8 +4,9 @@ import { formatConfigError, isConfigError } from '@/ipc/errors';
 
 const plural = (n: number, one: string, many: string) => `${String(n)} ${n > 1 ? many : one}`;
 
-function fail(err: unknown): void {
-  toast.error(isConfigError(err) ? formatConfigError(err, 'connections.json') : String(err));
+/** `file` names what the error is about: the imported file is not connections.json. */
+function fail(err: unknown, file: string): void {
+  toast.error(isConfigError(err) ? formatConfigError(err, file) : String(err));
 }
 
 /** Asks for a file and imports it; says what was imported. Silent if cancelled. */
@@ -20,7 +21,7 @@ export async function importWithReport(): Promise<void> {
       `${plural(report.imported, 'connexion importée', 'connexions importées')}${skipped}`,
     );
   } catch (err) {
-    fail(err);
+    fail(err, 'Fichier importé');
   }
 }
 
@@ -31,6 +32,6 @@ export async function exportWithToast(): Promise<void> {
       toast.success('Connexions exportées (aucun mot de passe n’est inclus)');
     }
   } catch (err) {
-    fail(err);
+    fail(err, 'connections.json');
   }
 }

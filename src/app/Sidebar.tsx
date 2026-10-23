@@ -1,12 +1,24 @@
-import { FileCode2, FolderPlus, Plus, Search, ServerCog, Settings2, Terminal } from 'lucide-react';
+import {
+  FileCode2,
+  FileDown,
+  FileUp,
+  FolderPlus,
+  Plus,
+  Search,
+  ServerCog,
+  Settings2,
+  Terminal,
+} from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { search, type SearchItem } from '@/connections/search';
+import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { openConnectionsFile } from '@/ipc/connections';
 import { formatConfigError } from '@/ipc/errors';
 import type { Appearance } from '@/ipc/generated/settings';
@@ -146,6 +158,13 @@ export function Sidebar({ side, width, onOpenSettings }: SidebarProps) {
               }}
             >
               <FolderPlus strokeWidth={1.5} /> Nouveau dossier…
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => void importWithReport()}>
+              <FileDown strokeWidth={1.5} /> Importer…
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void exportWithToast()}>
+              <FileUp strokeWidth={1.5} /> Exporter…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
