@@ -1,3 +1,7 @@
+// The process-table logic is used by the Windows check only, but stays compiled (and
+// unit-tested) everywhere.
+#![cfg_attr(not(windows), allow(dead_code))]
+
 //! "Is a program running in this terminal?" — drives the close confirmation.
 
 /// A row of the process table, as seen by the busy check.
