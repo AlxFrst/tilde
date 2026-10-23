@@ -185,3 +185,14 @@ test('connections that cannot be opened as written are listed', () => {
   expect(screen.getByText('« Alpha » : port : entre 1 et 65535')).toBeInTheDocument();
   expect(screen.getByText(/À corriger avant de pouvoir s’y connecter/)).toBeInTheDocument();
 });
+
+// jsdom has no layout: these pin the CSS that keeps long names from widening the sidebar.
+test('the sidebar never scrolls sideways', () => {
+  setFile({ connections: [conn('a', 'a-very-long-connection-name-that-does-not-fit-anywhere')] });
+  show();
+  const row = screen.getByRole('button', { name: /a-very-long/ });
+  const list = row.closest('[role="group"] > div');
+  // Grid tracks default to their content's width; minmax(0, 1fr) lets rows truncate instead.
+  expect(list).toHaveClass('grid-cols-[minmax(0,1fr)]');
+  expect(row.closest('.overflow-y-auto')).toHaveClass('overflow-x-hidden');
+});

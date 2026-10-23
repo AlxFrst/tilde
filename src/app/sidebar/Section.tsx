@@ -65,7 +65,7 @@ export function Section({
       ) : (
         heading
       )}
-      {!collapsed && <div className="grid gap-px">{children}</div>}
+      {!collapsed && <div className="grid grid-cols-[minmax(0,1fr)] gap-px">{children}</div>}
     </div>
   );
 }

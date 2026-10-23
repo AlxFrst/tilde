@@ -79,7 +79,7 @@ export function SidebarRow({
     </button>
   );
   return (
-    <div className="group relative flex items-center">
+    <div className="group relative flex min-w-0 items-center">
       {menu ? (
         <ContextMenu>
           <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
