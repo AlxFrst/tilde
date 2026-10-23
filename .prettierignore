@@ -1,0 +1,3 @@
+# Prettier also reads .gitignore.
+# Import fixtures keep the exact shape other terminals write (comments, trailing commas).
+src/themes/importers/fixtures/
