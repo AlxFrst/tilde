@@ -55,3 +55,23 @@ pub fn env() -> Option<TestEnv> {
         None
     }
 }
+
+/// Runs `cmd` on a new channel; returns stdout and the exit status.
+pub async fn exec<H: russh::client::Handler>(
+    handle: &russh::client::Handle<H>,
+    cmd: &str,
+) -> (String, Option<u32>) {
+    let mut channel = handle.channel_open_session().await.unwrap();
+    channel.exec(true, cmd).await.unwrap();
+    let mut out = Vec::new();
+    let mut code = None;
+    while let Some(msg) = channel.wait().await {
+        match msg {
+            russh::ChannelMsg::Data { data } => out.extend_from_slice(&data),
+            russh::ChannelMsg::ExitStatus { exit_status } => code = Some(exit_status),
+            russh::ChannelMsg::Close => break,
+            _ => {}
+        }
+    }
+    (String::from_utf8_lossy(&out).into_owned(), code)
+}
