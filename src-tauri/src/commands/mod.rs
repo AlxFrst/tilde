@@ -10,4 +10,5 @@ pub mod session;
 pub mod settings;
 pub mod sftp;
 pub mod ssh;
+pub mod themes;
 pub mod workspace;

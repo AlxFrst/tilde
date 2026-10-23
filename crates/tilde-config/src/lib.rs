@@ -9,6 +9,7 @@ mod migrate;
 mod paths;
 mod settings;
 mod store;
+mod themes;
 mod watch;
 mod workspace;
 
@@ -22,5 +23,9 @@ pub use migrate::migrate;
 pub use paths::ConfigPaths;
 pub use settings::*;
 pub use store::{ReloadOutcome, SettingsStore};
+pub use themes::{
+    MAX_THEME_BYTES, ThemeFileError, UserTheme, delete_user_theme, is_valid_theme_id,
+    list_user_themes, save_user_theme,
+};
 pub use watch::{ConfigFile, ConfigWatcher, watch_config};
 pub use workspace::{load_workspace, save_workspace};

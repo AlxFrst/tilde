@@ -63,6 +63,8 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
         ConfigFile::Connections => on_connections_file_changed(&handle),
+        ConfigFile::Themes => commands::themes::on_themes_changed(&handle),
+        ConfigFile::Keybindings => {}
     };
     match watch_config(paths, on_change) {
         Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
@@ -74,6 +76,64 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
         commands::profiles::detected_shells(&handle.state::<AppState>());
     });
     show_window_if_frontend_stalls(app.clone());
+}
+
+/// Every command the front-end may invoke.
+fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
+    tauri::generate_handler![
+        commands::settings::settings_get,
+        commands::settings::settings_update,
+        commands::app::app_info,
+        commands::app::open_logs_dir,
+        commands::app::open_settings_file,
+        commands::app::open_connections_file,
+        commands::app::open_url,
+        commands::profiles::profiles_list,
+        commands::profiles::profiles_refresh,
+        commands::session::session_open,
+        commands::session::session_write,
+        commands::session::session_resize,
+        commands::session::session_ack,
+        commands::session::session_close,
+        commands::session::session_busy,
+        commands::connections::connections_get,
+        commands::connections::connections_upsert,
+        commands::connections::connections_remove,
+        commands::connections::connections_set_favorite,
+        commands::connections::folders_upsert,
+        commands::connections::folders_remove,
+        commands::connections::connections_import,
+        commands::connections::connections_export,
+        commands::sftp::sftp_home,
+        commands::sftp::sftp_list,
+        commands::sftp::sftp_mkdir,
+        commands::sftp::sftp_rename,
+        commands::sftp::sftp_remove,
+        commands::sftp::sftp_chmod,
+        commands::sftp::sftp_download,
+        commands::sftp::sftp_upload,
+        commands::sftp::sftp_edit,
+        commands::sftp::edit_resolve,
+        commands::sftp::transfers_list,
+        commands::sftp::transfer_cancel,
+        commands::sftp::transfer_retry,
+        commands::sftp::transfers_clear,
+        commands::sftp::transfer_reveal,
+        commands::ssh::ssh_hosts,
+        commands::ssh::ssh_prompt_reply,
+        commands::ssh::secrets_available,
+        commands::ssh::ssh_forwards,
+        commands::ssh::ssh_forward_add,
+        commands::ssh::ssh_forward_remove,
+        commands::themes::themes_list,
+        commands::themes::themes_save,
+        commands::themes::themes_delete,
+        commands::themes::themes_import_pick,
+        commands::themes::themes_export,
+        commands::themes::open_themes_dir,
+        commands::workspace::workspace_load,
+        commands::workspace::workspace_save,
+    ]
 }
 
 /// Starts the Tauri application.
@@ -133,54 +193,7 @@ pub fn run() {
             on_startup(app.handle(), &paths);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::settings::settings_get,
-            commands::settings::settings_update,
-            commands::app::app_info,
-            commands::app::open_logs_dir,
-            commands::app::open_settings_file,
-            commands::app::open_connections_file,
-            commands::app::open_url,
-            commands::profiles::profiles_list,
-            commands::profiles::profiles_refresh,
-            commands::session::session_open,
-            commands::session::session_write,
-            commands::session::session_resize,
-            commands::session::session_ack,
-            commands::session::session_close,
-            commands::session::session_busy,
-            commands::connections::connections_get,
-            commands::connections::connections_upsert,
-            commands::connections::connections_remove,
-            commands::connections::connections_set_favorite,
-            commands::connections::folders_upsert,
-            commands::connections::folders_remove,
-            commands::connections::connections_import,
-            commands::connections::connections_export,
-            commands::sftp::sftp_home,
-            commands::sftp::sftp_list,
-            commands::sftp::sftp_mkdir,
-            commands::sftp::sftp_rename,
-            commands::sftp::sftp_remove,
-            commands::sftp::sftp_chmod,
-            commands::sftp::sftp_download,
-            commands::sftp::sftp_upload,
-            commands::sftp::sftp_edit,
-            commands::sftp::edit_resolve,
-            commands::sftp::transfers_list,
-            commands::sftp::transfer_cancel,
-            commands::sftp::transfer_retry,
-            commands::sftp::transfers_clear,
-            commands::sftp::transfer_reveal,
-            commands::ssh::ssh_hosts,
-            commands::ssh::ssh_prompt_reply,
-            commands::ssh::secrets_available,
-            commands::ssh::ssh_forwards,
-            commands::ssh::ssh_forward_add,
-            commands::ssh::ssh_forward_remove,
-            commands::workspace::workspace_load,
-            commands::workspace::workspace_save,
-        ])
+        .invoke_handler(command_handler())
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
