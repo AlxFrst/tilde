@@ -48,9 +48,11 @@ export function connectionMessage(state: ConnState | null): string | null {
 export function ConnectionBanner({
   state,
   onRetry,
+  retryLabel = 'Réessayer',
 }: {
   state: ConnState | null;
   onRetry: () => void;
+  retryLabel?: string;
 }) {
   const message = connectionMessage(state);
   if (!message) return null;
@@ -64,7 +66,7 @@ export function ConnectionBanner({
       <span className="min-w-0 flex-1 truncate">{message}</span>
       {state?.kind === 'failed' && (
         <Button size="sm" variant="outline" onClick={onRetry}>
-          <RotateCw strokeWidth={1.5} /> Réessayer
+          <RotateCw strokeWidth={1.5} /> {retryLabel}
         </Button>
       )}
     </div>

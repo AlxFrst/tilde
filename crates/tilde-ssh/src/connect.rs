@@ -11,10 +11,11 @@ use std::{
 
 use parking_lot::Mutex;
 use russh::{
-    Channel, MethodKind, MethodSet,
+    Channel, MethodKind, MethodSet, Preferred,
     client::{self, AuthResult, ChannelOpenHandle, Handle, KeyboardInteractiveAuthResponse},
     keys::{
-        PrivateKey, PrivateKeyWithHashAlg, PublicKey, PublicKeyOrCertificate, agent::AgentIdentity,
+        Algorithm, PrivateKey, PrivateKeyWithHashAlg, PublicKey, PublicKeyOrCertificate,
+        agent::AgentIdentity,
     },
 };
 use tilde_ssh_config::ResolvedHost;
@@ -239,6 +240,30 @@ fn display_path(path: &Path, home: &Path) -> String {
         .replace('\\', "/")
 }
 
+/// Runs a non-interactive connection step, failing with [`ConnectError::Timeout`] for
+/// `hop` after `deadline` (a black-holed next hop, a proxy that never opens the session).
+pub(crate) async fn within<T>(
+    deadline: Duration,
+    hop: &HopLabel,
+    step: impl Future<Output = Result<T, ConnectError>>,
+) -> Result<T, ConnectError> {
+    timeout(deadline, step).await.map_err(|_| ConnectError::Timeout { hop: hop.clone() })?
+}
+
+/// russh's preferences, with the host-key types already recorded for this host first —
+/// as OpenSSH does — so a known host is checked against its known key, never shown as
+/// new because the server also has a key of another type.
+fn preferred_host_keys(known: &[Algorithm]) -> Preferred {
+    let rsa = |a: &Algorithm| matches!(a, Algorithm::Rsa { .. });
+    let same_type = |a: &Algorithm, b: &Algorithm| a == b || (rsa(a) && rsa(b));
+    let mut preferred = Preferred::default();
+    let (mut keys, rest): (Vec<Algorithm>, Vec<Algorithm>) =
+        preferred.key.iter().cloned().partition(|a| known.iter().any(|k| same_type(a, k)));
+    keys.extend(rest);
+    preferred.key = keys.into();
+    preferred
+}
+
 /// Whether the server still accepts `kind` (unknown before the first failure).
 fn allowed(remaining: Option<&MethodSet>, kind: MethodKind) -> bool {
     remaining.is_none_or(|set| set.contains(&kind))
@@ -255,7 +280,13 @@ impl Connector {
             .unwrap_or_else(|| KnownHosts::new(host.user_known_hosts_files.clone()))
     }
 
-    fn client_config(&self, host: &ResolvedHost) -> Arc<client::Config> {
+    /// `ConnectTimeout` of the host, else the default.
+    pub(crate) fn deadline(&self, host: &ResolvedHost) -> Duration {
+        host.connect_timeout
+            .map_or(self.defaults.connect_timeout, |s| Duration::from_secs(u64::from(s)))
+    }
+
+    fn client_config(&self, host: &ResolvedHost, known: &KnownHosts) -> Arc<client::Config> {
         let interval = host
             .server_alive_interval
             .map_or(self.defaults.keepalive_interval, |s| Duration::from_secs(u64::from(s)));
@@ -268,6 +299,7 @@ impl Connector {
             keepalive_interval: (!interval.is_zero()).then_some(interval),
             keepalive_max: max,
             nodelay: true,
+            preferred: preferred_host_keys(&known.known_algorithms(&host.hostname, host.port)),
             ..client::Config::default()
         })
     }
@@ -295,12 +327,13 @@ impl Connector {
         hop: HopLabel,
         routes: Option<Arc<Routes>>,
     ) -> Result<Handle<ClientHandler>, ConnectError> {
+        let known_hosts = self.known_hosts_for(host);
         let rejection = Arc::new(Mutex::new(None));
         let prompting = Arc::new(AtomicBool::new(false));
         let handler = ClientHandler {
             host: host.hostname.clone(),
             port: host.port,
-            known_hosts: self.known_hosts_for(host),
+            known_hosts: known_hosts.clone(),
             prompter: Arc::clone(&self.prompter),
             rejection: Arc::clone(&rejection),
             prompting: Arc::clone(&prompting),
@@ -308,10 +341,8 @@ impl Connector {
             agent_sources: self.agent_sources(),
             routes,
         };
-        let deadline = host
-            .connect_timeout
-            .map_or(self.defaults.connect_timeout, |s| Duration::from_secs(u64::from(s)));
-        let config = self.client_config(host);
+        let deadline = self.deadline(host);
+        let config = self.client_config(host, &known_hosts);
 
         let stream: Box<dyn AsyncStream> = if let Some(s) = stream {
             s
@@ -565,6 +596,36 @@ mod tests {
         let home = Path::new("/home/me");
         assert_eq!(display_path(&home.join(".ssh/id_rsa"), home), "~/.ssh/id_rsa");
         assert_eq!(display_path(Path::new("/keys/k"), home), "/keys/k");
+    }
+
+    #[tokio::test]
+    async fn a_step_that_never_ends_times_out_naming_the_hop() {
+        let hop = HopLabel { index: 2, total: 3, host: "b2".into() };
+        let never = std::future::pending::<Result<(), ConnectError>>();
+        let start = std::time::Instant::now();
+        let err = within(Duration::from_millis(50), &hop, never).await.unwrap_err();
+        assert!(start.elapsed() < Duration::from_secs(2));
+        assert_eq!(err.to_string(), "bastion 2/2 (b2) : délai de connexion dépassé");
+        let ok = within(Duration::from_secs(5), &hop, async { Ok(7) }).await.unwrap();
+        assert_eq!(ok, 7);
+    }
+
+    #[test]
+    fn known_host_key_types_are_negotiated_first() {
+        let names = |p: &Preferred| p.key.iter().map(|a| a.as_str().to_owned()).collect::<Vec<_>>();
+        let default = names(&Preferred::default());
+        assert_eq!(names(&preferred_host_keys(&[])), default);
+
+        let ecdsa = Algorithm::Ecdsa { curve: russh::keys::EcdsaCurve::NistP256 };
+        let p = names(&preferred_host_keys(&[ecdsa]));
+        assert_eq!(p[0], "ecdsa-sha2-nistp256");
+        assert_eq!(p.len(), default.len(), "nothing dropped");
+
+        // An `ssh-rsa` line in known_hosts covers every RSA signature variant.
+        let p = names(&preferred_host_keys(&[Algorithm::Rsa { hash: None }]));
+        let rsa = default.iter().filter(|n| n.starts_with("rsa-") || *n == "ssh-rsa").count();
+        assert!(rsa > 0);
+        assert!(p[..rsa].iter().all(|n| n.starts_with("rsa-") || n == "ssh-rsa"), "{p:?}");
     }
 
     struct Silent;

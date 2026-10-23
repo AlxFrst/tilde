@@ -6,15 +6,16 @@ use std::{
     collections::HashMap,
     sync::{
         Arc, Weak,
-        atomic::{AtomicU32, Ordering},
+        atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
 
 use parking_lot::Mutex;
-use russh::{Channel, client};
+use russh::{Channel, ChannelMsg, client};
 use serde::{Deserialize, Serialize};
 use tilde_ssh_config::Forward;
 use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
     task::JoinHandle,
 };
@@ -93,10 +94,9 @@ impl Routes {
         let Some(route) = self.0.lock().get(&bound_port).cloned() else { return false };
         tokio::spawn(async move {
             match TcpStream::connect((route.host.as_str(), route.port)).await {
-                Ok(mut local) => {
+                Ok(local) => {
                     route.active.fetch_add(1, Ordering::Relaxed);
-                    let mut remote = channel.into_stream();
-                    let _ = tokio::io::copy_bidirectional(&mut local, &mut remote).await;
+                    bridge(channel, local).await;
                     route.active.fetch_sub(1, Ordering::Relaxed);
                 }
                 Err(e) => tracing::info!(host = %route.host, port = route.port, error = %e,
@@ -257,6 +257,94 @@ impl Forwards {
     }
 }
 
+/// Output a tunnel may hold for a local peer that reads too slowly, before it is closed.
+pub const TUNNEL_CAP: usize = 8 * 1024 * 1024;
+
+/// How the server side of a tunnel ended.
+enum Downstream {
+    /// The server will send nothing more; the local side may still talk.
+    Eof,
+    Closed,
+    /// The local peer fell more than [`TUNNEL_CAP`] behind.
+    Overflow,
+}
+
+/// Joins a tunnel channel and a local socket. The channel is drained continuously:
+/// russh hands every channel's data over from one session loop, so a reader that waits
+/// for a slow local peer would freeze the whole connection (shell, other tunnels,
+/// keepalive). A peer that falls too far behind loses its tunnel instead.
+async fn bridge(channel: Channel<client::Msg>, socket: TcpStream) {
+    let (mut from_server, to_server) = channel.split();
+    let to_server = Arc::new(to_server);
+    let (mut local_read, mut local_write) = socket.into_split();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+    let queued = Arc::new(AtomicUsize::new(0));
+
+    let pending = Arc::clone(&queued);
+    let writer = tokio::spawn(async move {
+        while let Some(chunk) = rx.recv().await {
+            if local_write.write_all(&chunk).await.is_err() {
+                return;
+            }
+            pending.fetch_sub(chunk.len(), Ordering::Relaxed);
+        }
+        let _ = local_write.shutdown().await;
+    });
+    let upstream = {
+        let to_server = Arc::clone(&to_server);
+        tokio::spawn(async move {
+            let mut buf = vec![0; 32 * 1024];
+            loop {
+                match local_read.read(&mut buf).await {
+                    Ok(0) | Err(_) => {
+                        let _ = to_server.eof().await;
+                        return;
+                    }
+                    Ok(n) => {
+                        if to_server.data_bytes(buf[..n].to_vec()).await.is_err() {
+                            return;
+                        }
+                    }
+                }
+            }
+        })
+    };
+
+    let end = loop {
+        match from_server.wait().await {
+            Some(ChannelMsg::Data { data }) => {
+                if queued.fetch_add(data.len(), Ordering::Relaxed) + data.len() > TUNNEL_CAP {
+                    break Downstream::Overflow;
+                }
+                if tx.send(data.to_vec()).is_err() {
+                    break Downstream::Closed;
+                }
+            }
+            Some(ChannelMsg::Eof) => break Downstream::Eof,
+            Some(ChannelMsg::Close) | None => break Downstream::Closed,
+            Some(_) => {}
+        }
+    };
+    drop(tx);
+    match end {
+        Downstream::Overflow => {
+            tracing::warn!("tunnel closed: the local side stopped reading");
+            writer.abort();
+            upstream.abort();
+            let _ = to_server.close().await;
+        }
+        Downstream::Closed => {
+            let _ = writer.await;
+            upstream.abort();
+        }
+        Downstream::Eof => {
+            let _ = writer.await;
+            // The local side may still send; the channel's Close then ends it.
+            let _ = tokio::join!(upstream, async { while from_server.wait().await.is_some() {} });
+        }
+    }
+}
+
 /// Local forward: each accepted socket gets a `direct-tcpip` channel on the current
 /// connection (refused while reconnecting).
 async fn accept_loop(
@@ -265,7 +353,7 @@ async fn accept_loop(
     shell: Weak<SshShell>,
     active: Arc<AtomicU32>,
 ) {
-    while let Ok((mut socket, peer)) = listener.accept().await {
+    while let Ok((socket, peer)) = listener.accept().await {
         let Some(connection) = shell.upgrade().and_then(|s| s.connection()) else { continue };
         let spec = spec.clone();
         let active = Arc::clone(&active);
@@ -282,8 +370,7 @@ async fn accept_loop(
             match channel {
                 Ok(channel) => {
                     active.fetch_add(1, Ordering::Relaxed);
-                    let mut remote = channel.into_stream();
-                    let _ = tokio::io::copy_bidirectional(&mut socket, &mut remote).await;
+                    bridge(channel, socket).await;
                     active.fetch_sub(1, Ordering::Relaxed);
                 }
                 Err(e) => tracing::info!(host = %spec.host, port = spec.port, error = %e,

@@ -10,7 +10,7 @@ use std::{
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use hmac::{Hmac, Mac};
-use russh::keys::{HashAlg, PublicKey};
+use russh::keys::{Algorithm, HashAlg, PublicKey};
 use sha1::Sha1;
 
 /// Result of looking a server key up in `known_hosts`.
@@ -185,6 +185,24 @@ impl KnownHosts {
         if known { HostKeyStatus::Known } else { changed.unwrap_or(HostKeyStatus::Unknown) }
     }
 
+    /// Key types recorded for `host:port` (revoked keys aside), first seen first.
+    #[must_use]
+    pub fn known_algorithms(&self, host: &str, port: u16) -> Vec<Algorithm> {
+        let name = lookup_name(host, port);
+        let mut found: Vec<Algorithm> = Vec::new();
+        for file in &self.files {
+            for e in Self::entries(file) {
+                if matches!(e.marker, Marker::None)
+                    && host_matches(&e.patterns, &name)
+                    && !found.contains(&e.key.algorithm())
+                {
+                    found.push(e.key.algorithm());
+                }
+            }
+        }
+        found
+    }
+
     fn primary(&self) -> io::Result<&PathBuf> {
         self.files.first().ok_or_else(|| io::Error::other("aucun fichier known_hosts configuré"))
     }
@@ -256,6 +274,21 @@ mod tests {
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICqku/9Fq6P2YIkfapLwWqPNs5oTPYzRTjhBvYZd+tV/";
     const KEY_B: &str =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKwjh3ttDj1fxALvLyKE0SnZudZKO1GNnQh1//KjXpOv";
+
+    const KEY_EC: &str = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBJqLRO9t8uISIOZjNCALFnIiYHRSEResayEKUbWXuAn93fBDI0TYSlnOYSikNSKxMqIjImlpBK9WqoehqTbRpUU=";
+
+    #[test]
+    fn known_algorithms_lists_the_types_recorded_for_the_host() {
+        let (_d, kh, _) = setup(&format!(
+            "example.com {KEY_EC}\n[example.com]:2222 {KEY_A}\nother {KEY_B}\n@revoked example.com {KEY_B}\n"
+        ));
+        let names = |port| -> Vec<String> {
+            kh.known_algorithms("example.com", port).iter().map(|a| a.as_str().to_owned()).collect()
+        };
+        assert_eq!(names(22), ["ecdsa-sha2-nistp256"]);
+        assert_eq!(names(2222), ["ssh-ed25519"]);
+        assert_eq!(kh.known_algorithms("nowhere", 22), vec![]);
+    }
 
     fn key(s: &str) -> PublicKey {
         PublicKey::from_openssh(s).unwrap()

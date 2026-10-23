@@ -37,6 +37,9 @@ interface WorkspaceState {
   focusNeighbor: (dir: FocusDirection) => void;
   updatePanel: (tabId: string, leafId: string, patch: PanelPatch) => void;
   setSizes: (tabId: string, splitId: string, sizes: number[]) => void;
+  /** Restored SSH panes, left disconnected until the user asks (not persisted). */
+  dormant: string[];
+  wake: (leafId: string) => void;
   snapshot: () => WorkspaceSnapshot;
   hydrate: (
     s: WorkspaceSnapshot,
@@ -80,6 +83,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
   return {
     tabs: [],
     activeTabId: null,
+    dormant: [],
 
     openTab: (profileId, cwd = null) => addTab(newLeaf(profileId, cwd)),
 
@@ -186,6 +190,10 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       mapTab(tabId, (t) => ({ ...t, root: setTreeSizes(t.root, splitId, sizes) }));
     },
 
+    wake: (leafId) => {
+      set((s) => ({ dormant: s.dormant.filter((id) => id !== leafId) }));
+    },
+
     snapshot: () => ({ version: 1, tabs: get().tabs, activeTabId: get().activeTabId }),
 
     hydrate: (raw, available, fallback) => {
@@ -200,7 +208,13 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         return { ...n, panel: { ...n.panel, profileId: fallback } };
       };
       const tabs = snap.tabs.map((t) => ({ ...t, root: fix(t.root) }));
-      set({ tabs, activeTabId: snap.activeTabId });
+      // SSH tabs come back disconnected: no surprise connections or prompts at launch.
+      const dormant = tabs.flatMap((t) =>
+        leaves(t.root)
+          .filter((l) => l.panel.kind === 'ssh')
+          .map((l) => l.id),
+      );
+      set({ tabs, activeTabId: snap.activeTabId, dormant });
       return { replaced };
     },
   };

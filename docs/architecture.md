@@ -116,7 +116,7 @@ src-tauri commands/ssh   ssh_hosts, ssh_forwards / _add / _remove, secrets_avail
 - **Contrôle de flux** : russh réajuste seul la fenêtre de chaque canal, on ne peut donc pas
   ralentir le serveur canal par canal. Le lecteur vide le canal en continu, ce qui évite
   qu'un `cat` géant ne bloque toute la connexion (tunnels, keepalive). Pendant que l'UI est
-  en pause, il garde jusqu'à 4 Mio, attend au plus 200 ms, puis ignore la sortie jusqu'à la
+  en pause, il garde jusqu'à 4 Mio, attend au plus 100 ms, puis ignore la sortie jusqu'à la
   reprise et l'écrit dans le terminal (« N Kio de sortie ignorés »). La mémoire reste bornée.
 - **Perte et reconnexion** : le keepalive de russh coupe après `countMax + 1` intervalles
   muets ; la session repasse alors par la chaîne complète avec un backoff de 1, 2, 4, 8, 16,

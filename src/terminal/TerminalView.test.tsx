@@ -325,3 +325,20 @@ test('an ssh pane shows its connection progress and offers to retry a failure', 
   fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
   expect(session.openSession).toHaveBeenCalledTimes(2);
 });
+
+test('a restored ssh pane waits for Enter before connecting', async () => {
+  const { useWorkspace } = await import('@/stores/workspace');
+  useWorkspace.setState({ dormant: ['l'] });
+  const { term } = renderView({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  expect(session.openSession).not.toHaveBeenCalled();
+  expect(screen.getByText(/Déconnecté — Entrée pour reconnecter/)).toBeInTheDocument();
+  act(() => {
+    term.type('x');
+  });
+  expect(session.openSession).not.toHaveBeenCalled();
+  act(() => {
+    term.type('\r');
+  });
+  expect(session.openSession).toHaveBeenCalledTimes(1);
+  expect(useWorkspace.getState().dormant).toEqual([]);
+});

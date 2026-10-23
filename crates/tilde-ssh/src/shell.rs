@@ -30,7 +30,7 @@ use crate::{
 /// Output held while the UI is paused, before the reader starts waiting for it.
 pub const HOLD_CAP: usize = 4 * 1024 * 1024;
 /// How long the reader may hold the connection up for a paused UI, once per pause.
-pub const STALL_MAX: Duration = Duration::from_millis(200);
+pub const STALL_MAX: Duration = Duration::from_millis(100);
 const STALL_POLL: Duration = Duration::from_millis(10);
 
 type Gate = Box<dyn Fn() -> bool + Send + Sync>;

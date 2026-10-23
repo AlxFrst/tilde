@@ -15,6 +15,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 use crate::{
     ConnectError, Connector, ForwardKind, ForwardSpec, HopLabel,
     chain::Connection,
+    connect::within,
     shell::{Delivery, Input, SshShell},
 };
 
@@ -189,6 +190,21 @@ async fn establish(
         .connect_chain_routed(&spec.config, &spec.ctx, host, on_hop, Some(shell.routes()))
         .await?;
     let hop = HopLabel::target(&host.hostname);
+    // Bounded: a proxy (Warpgate…) may authenticate, then never open the session.
+    let channel =
+        within(connector.deadline(host), &hop, open_shell(&connection, host, &hop, cols, rows))
+            .await?;
+    Ok((Arc::new(connection), channel))
+}
+
+/// Opens the shell channel: pty, environment, agent forwarding, shell.
+async fn open_shell(
+    connection: &Connection,
+    host: &ResolvedHost,
+    hop: &HopLabel,
+    cols: u16,
+    rows: u16,
+) -> Result<Channel<client::Msg>, ConnectError> {
     let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source: Box::new(source) };
     let target = connection.target();
     let channel = target.channel_open_session().await.map_err(ssh)?;
@@ -208,7 +224,7 @@ async fn establish(
         channel.agent_forward(false).await.map_err(ssh)?;
     }
     channel.request_shell(false).await.map_err(ssh)?;
-    Ok((Arc::new(connection), channel))
+    Ok(channel)
 }
 
 /// How one shell ended.

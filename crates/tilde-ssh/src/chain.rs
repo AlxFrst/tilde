@@ -7,7 +7,7 @@ use russh::client::Handle;
 use std::sync::Arc;
 
 use crate::{
-    ClientHandler, ConnectError, Connector, HopLabel, forward::Routes,
+    ClientHandler, ConnectError, Connector, HopLabel, connect::within, forward::Routes,
     proxy_command::spawn_proxy_command,
 };
 
@@ -106,8 +106,10 @@ impl Connector {
             let handle = match handles.last() {
                 // Through the previous hop: a direct-tcpip channel becomes the stream.
                 Some(prev) => {
-                    let channel = prev
-                        .channel_open_direct_tcpip(
+                    // Bounded: a black-holed next hop would otherwise wait for the
+                    // previous hop's TCP timeout (minutes).
+                    let open = async {
+                        prev.channel_open_direct_tcpip(
                             host.hostname.as_str(),
                             u32::from(host.port),
                             "127.0.0.1",
@@ -117,7 +119,9 @@ impl Connector {
                         .map_err(|e| ConnectError::Unreachable {
                             hop: label.clone(),
                             source: std::io::Error::other(e),
-                        })?;
+                        })
+                    };
+                    let channel = within(self.deadline(host), &label, open).await?;
                     let stream = Some(Box::new(channel.into_stream()) as Box<_>);
                     self.connect_routed(host, stream, label, routes).await?
                 }

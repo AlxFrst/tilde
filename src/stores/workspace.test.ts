@@ -13,7 +13,7 @@ function activeLeaf() {
 }
 
 beforeEach(() => {
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
 });
 
 test('openTab activates the new tab', () => {
@@ -106,7 +106,7 @@ test('snapshot and hydrate roundtrip', () => {
   ws().openTab('cmd');
   ws().splitActive('column');
   const snap = ws().snapshot();
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
   const { replaced } = ws().hydrate(snap, ['cmd'], 'cmd');
   expect(replaced).toBe(0);
   expect(ws().snapshot()).toEqual(snap);
@@ -115,7 +115,7 @@ test('snapshot and hydrate roundtrip', () => {
 test('hydrate replaces unknown profiles', () => {
   ws().openTab('wsl:Gone');
   const snap = ws().snapshot();
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
   const { replaced } = ws().hydrate(snap, ['pwsh'], 'pwsh');
   expect(replaced).toBe(1);
   expect(activeLeaf().leaf.panel).toMatchObject({ profileId: 'pwsh' });
@@ -235,7 +235,7 @@ test('hydrate keeps ssh panels and never replaces them with a local profile', ()
   ws().openSshTab('root@db:2222');
   ws().openTab('wsl:Gone');
   const snap = ws().snapshot();
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
   const { replaced } = ws().hydrate(snap, ['pwsh'], 'pwsh');
   expect(replaced).toBe(1);
   const panels = ws().tabs.map((t) => leaves(t.root)[0]?.panel);
@@ -253,4 +253,17 @@ test('an ssh panel without a target is dropped from a snapshot', () => {
     activeTabId: 'a',
   });
   expect(ws().tabs.map((t) => t.id)).toEqual(['b']);
+});
+
+test('restored ssh panels stay disconnected until woken; new ones connect at once', () => {
+  ws().openSshTab('prod');
+  const live = activeLeaf().leaf.id;
+  expect(ws().dormant).toEqual([]);
+  const snap = ws().snapshot();
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
+  ws().hydrate(snap, ['cmd'], 'cmd');
+  expect(ws().dormant).toEqual([live]);
+  expect(ws().snapshot()).toEqual(snap);
+  ws().wake(live);
+  expect(ws().dormant).toEqual([]);
 });

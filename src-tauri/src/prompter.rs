@@ -124,16 +124,31 @@ impl UiPrompter {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed) + 1;
         let (tx, rx) = oneshot::channel();
         self.pending.lock().insert(id, tx);
+        // Dismisses the dialog if we stop waiting without an answer: timeout, or the
+        // connection attempt was dropped (tab closed).
+        let _waiting = Waiting { prompter: self, id };
         (self.notify)(Notice::Ask(PromptEvent { id, request }));
         match tokio::time::timeout(self.timeout, rx).await {
             Ok(Ok(PromptReply::Cancel) | Err(_)) => None,
             Ok(Ok(reply)) => Some(reply),
             Err(_) => {
                 tracing::info!(prompt = id, "ssh question unanswered in time: cancelled");
-                self.pending.lock().remove(&id);
-                (self.notify)(Notice::Dismiss(id));
                 None
             }
+        }
+    }
+}
+
+struct Waiting<'a> {
+    prompter: &'a UiPrompter,
+    id: u32,
+}
+
+impl Drop for Waiting<'_> {
+    fn drop(&mut self) {
+        // Still pending = never answered (an answer removes the entry first).
+        if self.prompter.pending.lock().remove(&self.id).is_some() {
+            (self.prompter.notify)(Notice::Dismiss(self.id));
         }
     }
 }
@@ -278,6 +293,20 @@ mod tests {
         assert_eq!(decision, HostKeyDecision::Reject);
         assert_eq!(seen.lock().last().map(String::as_str), Some("dismiss 1"));
         assert!(!p.reply(1, PromptReply::Cancel), "a late answer finds nobody waiting");
+    }
+
+    #[tokio::test]
+    async fn an_abandoned_question_is_dismissed() {
+        let (p, seen) = prompter(PROMPT_TIMEOUT);
+        let asking = tokio::spawn({
+            let p = Arc::clone(&p);
+            async move { p.secret(password_prompt()).await }
+        });
+        wait_for_question(&seen).await;
+        asking.abort(); // the tab was closed while the dialog was open
+        let _ = asking.await;
+        assert_eq!(seen.lock().last().map(String::as_str), Some("dismiss 1"));
+        assert!(!p.reply(1, PromptReply::Cancel), "nobody waits for it any more");
     }
 
     #[tokio::test]

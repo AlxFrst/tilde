@@ -32,6 +32,7 @@ import { toXtermTheme, useResolvedTheme } from '@/themes';
 import { ConnectionBanner } from '@/app/ConnectionStatus';
 import type { ConnState } from '@/ipc/ssh';
 import { useSsh } from '@/stores/ssh';
+import { useWorkspace } from '@/stores/workspace';
 import type { Panel } from '@/workspace/types';
 import { createTerminal, terminalOptions, type TerminalHandle } from './createTerminal';
 import { ExitOverlay } from './ExitOverlay';
@@ -114,8 +115,16 @@ export function TerminalView(props: TerminalViewProps) {
   const [searchAddon, setSearchAddon] = useState<SearchAddon | null>(null);
   const [pasteText, setPasteText] = useState<string | null>(null);
   const [connection, setConnection] = useState<ConnState | null>(null);
+  const dormant = useWorkspace((s) => s.dormant.includes(props.leafId));
+  const wake = () => {
+    useWorkspace.getState().wake(latest.current.props.leafId);
+  };
 
   const send = (data: string | Uint8Array) => {
+    if (useWorkspace.getState().dormant.includes(latest.current.props.leafId)) {
+      if (data === '\r') wake();
+      return;
+    }
     const s = session.current;
     if (!s || s.ended) return;
     if (s.id === null) s.pendingInput.push(data);
@@ -201,10 +210,10 @@ export function TerminalView(props: TerminalViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- created once; reads latest values via refs
   }, []);
 
-  // Start (or restart) the shell.
+  // Start (or restart) the shell; a restored SSH pane waits until it is woken.
   useEffect(() => {
     const h = handle.current;
-    if (!h) return;
+    if (!h || dormant) return;
     const s: SessionState = {
       id: null,
       pendingInput: [],
@@ -286,7 +295,7 @@ export function TerminalView(props: TerminalViewProps) {
       unregisterSession(latest.current.props.leafId);
       if (s.id !== null && !s.ended) closeSession(s.id).catch(noop);
     };
-  }, [generation]);
+  }, [generation, dormant]);
 
   // Live settings and theme updates: no new session, just new options.
   useEffect(() => {
@@ -361,7 +370,16 @@ export function TerminalView(props: TerminalViewProps) {
         />
       )}
 
-      {props.panel.kind === 'ssh' && <ConnectionBanner state={connection} onRetry={restart} />}
+      {props.panel.kind === 'ssh' &&
+        (dormant ? (
+          <ConnectionBanner
+            state={{ kind: 'failed', message: 'Déconnecté — Entrée pour reconnecter' }}
+            retryLabel="Se connecter"
+            onRetry={wake}
+          />
+        ) : (
+          <ConnectionBanner state={connection} onRetry={restart} />
+        ))}
 
       {exitCode !== undefined && (
         <ExitOverlay code={exitCode} onRestart={restart} onClose={props.onClose} />

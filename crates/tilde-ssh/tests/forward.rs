@@ -139,3 +139,33 @@ async fn forwards_survive_reconnect() {
     assert_eq!(round_trip(info.bound_port, "after").await, "after\n");
     shell.close();
 }
+
+/// A local client that stops reading must not freeze the connection: the shell and
+/// other channels stay responsive, and the stalled tunnel is the one that gives up.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_stalled_tunnel_does_not_freeze_the_connection() {
+    let _bench = BENCH.read().await;
+    let Some(bench) = Bench::new() else { return };
+    let (shell, mut out, _) = bench.open(false).await;
+    let connection = shell.connection().unwrap();
+    // An endless source on the server, detached from the exec channel.
+    support::exec(
+        connection.target(),
+        "nohup sh -c 'yes | nc -l -p 7790' >/dev/null 2>&1 </dev/null &",
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let info = shell.add_forward(local(0, 7790)).await;
+    let _stalled = TcpStream::connect(("127.0.0.1", info.bound_port)).await.unwrap(); // never read
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    for _ in 0..10 {
+        let start = Instant::now();
+        let (pong, _) = support::exec(connection.target(), "echo pong").await;
+        assert_eq!(pong.trim(), "pong");
+        assert!(start.elapsed() < Duration::from_millis(500), "took {:?}", start.elapsed());
+    }
+    shell.write(b"echo alive-$((2+2))\n").unwrap();
+    out.expect("alive-4").await;
+    shell.close();
+}
