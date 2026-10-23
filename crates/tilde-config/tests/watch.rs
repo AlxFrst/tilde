@@ -156,3 +156,17 @@ fn theme_file_change_is_reported() {
     assert!(!seen.is_empty());
     assert!(seen.iter().all(|f| *f == ConfigFile::Themes), "{seen:?}");
 }
+
+#[test]
+fn keybindings_change_is_reported() {
+    let (_dir, store) = loaded();
+    let paths = store.paths().clone();
+    thread::sleep(Duration::from_millis(200));
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let s = Arc::clone(&seen);
+    let _watcher = watch_config(&paths, move |file| s.lock().push(file)).unwrap();
+
+    fs::write(paths.keybindings_file(), r#"{"version":1,"bindings":{}}"#).unwrap();
+    thread::sleep(Duration::from_millis(600));
+    assert_eq!(*seen.lock(), vec![ConfigFile::Keybindings]);
+}

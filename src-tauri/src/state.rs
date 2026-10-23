@@ -5,7 +5,9 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use tilde_config::{ConfigErrorDto, ConfigWatcher, ConnectionsStore, SettingsStore};
+use tilde_config::{
+    ConfigErrorDto, ConfigWatcher, ConnectionsStore, KeybindingsStore, SettingsStore,
+};
 use tilde_pty::ShellCandidate;
 use tilde_session::SessionManager;
 use tilde_ssh::{EditSession, KeyringStore, SshShell, TransferQueue};
@@ -24,6 +26,9 @@ pub struct AppState {
     pub connections: Mutex<ConnectionsStore>,
     /// Why `connections.json` is currently unusable, if it is.
     pub connections_error: Mutex<Option<ConfigErrorDto>>,
+    pub keybindings: Mutex<KeybindingsStore>,
+    /// Why `keybindings.json` is currently unusable, if it is.
+    pub keybindings_error: Mutex<Option<ConfigErrorDto>>,
     pub sessions: SessionManager,
     /// Detected shells; filled in the background at startup, cleared by `profiles_refresh`.
     pub shells: Mutex<Option<Vec<ShellCandidate>>>,

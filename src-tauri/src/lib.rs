@@ -11,7 +11,8 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager};
 use tauri_plugin_window_state::StateFlags;
 use tilde_config::{
-    ConfigErrorDto, ConfigFile, ConfigPaths, ConnectionsStore, SettingsStore, watch_config,
+    ConfigErrorDto, ConfigFile, ConfigPaths, ConnectionsStore, KeybindingsStore, SettingsStore,
+    watch_config,
 };
 use tilde_session::SessionManager;
 
@@ -64,7 +65,7 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
         ConfigFile::Settings => on_settings_file_changed(&handle),
         ConfigFile::Connections => on_connections_file_changed(&handle),
         ConfigFile::Themes => commands::themes::on_themes_changed(&handle),
-        ConfigFile::Keybindings => {}
+        ConfigFile::Keybindings => commands::keybindings::on_keybindings_file_changed(&handle),
     };
     match watch_config(paths, on_change) {
         Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
@@ -125,6 +126,10 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::ssh::ssh_forwards,
         commands::ssh::ssh_forward_add,
         commands::ssh::ssh_forward_remove,
+        commands::keybindings::keybindings_get,
+        commands::keybindings::keybindings_set,
+        commands::keybindings::keybindings_reset,
+        commands::keybindings::open_keybindings_file,
         commands::themes::themes_list,
         commands::themes::themes_save,
         commands::themes::themes_delete,
@@ -160,6 +165,10 @@ pub fn run() {
     if let Some(e) = &connections_error {
         tracing::error!(error = %e, "connections.json cannot be used; it is left untouched");
     }
+    let (keybindings, keybindings_error) = KeybindingsStore::load(paths.clone());
+    if let Some(e) = &keybindings_error {
+        tracing::error!(error = %e, "keybindings.json cannot be used; defaults apply");
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -184,6 +193,8 @@ pub fn run() {
             watcher: Mutex::new(None),
             connections: Mutex::new(connections),
             connections_error: Mutex::new(connections_error.as_ref().map(ConfigErrorDto::from)),
+            keybindings: Mutex::new(keybindings),
+            keybindings_error: Mutex::new(keybindings_error.as_ref().map(ConfigErrorDto::from)),
             sessions: SessionManager::new(),
             shells: Mutex::new(None),
             ssh: state::SshState::default(),

@@ -4,6 +4,7 @@
 
 mod connections;
 mod error;
+mod keybindings;
 mod merge_patch;
 mod migrate;
 mod paths;
@@ -18,6 +19,7 @@ pub use connections::{
     ImportReport, MAX_RECENTS, Recent, connection_problem, connections_schema, new_id,
 };
 pub use error::{ConfigError, ConfigErrorDto, FieldError};
+pub use keybindings::{KEYBINDINGS_VERSION, KeybindingsFile, KeybindingsStore, keybindings_schema};
 pub use merge_patch::merge_patch;
 pub use migrate::migrate;
 pub use paths::ConfigPaths;

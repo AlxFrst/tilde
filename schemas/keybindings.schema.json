@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KeybindingsFile",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0,
+      "default": 1
+    },
+    "bindings": {
+      "description": "Command id → shortcut (`Ctrl+Alt+T`), or `null` to leave the command unbound.",
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "default": {}
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "$id": "https://tilde.dev/schemas/keybindings.schema.json"
+}
