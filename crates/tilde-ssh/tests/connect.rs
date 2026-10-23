@@ -65,6 +65,8 @@ impl Fixture {
             secrets,
             defaults: SshDefaults::default(),
             home: self.home.clone(),
+            // No agent: these tests exercise key files and passwords.
+            agent_sources: Some(Vec::new()),
         }
     }
 }
@@ -262,6 +264,7 @@ async fn real_host_key_auth_and_exec() {
         secrets: Arc::new(MemoryStore::default()),
         defaults: SshDefaults::default(),
         home: ctx.home.clone(),
+        agent_sources: None,
     };
     let handle = c.connect_direct(&host, None, HopLabel::target(&alias)).await.unwrap();
     let (out, code) = support::exec(&handle, "echo tilde-ok").await;

@@ -8,9 +8,11 @@ use std::{
 
 use parking_lot::Mutex;
 use russh::{
-    MethodKind, MethodSet,
-    client::{self, AuthResult, Handle, KeyboardInteractiveAuthResponse},
-    keys::{PrivateKey, PrivateKeyWithHashAlg, PublicKeyOrCertificate},
+    Channel, MethodKind, MethodSet,
+    client::{self, AuthResult, ChannelOpenHandle, Handle, KeyboardInteractiveAuthResponse},
+    keys::{
+        PrivateKey, PrivateKeyWithHashAlg, PublicKey, PublicKeyOrCertificate, agent::AgentIdentity,
+    },
 };
 use tilde_ssh_config::ResolvedHost;
 use tokio::{
@@ -20,9 +22,10 @@ use tokio::{
 };
 
 use crate::{
-    AuthStep, ConnectError, HopLabel, HostKeyDecision, HostKeyPrompt, HostKeyStatus, KbdPrompt,
-    KnownHosts, Prompter, SecretAnswer, SecretKind, SecretPrompt, SecretStore, auth_plan,
-    fingerprint, passphrase_account, password_account,
+    AgentSource, AuthStep, ConnectError, HopLabel, HostKeyDecision, HostKeyPrompt, HostKeyStatus,
+    KbdPrompt, KnownHosts, Prompter, SecretAnswer, SecretKind, SecretPrompt, SecretStore,
+    agent::{DynAgent, connect_agent, default_agent_sources},
+    auth_plan, fingerprint, passphrase_account, password_account,
 };
 
 /// Attempts per secret (password or passphrase) before giving up.
@@ -59,6 +62,8 @@ pub struct Connector {
     pub defaults: SshDefaults,
     /// Home directory (default keys live in `~/.ssh`).
     pub home: PathBuf,
+    /// Where to look for an SSH agent; `None`: the platform defaults.
+    pub agent_sources: Option<Vec<AgentSource>>,
 }
 
 /// russh callbacks for one connection.
@@ -69,6 +74,9 @@ pub struct ClientHandler {
     prompter: Arc<dyn Prompter>,
     /// Why the host key was refused, to report it instead of a generic russh error.
     rejection: Arc<Mutex<Option<String>>>,
+    /// `ForwardAgent yes`: serve the server's agent requests from the local agent.
+    forward_agent: bool,
+    agent_sources: Vec<AgentSource>,
 }
 
 impl ClientHandler {
@@ -80,6 +88,31 @@ impl ClientHandler {
 
 impl client::Handler for ClientHandler {
     type Error = russh::Error;
+
+    /// Bridges an `auth-agent@openssh.com` channel to a fresh local agent connection.
+    /// Refused (by dropping `reply`) unless `ForwardAgent` is on for this host.
+    async fn server_channel_open_agent_forward(
+        &mut self,
+        channel: Channel<client::Msg>,
+        reply: ChannelOpenHandle,
+        _session: &mut client::Session,
+    ) -> Result<(), Self::Error> {
+        if !self.forward_agent {
+            return Ok(());
+        }
+        reply.accept().await;
+        let sources = self.agent_sources.clone();
+        tokio::spawn(async move {
+            let Some(agent) = connect_agent(&sources).await else {
+                tracing::warn!("agent forwarding requested but no local agent answers");
+                return;
+            };
+            let mut local = agent.into_inner();
+            let mut remote = channel.into_stream();
+            let _ = tokio::io::copy_bidirectional(&mut local, &mut remote).await;
+        });
+        Ok(())
+    }
 
     async fn check_server_key(
         &mut self,
@@ -128,6 +161,48 @@ impl client::Handler for ClientHandler {
     }
 }
 
+/// Tries every agent identity, the ones matching an `IdentityFile` first.
+/// `None` on success; otherwise the methods the server still accepts, if it said.
+async fn agent_auth(
+    handle: &mut Handle<ClientHandler>,
+    user: &str,
+    agent: &mut DynAgent,
+    identity_files: &[PathBuf],
+    hop: &HopLabel,
+) -> Result<Option<Option<MethodSet>>, ConnectError> {
+    let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source };
+    let Ok(identities) = agent.request_identities().await else { return Ok(Some(None)) };
+    let preferred: Vec<PublicKey> = identity_files
+        .iter()
+        .filter_map(|p| std::fs::read_to_string(format!("{}.pub", p.display())).ok())
+        .filter_map(|text| PublicKey::from_openssh(text.trim()).ok())
+        .collect();
+    let mut keys: Vec<PublicKey> = identities
+        .into_iter()
+        .filter_map(|id| match id {
+            AgentIdentity::PublicKey { key, .. } => Some(key),
+            AgentIdentity::Certificate { .. } => None,
+        })
+        .collect();
+    keys.sort_by_key(|k| !preferred.iter().any(|p| p.key_data() == k.key_data()));
+    let mut remaining = None;
+    for key in keys {
+        let hash = if key.algorithm().is_rsa() {
+            handle.best_supported_rsa_hash().await.map_err(ssh)?.flatten()
+        } else {
+            None
+        };
+        match handle.authenticate_publickey_with(user, key, hash, agent).await {
+            Ok(AuthResult::Success) => return Ok(None),
+            Ok(AuthResult::Failure { remaining_methods, .. }) => {
+                remaining = Some(remaining_methods);
+            }
+            Err(e) => tracing::debug!(error = %e, "agent signature failed"),
+        }
+    }
+    Ok(Some(remaining))
+}
+
 /// `~/.ssh/id_ed25519` rather than the full path, for messages.
 fn display_path(path: &Path, home: &Path) -> String {
     path.strip_prefix(home)
@@ -141,6 +216,10 @@ fn allowed(remaining: Option<&MethodSet>, kind: MethodKind) -> bool {
 }
 
 impl Connector {
+    fn agent_sources(&self) -> Vec<AgentSource> {
+        self.agent_sources.clone().unwrap_or_else(default_agent_sources)
+    }
+
     fn known_hosts_for(&self, host: &ResolvedHost) -> KnownHosts {
         self.known_hosts
             .clone()
@@ -183,6 +262,8 @@ impl Connector {
             known_hosts: self.known_hosts_for(host),
             prompter: Arc::clone(&self.prompter),
             rejection: Arc::clone(&rejection),
+            forward_agent: host.forward_agent,
+            agent_sources: self.agent_sources(),
         };
         let deadline = host
             .connect_timeout
@@ -227,10 +308,22 @@ impl Connector {
         let mut tried: Vec<String> = Vec::new();
         let mut remaining: Option<MethodSet> = None;
 
-        for step in auth_plan(host, &self.home, false) {
+        let mut agent =
+            if host.identities_only { None } else { connect_agent(&self.agent_sources()).await };
+
+        for step in auth_plan(host, &self.home, agent.is_some()) {
             match step {
-                // The agent is wired in by the agent module.
-                AuthStep::Agent => {}
+                AuthStep::Agent => {
+                    let Some(agent) = agent.as_mut() else { continue };
+                    if !allowed(remaining.as_ref(), MethodKind::PublicKey) {
+                        continue;
+                    }
+                    tried.push("agent".into());
+                    match agent_auth(handle, user, agent, &host.identity_files, hop).await? {
+                        None => return Ok(()),
+                        Some(rest) => remaining = rest.or(remaining),
+                    }
+                }
                 AuthStep::Key(path) => {
                     if !allowed(remaining.as_ref(), MethodKind::PublicKey) || !path.is_file() {
                         continue;
