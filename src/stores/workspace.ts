@@ -124,6 +124,71 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     return tab.id;
   };
 
+  const removeTab = (tabId: string) => {
+    set((s) => {
+      const index = s.tabs.findIndex((t) => t.id === tabId);
+      if (index < 0) return s;
+      const tabs = s.tabs.filter((t) => t.id !== tabId);
+      const activeTabId =
+        s.activeTabId !== tabId
+          ? s.activeTabId
+          : (tabs[neighborIndex(index, tabs.length)]?.id ?? null);
+      return { tabs, activeTabId };
+    });
+  };
+
+  /** Closes one pane (and its tab if it was the last), nothing else. */
+  const removePane = (tabId: string, leafId: string) => {
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    const before = leaves(tab.root);
+    const root = removeLeaf(tab.root, leafId);
+    if (!root) {
+      removeTab(tabId);
+      return;
+    }
+    // Focus the pane that took the closed one's place (the previous one, else the next).
+    const index = before.findIndex((l) => l.id === leafId);
+    const after = leaves(root);
+    const activeLeafId =
+      tab.activeLeafId !== leafId
+        ? tab.activeLeafId
+        : ((after[Math.max(0, index - 1)] ?? after[0])?.id ?? '');
+    mapTab(tabId, (t) => ({ ...t, root, activeLeafId }));
+  };
+
+  // Files and server monitors belong to an SSH pane: they go when it goes.
+  const closeOrphans = () => {
+    for (;;) {
+      const { tabs } = get();
+      const ssh = new Set(
+        tabs.flatMap((t) =>
+          leaves(t.root)
+            .filter((l) => l.panel.kind === 'ssh')
+            .map((l) => l.id),
+        ),
+      );
+      let orphan: { tabId: string; leafId: string } | null = null;
+      for (const t of tabs) {
+        const l = leaves(t.root).find(({ panel: p }) => {
+          const linked =
+            p.kind === 'sftp'
+              ? p.linkedLeafId
+              : p.kind === 'monitor' && p.source.kind === 'remote'
+                ? p.source.linkedLeafId
+                : null;
+          return linked !== null && !ssh.has(linked);
+        });
+        if (l) {
+          orphan = { tabId: t.id, leafId: l.id };
+          break;
+        }
+      }
+      if (!orphan) return;
+      removePane(orphan.tabId, orphan.leafId);
+    }
+  };
+
   return {
     tabs: [],
     activeTabId: null,
@@ -280,16 +345,8 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
 
     closeTab: (tabId) => {
-      set((s) => {
-        const index = s.tabs.findIndex((t) => t.id === tabId);
-        if (index < 0) return s;
-        const tabs = s.tabs.filter((t) => t.id !== tabId);
-        const activeTabId =
-          s.activeTabId !== tabId
-            ? s.activeTabId
-            : (tabs[neighborIndex(index, tabs.length)]?.id ?? null);
-        return { tabs, activeTabId };
-      });
+      removeTab(tabId);
+      closeOrphans();
     },
 
     activateTab: (tabId) => {
@@ -353,22 +410,8 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
 
     closeLeaf: (tabId, leafId) => {
-      const tab = get().tabs.find((t) => t.id === tabId);
-      if (!tab) return;
-      const before = leaves(tab.root);
-      const root = removeLeaf(tab.root, leafId);
-      if (!root) {
-        get().closeTab(tabId);
-        return;
-      }
-      // Focus the pane that took the closed one's place (the previous one, else the next).
-      const index = before.findIndex((l) => l.id === leafId);
-      const after = leaves(root);
-      const activeLeafId =
-        tab.activeLeafId !== leafId
-          ? tab.activeLeafId
-          : ((after[Math.max(0, index - 1)] ?? after[0])?.id ?? '');
-      mapTab(tabId, (t) => ({ ...t, root, activeLeafId }));
+      removePane(tabId, leafId);
+      closeOrphans();
     },
 
     focusLeaf: (tabId, leafId) => {

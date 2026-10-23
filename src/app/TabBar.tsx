@@ -43,11 +43,14 @@ const TAB_COLORS = [
 function useTabLabel(tab: Tab) {
   const profiles = useProfiles((s) => s.profiles);
   const active = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
-  // A files pane is labelled by the SSH pane it belongs to.
-  const leaf =
+  // Files and a server monitor are labelled by the SSH pane they belong to.
+  const owner =
     active?.panel.kind === 'sftp'
-      ? (findLeaf(tab.root, active.panel.linkedLeafId) ?? active)
-      : active;
+      ? active.panel.linkedLeafId
+      : active?.panel.kind === 'monitor' && active.panel.source.kind === 'remote'
+        ? active.panel.source.linkedLeafId
+        : null;
+  const leaf = (owner ? findLeaf(tab.root, owner) : null) ?? active;
   const panel = leaf?.panel;
   const connection = useSsh((s) => (leaf ? s.states[leaf.id] : undefined));
   const saved = useConnections((s) =>

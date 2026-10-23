@@ -175,3 +175,16 @@ test('an ssh pane shows a button that shows and hides its files', async () => {
 
   expect(screen.queryByRole('button', { name: 'Moniteur du serveur' })).toBeNull();
 });
+
+test('a tab showing the files or the monitor of a connection is named after it', () => {
+  act(() => {
+    ws().openSshTab('prod.example');
+  });
+  const sshLeaf = ws().tabs[0]?.activeLeafId ?? '';
+  render(<TabBar />);
+  act(() => {
+    ws().toggleRemoteMonitor(sshLeaf);
+  });
+  expect(screen.getByRole('tab', { name: /prod\.example/ })).toBeInTheDocument();
+  expect(screen.queryByRole('tab', { name: /Moniteur/ })).toBeNull();
+});

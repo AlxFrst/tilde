@@ -377,3 +377,25 @@ test('toggleRemoteMonitor opens the server monitor, then closes it', () => {
   const panels = ws().tabs.flatMap((t) => leaves(t.root).map((l) => l.panel.kind));
   expect(panels).toEqual(['ssh']);
 });
+
+test('closing an ssh pane closes its files and its monitor, and a tab left with nothing else', () => {
+  const tab = ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().toggleSftp(sshLeaf);
+  ws().toggleRemoteMonitor(sshLeaf);
+  expect(activeLeaf().tab.root.type === 'split' && leaves(activeLeaf().tab.root)).toHaveLength(3);
+  ws().closeLeaf(tab, sshLeaf);
+  expect(ws().tabs).toEqual([]);
+});
+
+test('closing an ssh pane keeps the panes that do not depend on it', () => {
+  const tab = ws().openTab('cmd');
+  ws().splitActive('row');
+  const local = activeLeaf().leaf.id;
+  const sshTab = ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().toggleSftp(sshLeaf);
+  ws().closeTab(sshTab);
+  expect(ws().tabs.map((t) => t.id)).toEqual([tab]);
+  expect(ws().tabs.flatMap((t) => leaves(t.root).map((l) => l.id))).toContain(local);
+});
