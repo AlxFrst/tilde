@@ -37,7 +37,8 @@ export function terminalOptions(s: TerminalSettings, theme: ITheme): ITerminalOp
  * Creates an xterm instance in `container` with Tilde's addons. WebGL is optional: without
  * a GPU context the terminal keeps working with the DOM renderer.
  *
- * Ligatures are not rendered yet: @xterm/addon-ligatures needs Node.js APIs (Electron only).
+ * Ligatures are drawn by a character joiner (see ligatures.ts), with the WebGL renderer
+ * only: the DOM fallback shows the characters separately.
  */
 export function createTerminal(opts: {
   container: HTMLElement;

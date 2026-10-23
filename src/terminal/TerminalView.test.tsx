@@ -51,6 +51,14 @@ const { FakeTerminal } = vi.hoisted(() => {
       return { dispose() {} };
     }
     attachCustomKeyEventHandler() {}
+    joiners = 0;
+    registerCharacterJoiner() {
+      this.joiners++;
+      return this.joiners;
+    }
+    deregisterCharacterJoiner() {
+      this.joiners--;
+    }
     focus() {}
     reset() {}
     paste() {}
@@ -256,6 +264,18 @@ test('theme change updates options without reopening the session', async () => {
   expect(term.options.fontSize).toBe(18);
   expect((term.options.theme as { background: string }).background).toBe('#F7F8FB');
   expect(session.openSession).toHaveBeenCalledTimes(1);
+});
+
+test('ligatures follow the setting live', async () => {
+  const { term } = renderView();
+  await resolveSession();
+  expect(term.joiners).toBe(1);
+  act(() => {
+    useSettings.setState({
+      settings: { ...defaultSettings, terminal: { ...defaultSettings.terminal, ligatures: false } },
+    });
+  });
+  expect(term.joiners).toBe(0);
 });
 
 test('unmount closes the session', async () => {

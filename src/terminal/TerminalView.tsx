@@ -39,6 +39,7 @@ import { createTerminal, terminalOptions, type TerminalHandle } from './createTe
 import { ExitOverlay } from './ExitOverlay';
 import { useKeybindings } from '@/stores/keybindings';
 import { matchShortcut } from './keys';
+import { enableLigatures } from './ligatures';
 import { parseOsc7 } from './osc7';
 import { needsPasteConfirmation, pastedLineCount } from './paste';
 import { createResizeScheduler } from './resize';
@@ -307,6 +308,14 @@ export function TerminalView(props: TerminalViewProps) {
       if (s.id !== null && !s.ended) closeSession(s.id).catch(noop);
     };
   }, [generation, dormant]);
+
+  // Ligatures follow the setting live (the terminal is created by an earlier effect).
+  const ligatures = terminalSettings?.ligatures ?? false;
+  useEffect(() => {
+    const h = handle.current;
+    if (!h || !ligatures) return;
+    return enableLigatures(h.term);
+  }, [ligatures]);
 
   // Live settings and theme updates: no new session, just new options.
   useEffect(() => {
