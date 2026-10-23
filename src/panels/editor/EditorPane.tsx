@@ -49,14 +49,28 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
     useEditors.getState().set(leafId, { name, text, dirty: text !== saved.current });
   };
 
-  const save = async (force = false) => {
+  // One save at a time: a second Ctrl+S during a save would send the old version and
+  // get a false « changed on the server ». It runs once the first one is done.
+  const inFlight = useRef(false);
+  const again = useRef(false);
+  const save = async (force = false): Promise<void> => {
+    if (inFlight.current) {
+      again.current = true;
+      return;
+    }
+    inFlight.current = true;
     setSaving(true);
     const text = current.current;
     const outcome = await latest.current.doc.save(text, force);
+    inFlight.current = false;
     setSaving(false);
     if (outcome === 'saved') {
       saved.current = text;
       useEditors.getState().set(leafId, { dirty: current.current !== text });
+    }
+    if (again.current) {
+      again.current = false;
+      if (outcome === 'saved' && current.current !== text) await save();
     }
   };
   const saveRef = useRef(save);

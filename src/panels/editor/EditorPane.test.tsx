@@ -176,3 +176,38 @@ test('closing a dirty editor asks first', async () => {
   });
   expect(useWorkspace.getState().tabs).toHaveLength(0);
 });
+
+test('a second Ctrl+S during a save waits for it instead of raising a false conflict', async () => {
+  vi.mocked(editorOpenRemote).mockResolvedValue({ text: 'a\n', stamp: { size: 2, mtime: 1 } });
+  let finishFirst: (s: { size: number; mtime: number }) => void = () => undefined;
+  vi.mocked(editorSaveRemote)
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishFirst = resolve;
+        }),
+    )
+    .mockResolvedValueOnce({ size: 3, mtime: 3 });
+  render(<Pane />);
+  const area = await screen.findByLabelText('Contenu');
+  fireEvent.input(area, { target: { value: 'ab\n' } });
+  fireEvent.keyDown(area, { key: 's', ctrlKey: true });
+  fireEvent.input(area, { target: { value: 'abc\n' } });
+  fireEvent.keyDown(area, { key: 's', ctrlKey: true });
+  // The second save waits for the first one.
+  expect(editorSaveRemote).toHaveBeenCalledTimes(1);
+  act(() => {
+    finishFirst({ size: 3, mtime: 2 });
+  });
+  await waitFor(() => {
+    expect(editorSaveRemote).toHaveBeenCalledTimes(2);
+  });
+  // …and then expects the version the first one wrote.
+  expect(editorSaveRemote).toHaveBeenLastCalledWith(
+    4,
+    '/srv/app/config.yml',
+    'abc\n',
+    { size: 3, mtime: 2 },
+    false,
+  );
+});
