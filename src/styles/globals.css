@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/jetbrains-mono';
+
+@custom-variant dark (&:where([data-theme-kind='dark'], [data-theme-kind='dark'] *));
+
+/*
+ * Theme tokens. `applyTheme()` overwrites the --tilde-* variables at runtime; the values
+ * below are Tilde Dark so the very first paint (before JS runs) is already on-brand.
+ */
+:root {
+  --tilde-bg: #0b0e14;
+  --tilde-surface-1: #11151c;
+  --tilde-surface-2: #171c26;
+  --tilde-border: #232a36;
+  --tilde-text: #e6e9ef;
+  --tilde-text-muted: #8b93a7;
+  --tilde-accent: #7aa2f7;
+  --tilde-accent-2: #5eead4;
+  --tilde-success: #9ece6a;
+  --tilde-warning: #e0af68;
+  --tilde-error: #f7768e;
+
+  /* --tilde-ui-font-size is set from settings; --tilde-density via [data-density] on <html>. */
+  --tilde-ui-font-size: 13px;
+  --tilde-density: 1;
+  --radius: 0.5rem;
+  color-scheme: dark;
+
+  /* shadcn/ui variables, aliased onto Tilde tokens. */
+  --background: var(--tilde-bg);
+  --foreground: var(--tilde-text);
+  --card: var(--tilde-surface-1);
+  --card-foreground: var(--tilde-text);
+  --popover: var(--tilde-surface-2);
+  --popover-foreground: var(--tilde-text);
+  --primary: var(--tilde-accent);
+  --primary-foreground: var(--tilde-bg);
+  --secondary: var(--tilde-surface-2);
+  --secondary-foreground: var(--tilde-text);
+  --muted: var(--tilde-surface-2);
+  --muted-foreground: var(--tilde-text-muted);
+  --accent: var(--tilde-surface-2);
+  --accent-foreground: var(--tilde-text);
+  --destructive: var(--tilde-error);
+  --border: var(--tilde-border);
+  --input: var(--tilde-border);
+  --ring: var(--tilde-accent);
+  --sidebar: var(--tilde-surface-1);
+  --sidebar-foreground: var(--tilde-text);
+  --sidebar-primary: var(--tilde-accent);
+  --sidebar-primary-foreground: var(--tilde-bg);
+  --sidebar-accent: var(--tilde-surface-2);
+  --sidebar-accent-foreground: var(--tilde-text);
+  --sidebar-border: var(--tilde-border);
+  --sidebar-ring: var(--tilde-accent);
+}
+
+:root[data-density='compact'] {
+  --tilde-density: 0.85;
+}
+:root[data-density='spacious'] {
+  --tilde-density: 1.15;
+}
+
+@theme inline {
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  /* Tilde tokens as Tailwind colors: bg-surface-1, text-text-muted, border-border… */
+  --color-bg: var(--tilde-bg);
+  --color-surface-1: var(--tilde-surface-1);
+  --color-surface-2: var(--tilde-surface-2);
+  --color-text: var(--tilde-text);
+  --color-text-muted: var(--tilde-text-muted);
+  --color-accent-2: var(--tilde-accent-2);
+  --color-success: var(--tilde-success);
+  --color-warning: var(--tilde-warning);
+  --color-error: var(--tilde-error);
+
+  /* shadcn colors. Note `accent` here is shadcn's hover surface; the brand accent is `primary`. */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.75);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) * 1.25);
+  --radius-xl: calc(var(--radius) * 1.5);
+
+  --default-transition-duration: 150ms;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  html {
+    @apply font-sans;
+    font-size: calc(var(--tilde-ui-font-size) * var(--tilde-density));
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    overflow: hidden;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--tilde-accent) 35%, transparent);
+  }
+}
