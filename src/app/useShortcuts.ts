@@ -6,10 +6,11 @@ import { matchShortcut } from '@/terminal/keys';
 
 /**
  * True when keys belong to what the user is typing in (a form field, a dialog), not to
- * the app. The terminal's hidden textarea is not a field: shortcuts work in terminals.
+ * the app. Terminals and the code editor are panes, not fields: shortcuts work there
+ * (switching tab or pane from the keyboard), and win over their own key bindings.
  */
 function isTyping(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement) || target.closest('.xterm')) return false;
+  if (!(target instanceof HTMLElement) || target.closest('.xterm, .cm-editor')) return false;
   return (
     target.isContentEditable ||
     ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
