@@ -23,7 +23,12 @@ interface SettingsState {
 }
 
 /** Error kinds for which the backend marks settings.json read-only. */
-const LOCKING_KINDS = new Set<ConfigErrorDto['kind']>(['parse', 'type', 'invalid', 'futureVersion']);
+const LOCKING_KINDS = new Set<ConfigErrorDto['kind']>([
+  'parse',
+  'type',
+  'invalid',
+  'futureVersion',
+]);
 
 function describe(err: unknown): string {
   if (isConfigError(err)) return formatConfigError(err);

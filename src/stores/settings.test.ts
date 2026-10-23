@@ -77,7 +77,11 @@ test('a broken file at startup is toasted', async () => {
   vi.mocked(invoke).mockResolvedValueOnce({
     settings: defaultSettings,
     readOnly: true,
-    error: { kind: 'type', message: 'type incorrect pour « terminal.fontSize »', path: 'terminal.fontSize' },
+    error: {
+      kind: 'type',
+      message: 'type incorrect pour « terminal.fontSize »',
+      path: 'terminal.fontSize',
+    },
   });
   await useSettings.getState().init();
   expect(useSettings.getState().readOnly).toBe(true);
@@ -85,7 +89,11 @@ test('a broken file at startup is toasted', async () => {
 });
 
 test('an io error on reload toasts but does not lock editing', async () => {
-  vi.mocked(invoke).mockResolvedValueOnce({ settings: defaultSettings, readOnly: false, error: null });
+  vi.mocked(invoke).mockResolvedValueOnce({
+    settings: defaultSettings,
+    readOnly: false,
+    error: null,
+  });
   await useSettings.getState().init();
   emit('settings://error', { kind: 'io', message: 'impossible d’accéder à settings.json' });
   expect(toast.error).toHaveBeenCalled();

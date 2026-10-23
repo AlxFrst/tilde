@@ -89,7 +89,9 @@ test('shows the hidden window once the shell is ready, without animation frames'
 test('a failing backend still shows the window with an error screen', async () => {
   showWindow.mockClear();
   vi.mocked(invoke).mockImplementation((cmd: string) =>
-    cmd === 'settings_get' ? Promise.reject(new Error('backend down')) : new Promise(() => undefined),
+    cmd === 'settings_get'
+      ? Promise.reject(new Error('backend down'))
+      : new Promise(() => undefined),
   );
   render(<App />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Tilde n’a pas pu démarrer');
