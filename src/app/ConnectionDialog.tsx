@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { openConnection } from './actions';
 import { ColorPicker } from './ColorPicker';
+import { JumpHosts } from './JumpHosts';
 
 const AGENT = [
   ['', 'Selon ~/.ssh/config'],
@@ -190,12 +191,38 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
         </Field>
         <Field
           id="conn-proxyJump"
-          label="ProxyJump"
+          label="Rebonds (ProxyJump)"
           error={errors.proxyJump}
-          className="col-span-4"
-          hint="Bastions : user@b1, b2:2222"
+          className="col-span-6"
+          hint="Tilde passe par chaque bastion dans l’ordre, puis se connecte à l’hôte ; les fichiers et le bandeau d’état suivent le même chemin."
         >
-          {input('proxyJump')}
+          <JumpHosts
+            value={form.proxyJump}
+            invalid={errors.proxyJump !== undefined}
+            connections={file.connections.filter((c) => c.id !== initial.id || !initial.id)}
+            sshHosts={sshHosts}
+            onChange={(proxyJump) => {
+              setForm((f) => ({ ...f, proxyJump }));
+              setErrors((er) => ({ ...er, proxyJump: undefined }));
+            }}
+          />
+        </Field>
+        <Field id="conn-folder" label="Dossier" className="col-span-2">
+          <select
+            id="conn-folder"
+            className={selectClass}
+            value={folderId ?? ''}
+            onChange={(e) => {
+              setFolderId(e.currentTarget.value || null);
+            }}
+          >
+            <option value="">Sans dossier</option>
+            {file.folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field id="conn-agent" label="Transférer l’agent" className="col-span-2">
           <select
@@ -213,24 +240,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             ))}
           </select>
         </Field>
-        <Field id="conn-folder" label="Dossier" className="col-span-3">
-          <select
-            id="conn-folder"
-            className={selectClass}
-            value={folderId ?? ''}
-            onChange={(e) => {
-              setFolderId(e.currentTarget.value || null);
-            }}
-          >
-            <option value="">Sans dossier</option>
-            {file.folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id="conn-tags" label="Tags" className="col-span-3" hint="Séparés par des virgules">
+        <Field id="conn-tags" label="Tags" className="col-span-2" hint="Séparés par des virgules">
           <Input
             id="conn-tags"
             value={tags}
