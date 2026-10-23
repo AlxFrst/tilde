@@ -3,7 +3,7 @@
 # injected at startup (see entrypoint.sh): nothing secret is baked into the image.
 FROM alpine:3.20
 
-RUN apk add --no-cache openssh-server socat \
+RUN apk add --no-cache openssh-server openssh-client socat \
  && ssh-keygen -A \
  && adduser -D -s /bin/sh tilde \
  && mkdir -p /home/tilde/.ssh && chown tilde:tilde /home/tilde/.ssh && chmod 700 /home/tilde/.ssh

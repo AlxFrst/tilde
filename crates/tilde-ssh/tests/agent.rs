@@ -114,14 +114,16 @@ async fn agent_forwarding_reaches_the_agent() {
     let mut channel = handle.channel_open_session().await.unwrap();
     channel.agent_forward(true).await.unwrap();
     channel.exec(true, "ssh-add -l").await.unwrap();
-    let mut out = Vec::new();
+    let (mut out, mut err) = (Vec::new(), Vec::new());
     while let Some(msg) = channel.wait().await {
         match msg {
             russh::ChannelMsg::Data { data } => out.extend_from_slice(&data),
+            russh::ChannelMsg::ExtendedData { data, .. } => err.extend_from_slice(&data),
             russh::ChannelMsg::Close => break,
             _ => {}
         }
     }
     let listed = String::from_utf8_lossy(&out);
-    assert!(listed.contains("tilde-test"), "remote ssh-add -l: {listed}");
+    let stderr = String::from_utf8_lossy(&err);
+    assert!(listed.contains("tilde-test"), "remote ssh-add -l: {listed} / stderr: {stderr}");
 }
