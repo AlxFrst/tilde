@@ -150,6 +150,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::editor::editor_save_remote,
         commands::editor::editor_open_local,
         commands::editor::editor_save_local,
+        commands::editor::editor_read_local,
         commands::editor::editor_close_local,
         commands::editor::preview_read_remote,
         commands::editor::preview_read_local,

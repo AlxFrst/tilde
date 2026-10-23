@@ -36,7 +36,30 @@ export interface SftpPanel {
   title: null;
 }
 
-export type Panel = TerminalPanel | SshPanel | SftpPanel;
+/** Where an editor's (or a preview's) file comes from. */
+export type FileSource =
+  | {
+      kind: 'remote';
+      /** The SSH pane whose session reads and writes the file. */
+      linkedLeafId: string;
+      path: string;
+    }
+  | {
+      kind: 'local';
+      /** Given by Rust when the file was picked in the native dialog. */
+      docId: number;
+      name: string;
+    };
+
+/** The built-in text editor. Not saved in workspace.json. */
+export interface EditorPanel {
+  kind: 'editor';
+  source: FileSource;
+  cwd: null;
+  title: null;
+}
+
+export type Panel = TerminalPanel | SshPanel | SftpPanel | EditorPanel;
 
 /** What a pane may update in its own panel (fields it does not have are ignored). */
 export type PanelPatch = Record<string, unknown>;

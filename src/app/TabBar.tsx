@@ -82,8 +82,9 @@ function useTabLabel(tab: Tab) {
       connection,
     };
   }
-  const profile = profiles.find((p) => p.id === panel?.profileId);
-  const title = tab.customTitle ?? panel?.title ?? profile?.name ?? panel?.profileId ?? '';
+  const term = panel?.kind === 'terminal' ? panel : undefined;
+  const profile = profiles.find((p) => p.id === term?.profileId);
+  const title = tab.customTitle ?? term?.title ?? profile?.name ?? term?.profileId ?? '';
   return {
     title,
     Icon: profileIcon(profile?.icon),

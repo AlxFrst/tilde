@@ -2,6 +2,7 @@
 
 import type { Connection } from '@/ipc/connections';
 import { pickDefaultProfile } from '@/ipc/profiles';
+import { dirtyEditors } from '@/stores/editors';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { useWorkspace } from '@/stores/workspace';
@@ -25,14 +26,18 @@ export function openConnection(c: Connection): void {
 }
 
 export async function closePane(tabId: string, leafId: string): Promise<void> {
-  if (await confirmClose(sessionsFor([leafId]))) useWorkspace.getState().closeLeaf(tabId, leafId);
+  if (await confirmClose(sessionsFor([leafId]), dirtyEditors([leafId]))) {
+    useWorkspace.getState().closeLeaf(tabId, leafId);
+  }
 }
 
 export async function closeTab(tabId: string): Promise<void> {
   const tab = useWorkspace.getState().tabs.find((t) => t.id === tabId);
   if (!tab) return;
-  const ids = sessionsFor(leaves(tab.root).map((l) => l.id));
-  if (await confirmClose(ids)) useWorkspace.getState().closeTab(tabId);
+  const leafIds = leaves(tab.root).map((l) => l.id);
+  if (await confirmClose(sessionsFor(leafIds), dirtyEditors(leafIds))) {
+    useWorkspace.getState().closeTab(tabId);
+  }
 }
 
 export function closeActivePane(): Promise<void> {

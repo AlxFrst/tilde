@@ -53,6 +53,9 @@ export const editorSaveLocal = (
   expected: Stamp | null,
   force: boolean,
 ) => invoke<Stamp>('editor_save_local', { docId, text, expected, force });
+/** Reads a local document again (« Recharger »). */
+export const editorReadLocal = (docId: number) =>
+  invoke<OpenedText>('editor_read_local', { docId });
 export const editorCloseLocal = (docId: number) =>
   invoke<undefined>('editor_close_local', { docId });
 /** Raw bytes (images), 20 MiB at most. */

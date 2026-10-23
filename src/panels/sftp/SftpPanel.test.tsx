@@ -152,3 +152,22 @@ test('permissions are never changed through a symbolic link', async () => {
   await screen.findByRole('menuitem', { name: 'Supprimer' });
   expect(screen.queryByRole('menuitem', { name: 'Permissions…' })).toBeNull();
 });
+
+test('Modifier opens the built-in editor when editorMode is builtin', async () => {
+  const { useSettings } = await import('@/stores/settings');
+  const { defaultSettings } = await import('@/test/fixtures');
+  useSettings.setState({
+    settings: { ...defaultSettings, sftp: { ...defaultSettings.sftp, editorMode: 'builtin' } },
+  });
+  render(<View />);
+  const row = await screen.findByRole('row', { name: /a\.txt/ });
+  fireEvent.contextMenu(row);
+  await userEvent.click(await screen.findByRole('menuitem', { name: /Modifier/ }));
+  const tab = useWorkspace.getState().tabs.find((t) => t.id === tabId);
+  const editor = tab && leaves(tab.root).find((l) => l.panel.kind === 'editor');
+  expect(editor?.panel).toMatchObject({
+    kind: 'editor',
+    source: { kind: 'remote', linkedLeafId: sshLeaf, path: '/home/me/a.txt' },
+  });
+  useSettings.setState({ settings: defaultSettings });
+});

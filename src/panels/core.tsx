@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { SftpPanelView } from '@/panels/sftp/SftpPanel';
 import { TerminalView } from '@/terminal/TerminalView';
 import type { SftpPanel, SshPanel, TerminalPanel } from '@/workspace/types';
+import { editorModule } from './editor/module';
 import { registerPanel, type PanelProps } from './registry';
 
 const str = (v: unknown): string | null => (typeof v === 'string' ? v : null);
@@ -92,4 +93,6 @@ export function registerCorePanels(): void {
       return { kind: 'sftp', linkedLeafId, path: str(raw.path), follow, cwd: null, title: null };
     },
   });
+
+  registerPanel(editorModule);
 }

@@ -174,6 +174,19 @@ pub async fn editor_save_local(
     Ok(stamp.into())
 }
 
+/// Reads a local document again (« Recharger »).
+#[tauri::command]
+pub async fn editor_read_local(
+    state: State<'_, AppState>,
+    doc_id: u32,
+) -> Result<OpenedText, EditorErrorDto> {
+    let path = local_path(&state, doc_id)?;
+    let (text, stamp) = tauri::async_runtime::spawn_blocking(move || read_local_text(&path))
+        .await
+        .map_err(|e| EditorErrorDto { kind: "io", message: e.to_string(), current: None })??;
+    Ok(OpenedText { text, stamp: stamp.into() })
+}
+
 /// The editor pane closed: forget the path.
 #[tauri::command]
 pub fn editor_close_local(state: State<'_, AppState>, doc_id: u32) {

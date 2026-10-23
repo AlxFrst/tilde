@@ -34,7 +34,9 @@ const profileIds = () =>
         ? l.panel.profileId
         : l.panel.kind === 'ssh'
           ? l.panel.target
-          : l.panel.linkedLeafId,
+          : 'linkedLeafId' in l.panel
+            ? l.panel.linkedLeafId
+            : l.panel.kind,
     ),
   );
 

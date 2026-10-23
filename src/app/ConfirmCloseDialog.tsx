@@ -10,7 +10,9 @@ import {
 import { answerCloseGuard, useCloseGuard } from './closeGuard';
 
 export function ConfirmCloseDialog() {
-  const open = useCloseGuard((s) => s.pending !== null);
+  const pending = useCloseGuard((s) => s.pending);
+  const open = pending !== null;
+  const unsaved = pending?.unsaved ?? [];
   return (
     <Dialog
       open={open}
@@ -21,7 +23,11 @@ export function ConfirmCloseDialog() {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Fermer quand même ?</DialogTitle>
-          <DialogDescription>Un programme est en cours dans ce terminal.</DialogDescription>
+          <DialogDescription>
+            {unsaved.length > 0
+              ? `Modifications non enregistrées dans ${unsaved.join(', ')} : elles seront perdues.`
+              : 'Un programme est en cours dans ce terminal.'}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button
