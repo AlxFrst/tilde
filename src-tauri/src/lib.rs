@@ -154,6 +154,8 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::editor::editor_close_local,
         commands::editor::preview_read_remote,
         commands::editor::preview_read_local,
+        commands::monitor::monitor_local,
+        commands::monitor::monitor_remote,
         commands::keybindings::keybindings_get,
         commands::keybindings::keybindings_set,
         commands::keybindings::keybindings_reset,
@@ -244,6 +246,8 @@ pub fn run() {
             sftp: state::SftpState::default(),
             quake: Mutex::default(),
             local_docs: Mutex::default(),
+            monitor_local: Arc::default(),
+            monitor_remote: Mutex::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

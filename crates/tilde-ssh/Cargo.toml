@@ -33,6 +33,7 @@ integration = []
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
+tilde-monitor = { path = "../tilde-monitor" }
 # stdin/stdout for the tcp-pipe example (a test ProxyCommand).
 tokio = { version = "1", features = ["io-std"] }
 

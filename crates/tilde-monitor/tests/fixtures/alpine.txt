@@ -1,0 +1,27 @@
+@@tilde:stat@@
+cpu  200 10 100 5000 20 0 5 0 0 0
+cpu0 200 10 100 5000 20 0 5 0 0 0
+@@tilde:meminfo@@
+MemTotal:         512000 kB
+MemFree:          100000 kB
+Buffers:           20000 kB
+Cached:           180000 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+@@tilde:loadavg@@
+0.00 0.01 0.05 1/40 321
+@@tilde:uptime@@
+120.00 110.00
+@@tilde:netdev@@
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  eth0:    4096      30    0    0    0     0          0         0     2048      20    0    0    0     0       0          0
+@@tilde:hostname@@
+alpine-box
+@@tilde:df@@
+Filesystem           1024-blocks    Used Available Capacity Mounted on
+overlay                 10000000   2000000   8000000  20% /
+tmpfs                      65536         0     65536   0% /dev
+shm                        65536         0     65536   0% /dev/shm
+/dev/vda1               10000000   2000000   8000000  20% /etc/hosts

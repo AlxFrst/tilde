@@ -1,0 +1,15 @@
+@@tilde:stat@@
+cat: /proc/stat: No such file or directory
+@@tilde:meminfo@@
+cat: /proc/meminfo: No such file or directory
+@@tilde:loadavg@@
+cat: /proc/loadavg: No such file or directory
+@@tilde:uptime@@
+cat: /proc/uptime: No such file or directory
+@@tilde:netdev@@
+cat: /proc/net/dev: No such file or directory
+@@tilde:hostname@@
+mac-mini.local
+@@tilde:df@@
+Filesystem   1024-blocks      Used Available Capacity  Mounted on
+/dev/disk3s1s1 482797652  10180576 302311836     4%    /

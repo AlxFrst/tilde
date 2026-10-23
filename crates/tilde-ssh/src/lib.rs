@@ -7,6 +7,7 @@ mod connect;
 mod connection;
 mod edit;
 mod error;
+mod exec;
 mod forward;
 mod interact;
 mod known_hosts;
@@ -33,6 +34,7 @@ pub use edit::{
     session_temp_dir,
 };
 pub use error::{ConnectError, HopLabel};
+pub use exec::{ExecError, ExecOutput};
 pub use forward::{ForwardInfo, ForwardKind, ForwardSpec};
 pub use interact::{
     HostKeyDecision, HostKeyPrompt, KbdPrompt, Prompter, SecretAnswer, SecretKind, SecretPrompt,

@@ -1,0 +1,24 @@
+@@tilde:stat@@
+cpu  1300 0 600 8800 500 0 0 0 0 0
+cpu0 650 0 300 4400 250 0 0 0 0 0
+cpu1 650 0 300 4400 250 0 0 0 0 0
+@@tilde:meminfo@@
+MemTotal:        8000000 kB
+MemFree:          900000 kB
+MemAvailable:    5900000 kB
+SwapTotal:       2000000 kB
+SwapFree:        1500000 kB
+@@tilde:loadavg@@
+0.60 0.42 0.31 3/346 12350
+@@tilde:uptime@@
+350002.42 690003.10
+@@tilde:netdev@@
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 199999999    2000    0    0    0     0          0         0 199999999    2000    0    0    0     0       0          0
+  eth0: 12097152   21000    0    0    0     0          0         0  5524288   10500    0    0    0     0       0          0
+@@tilde:hostname@@
+web-01
+@@tilde:df@@
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+/dev/sda1         50000000 45500000   4500000      91% /

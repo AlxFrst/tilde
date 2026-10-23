@@ -1,0 +1,33 @@
+@@tilde:stat@@
+cpu  1000 0 500 8000 500 0 0 0 0 0
+cpu0 500 0 250 4000 250 0 0 0 0 0
+cpu1 500 0 250 4000 250 0 0 0 0 0
+intr 123456
+ctxt 9999
+@@tilde:meminfo@@
+MemTotal:        8000000 kB
+MemFree:         1000000 kB
+MemAvailable:    6000000 kB
+Buffers:          200000 kB
+Cached:          3000000 kB
+SwapTotal:       2000000 kB
+SwapFree:        1500000 kB
+@@tilde:loadavg@@
+0.52 0.40 0.31 2/345 12345
+@@tilde:uptime@@
+350000.42 690000.10
+@@tilde:netdev@@
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 99999999    1000    0    0    0     0          0         0 99999999    1000    0    0    0     0       0          0
+  eth0: 10000000   20000    0    0    0     0          0         0  5000000   10000    0    0    0     0       0          0
+@@tilde:hostname@@
+web-01
+@@tilde:df@@
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+udev               4000000        0   4000000       0% /dev
+tmpfs               800000     1000    799000       1% /run
+/dev/sda1         50000000 45500000   4500000      91% /
+tmpfs              4000000        0   4000000       0% /dev/shm
+/dev/sdb1        200000000 20000000 180000000      10% /srv/data
+overlay           50000000 45500000   4500000      91% /var/lib/docker/overlay2/abc/merged
