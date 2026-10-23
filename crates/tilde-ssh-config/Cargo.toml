@@ -1,0 +1,19 @@
+[package]
+name = "tilde-ssh-config"
+description = "OpenSSH-compatible ssh_config parser and host resolution for Tilde"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+dirs = "7"
+glob = "0.3"
+
+[dev-dependencies]
+insta = "1"
+tempfile = "3"
+
+[lints]
+workspace = true
