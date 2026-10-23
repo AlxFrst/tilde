@@ -23,7 +23,8 @@
   --tilde-warning: #e0af68;
   --tilde-error: #f7768e;
 
-  /* Set via [data-density] on <html>. */
+  /* --tilde-ui-font-size is set from settings; --tilde-density via [data-density] on <html>. */
+  --tilde-ui-font-size: 13px;
   --tilde-density: 1;
   --radius: 0.5rem;
   color-scheme: dark;
@@ -127,7 +128,7 @@
   }
   html {
     @apply font-sans;
-    font-size: 13px;
+    font-size: calc(var(--tilde-ui-font-size) * var(--tilde-density));
   }
   body {
     @apply bg-background text-foreground antialiased;
