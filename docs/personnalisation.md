@@ -164,6 +164,9 @@ fait avec la touche `)`.
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 
+Sous Windows et Linux, **Ctrl+C** copie aussi la sélection (sans sélection, il interrompt la
+commande comme d'habitude) et **Ctrl+V** colle, comme dans Windows Terminal.
+
 Les autres commandes de la palette (import et export des connexions, ouverture des fichiers
 de réglages…) peuvent aussi recevoir un raccourci : leur id figure dans **Réglages →
 Raccourcis**.

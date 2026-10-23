@@ -50,7 +50,11 @@ const { FakeTerminal } = vi.hoisted(() => {
     onSelectionChange() {
       return { dispose() {} };
     }
-    attachCustomKeyEventHandler() {}
+    keyHandler: ((e: KeyboardEvent) => boolean) | null = null;
+    attachCustomKeyEventHandler(h: (e: KeyboardEvent) => boolean) {
+      this.keyHandler = h;
+    }
+    selection = '';
     joiners = 0;
     registerCharacterJoiner() {
       this.joiners++;
@@ -63,10 +67,10 @@ const { FakeTerminal } = vi.hoisted(() => {
     reset() {}
     paste() {}
     hasSelection() {
-      return false;
+      return this.selection !== '';
     }
     getSelection() {
-      return '';
+      return this.selection;
     }
     dispose() {
       this.disposed = true;
@@ -76,7 +80,9 @@ const { FakeTerminal } = vi.hoisted(() => {
         l(text);
       });
     }
-    clearSelection() {}
+    clearSelection() {
+      this.selection = '';
+    }
   }
   return { FakeTerminal };
 });
@@ -367,4 +373,34 @@ test('a restored ssh pane waits for Enter before connecting', async () => {
   });
   expect(session.openSession).toHaveBeenCalledTimes(1);
   expect(useWorkspace.getState().dormant).toEqual([]);
+});
+
+test('Ctrl+C copies a selection, Ctrl+V pastes, and Ctrl+C alone still reaches the shell', async () => {
+  const { readText, writeText } = await import('@tauri-apps/plugin-clipboard-manager');
+  vi.mocked(readText).mockResolvedValueOnce('echo hi');
+  const { term } = renderView();
+  const paste = vi.spyOn(term, 'paste');
+  const press = (key: string) => {
+    const e = new KeyboardEvent('keydown', {
+      key,
+      code: `Key${key.toUpperCase()}`,
+      ctrlKey: true,
+      cancelable: true,
+    });
+    return { handled: term.keyHandler?.(e) === false, prevented: e.defaultPrevented };
+  };
+
+  term.selection = 'some text';
+  expect(press('c')).toEqual({ handled: true, prevented: true });
+  expect(writeText).toHaveBeenCalledWith('some text');
+  expect(term.hasSelection()).toBe(false);
+
+  expect(press('c').handled).toBe(false);
+
+  // The browser's own paste is cancelled so the text is never pasted twice.
+  expect(press('v')).toEqual({ handled: true, prevented: true });
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(paste).toHaveBeenCalledWith('echo hi');
 });

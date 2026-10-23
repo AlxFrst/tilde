@@ -75,7 +75,7 @@ Réglages → Général.
 | Alt+Maj+- | Diviser en bas |
 | Ctrl+Maj+X | Fermer le panneau |
 | Alt+← ↑ → ↓ | Changer de panneau |
-| Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller |
+| Ctrl+C (avec une sélection) / Ctrl+V, ou Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller (Ctrl+C sans sélection interrompt la commande) |
 | Ctrl+Maj+F | Rechercher |
 | Ctrl+Maj+K | Connexion SSH |
 | Ctrl+Maj+P | Palette de commandes (connexions et commandes) |

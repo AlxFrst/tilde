@@ -144,7 +144,7 @@ match the key built into Tilde is refused. You can turn the check off in *Régla
 | `Alt+Shift+=` / `Alt+Shift+-` | Split right / down |
 | `Alt+←↑→↓` | Move between panes |
 | `Ctrl+Shift+X` | Close pane |
-| `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste |
+| `Ctrl+C` (with a selection) / `Ctrl+V`, or `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` with nothing selected interrupts, as usual) |
 | `Ctrl+Shift+F` | Search the scrollback |
 | `Ctrl+Shift+K` | SSH quick connect |
 | `Ctrl+Shift+E` | Files (SFTP) of the SSH tab |

@@ -163,6 +163,23 @@ export function matchShortcut(e: KeyEventLike, table: BindingTable, mac = isMac(
   return null;
 }
 
+/**
+ * Ctrl+C with a selection copies it and Ctrl+V pastes, as in Windows Terminal; Ctrl+C
+ * without a selection still reaches the shell (interrupt). Not on macOS, where ⌘C/⌘V do
+ * this and Ctrl+C must always interrupt.
+ */
+export function clipboardKey(
+  e: KeyEventLike,
+  hasSelection: boolean,
+  mac = isMac(),
+): 'copy' | 'paste' | null {
+  if (mac || !e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return null;
+  const k = e.key.toLowerCase();
+  if (k === 'c' && hasSelection) return 'copy';
+  if (k === 'v') return 'paste';
+  return null;
+}
+
 const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'OS']);
 
 /**
