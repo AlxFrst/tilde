@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
+import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
@@ -20,6 +21,9 @@ import { applyTheme } from '@/themes';
 import { cssFontName } from '@/themes/fonts';
 import { useActiveTheme } from '@/themes/useActiveTheme';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
+
+// Every pane type, before anything restores or renders a layout.
+registerCorePanels();
 
 /** `quake`: the drop-down window (no sidebar, nothing restored or saved). */
 export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {

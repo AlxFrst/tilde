@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { registerBuiltins } from '@/commands/builtin';
+import { dirtyEditors } from '@/stores/editors';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
@@ -31,7 +32,7 @@ function useWindowCloseGuard(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (await confirmClose(allSessions())) flushWorkspace();
+      if (await confirmClose(allSessions(), dirtyEditors())) flushWorkspace();
       else event.preventDefault();
     });
     return () => {

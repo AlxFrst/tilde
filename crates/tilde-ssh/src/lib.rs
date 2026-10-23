@@ -7,6 +7,7 @@ mod connect;
 mod connection;
 mod edit;
 mod error;
+mod exec;
 mod forward;
 mod interact;
 mod known_hosts;
@@ -14,6 +15,7 @@ mod proxy_command;
 mod secrets;
 mod sftp;
 mod shell;
+mod textfile;
 mod transfer;
 
 pub use agent::{
@@ -32,6 +34,7 @@ pub use edit::{
     session_temp_dir,
 };
 pub use error::{ConnectError, HopLabel};
+pub use exec::{ExecError, ExecOutput};
 pub use forward::{ForwardInfo, ForwardKind, ForwardSpec};
 pub use interact::{
     HostKeyDecision, HostKeyPrompt, KbdPrompt, Prompter, SecretAnswer, SecretKind, SecretPrompt,
@@ -43,6 +46,10 @@ pub use sftp::{
     EntryKind, MAX_REMOVE, RemoteEntry, SftpClient, SftpError, join_remote, safe_local_name,
 };
 pub use shell::{HOLD_CAP, STALL_MAX, SshShell};
+pub use textfile::{
+    PREVIEW_MAX_BYTES, TEXT_MAX_BYTES, TextError, decode_text, read_local_bytes, read_local_text,
+    write_local_text,
+};
 pub use transfer::{
     CHUNK, Direction, PROGRESS_EVERY, Speed, Throttle, TransferInfo, TransferQueue, TransferState,
 };

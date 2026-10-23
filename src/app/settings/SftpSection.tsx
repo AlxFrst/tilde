@@ -29,14 +29,17 @@ export function SftpSection() {
         </Row>
       </Section>
       <Section title="Édition">
-        <Row label="Ouvrir les fichiers avec" hint="Éditeur intégré : phase 7.">
+        <Row
+          label="Ouvrir les fichiers avec"
+          hint="« Modifier » dans le panneau Fichiers : l’éditeur de Tilde, ou le vôtre."
+        >
           <Choice
             setting="sftp.editorMode"
             label="Ouvrir les fichiers avec"
             value={s.editorMode}
             options={EDITOR_MODES}
-            disabled
-            onChange={() => undefined}
+            disabled={readOnly}
+            onChange={(editorMode) => void update({ sftp: { editorMode } })}
           />
         </Row>
         <Row

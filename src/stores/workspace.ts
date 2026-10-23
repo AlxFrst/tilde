@@ -1,3 +1,5 @@
+import { sameSource, samePreviewSource } from '@/panels/editor/fileName';
+import { serializeSnapshot } from '@/workspace/serialize';
 import { create } from 'zustand';
 import {
   findLeaf,
@@ -10,6 +12,9 @@ import {
 } from '@/workspace/tree';
 import type {
   Direction,
+  FileSource,
+  MonitorPanel,
+  PreviewSource,
   FocusDirection,
   LayoutNode,
   LeafNode,
@@ -27,6 +32,12 @@ interface WorkspaceState {
   openSshTab: (target: string, connectionId?: string | null) => string;
   /** Opens the files (SFTP) of an SSH pane to its right; focuses it if already open. */
   openSftpBeside: (sshLeafId: string) => void;
+  /** Opens a file in the built-in editor beside a pane (new tab if `null`), or focuses it. */
+  openEditor: (besideLeafId: string | null, source: FileSource) => void;
+  /** Opens a preview beside a pane, or focuses one already showing the same thing. */
+  openPreview: (besideLeafId: string, source: PreviewSource) => void;
+  /** Opens a system monitor beside a pane (new tab if `null`), or focuses the same one. */
+  openMonitor: (besideLeafId: string | null, source: MonitorPanel['source']) => void;
   closeTab: (tabId: string) => void;
   activateTab: (tabId: string) => void;
   activateRelative: (delta: 1 | -1) => void;
@@ -90,6 +101,101 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     openTab: (profileId, cwd = null) => addTab(newLeaf(profileId, cwd)),
 
     openSshTab: (target, connectionId = null) => addTab(newSshLeaf(target, connectionId)),
+
+    openEditor: (besideLeafId, source) => {
+      const { tabs } = get();
+      for (const t of tabs) {
+        const open = leaves(t.root).find(
+          (l) => l.panel.kind === 'editor' && sameSource(l.panel.source, source),
+        );
+        if (open) {
+          set({ activeTabId: t.id });
+          get().focusLeaf(t.id, open.id);
+          return;
+        }
+      }
+      const leaf: LeafNode = {
+        type: 'leaf',
+        id: crypto.randomUUID(),
+        panel: { kind: 'editor', source, cwd: null, title: null },
+      };
+      const tab = besideLeafId ? tabs.find((t) => findLeaf(t.root, besideLeafId)) : undefined;
+      if (!tab || !besideLeafId) {
+        addTab(leaf);
+        return;
+      }
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, besideLeafId, 'row', leaf),
+        activeLeafId: leaf.id,
+      }));
+      set({ activeTabId: tab.id });
+    },
+
+    openPreview: (besideLeafId, source) => {
+      const { tabs } = get();
+      for (const t of tabs) {
+        const open = leaves(t.root).find(
+          (l) => l.panel.kind === 'preview' && samePreviewSource(l.panel.source, source),
+        );
+        if (open) {
+          set({ activeTabId: t.id });
+          get().focusLeaf(t.id, open.id);
+          return;
+        }
+      }
+      const leaf: LeafNode = {
+        type: 'leaf',
+        id: crypto.randomUUID(),
+        panel: { kind: 'preview', source, cwd: null, title: null },
+      };
+      const tab = tabs.find((t) => findLeaf(t.root, besideLeafId));
+      if (!tab) {
+        addTab(leaf);
+        return;
+      }
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, besideLeafId, 'row', leaf),
+        activeLeafId: leaf.id,
+      }));
+      set({ activeTabId: tab.id });
+    },
+
+    openMonitor: (besideLeafId, source) => {
+      const { tabs } = get();
+      for (const t of tabs) {
+        const open = leaves(t.root).find(
+          (l) =>
+            l.panel.kind === 'monitor' &&
+            l.panel.source.kind === source.kind &&
+            (source.kind === 'local' ||
+              (l.panel.source.kind === 'remote' &&
+                l.panel.source.linkedLeafId === source.linkedLeafId)),
+        );
+        if (open) {
+          set({ activeTabId: t.id });
+          get().focusLeaf(t.id, open.id);
+          return;
+        }
+      }
+      const leaf: LeafNode = {
+        type: 'leaf',
+        id: crypto.randomUUID(),
+        panel: { kind: 'monitor', source, cwd: null, title: null },
+      };
+      const tab = besideLeafId ? tabs.find((t) => findLeaf(t.root, besideLeafId)) : undefined;
+      if (!tab || !besideLeafId) {
+        addTab(leaf);
+        return;
+      }
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, besideLeafId, 'row', leaf),
+        activeLeafId: leaf.id,
+      }));
+      set({ activeTabId: tab.id });
+    },
 
     openSftpBeside: (sshLeafId) => {
       const tab = get().tabs.find((t) => findLeaf(t.root, sshLeafId));
@@ -173,14 +279,21 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       if (!current) return;
       // Splitting an SSH pane opens another shell on the same host.
       const { panel } = current;
-      // Splitting a files pane opens a second view of the same session.
-      const leaf: LeafNode = profileId
+      // Splitting a files pane opens a second view of the same session; splitting any
+      // other pane (an editor…) opens a shell like the tab's first local terminal.
+      const shell = leaves(tab.root).find((l) => l.panel.kind === 'terminal')?.panel;
+      const leaf: LeafNode | null = profileId
         ? newLeaf(profileId, panel.kind === 'terminal' ? panel.cwd : null)
         : panel.kind === 'ssh'
           ? newSshLeaf(panel.target, panel.connectionId)
           : panel.kind === 'sftp'
             ? { type: 'leaf', id: crypto.randomUUID(), panel: { ...panel } }
-            : newLeaf(panel.profileId, panel.cwd);
+            : panel.kind === 'terminal'
+              ? newLeaf(panel.profileId, panel.cwd)
+              : shell?.kind === 'terminal'
+                ? newLeaf(shell.profileId, null)
+                : null;
+      if (!leaf) return;
       mapTab(tab.id, (t) => ({
         ...t,
         root: splitLeaf(t.root, current.id, direction, leaf),
@@ -230,7 +343,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       set((s) => ({ dormant: s.dormant.filter((id) => id !== leafId) }));
     },
 
-    snapshot: () => ({ version: 1, tabs: get().tabs, activeTabId: get().activeTabId }),
+    snapshot: () => serializeSnapshot(get().tabs, get().activeTabId),
 
     hydrate: (raw, available, fallback) => {
       // The snapshot comes from a user-reachable file: sanitize, never trust.

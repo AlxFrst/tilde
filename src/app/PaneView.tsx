@@ -1,9 +1,7 @@
-import { useRef } from 'react';
-import { toast } from 'sonner';
+import { Component, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { getPanelModule } from '@/panels/registry';
 import { useWorkspace } from '@/stores/workspace';
-import { SftpPanelView } from '@/panels/sftp/SftpPanel';
-import { TerminalView } from '@/terminal/TerminalView';
 import {
   layoutRects,
   leaves,
@@ -15,6 +13,42 @@ import {
 import type { LeafNode, Tab } from '@/workspace/types';
 
 const pct = (f: number) => `${String(f * 100)}%`;
+
+/** A pane that throws while rendering shows its error; the tab and the app keep running. */
+class PaneErrorBoundary extends Component<
+  { title: string; onClose: () => void; children: ReactNode },
+  { error: Error | null }
+> {
+  override state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  override componentDidCatch(error: Error) {
+    console.error('pane crashed', error);
+  }
+
+  override render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div
+        role="alert"
+        className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm"
+      >
+        <p className="font-medium">Le panneau « {this.props.title} » a rencontré une erreur.</p>
+        <p className="max-w-md break-words text-text-muted">{this.state.error.message}</p>
+        <button
+          type="button"
+          className="rounded-md border px-3 py-1 hover:bg-surface-2"
+          onClick={this.props.onClose}
+        >
+          Fermer le panneau
+        </button>
+      </div>
+    );
+  }
+}
 
 function Leaf({
   tab,
@@ -31,6 +65,8 @@ function Leaf({
 }) {
   const ws = useWorkspace.getState;
   const active = tab.activeLeafId === leaf.id;
+  const module = getPanelModule(leaf.panel.kind);
+  const Module = module?.component;
   return (
     <div
       className={cn(
@@ -42,36 +78,31 @@ function Leaf({
         if (!active) ws().focusLeaf(tab.id, leaf.id);
       }}
     >
-      {leaf.panel.kind === 'sftp' ? (
-        <SftpPanelView
-          tabId={tab.id}
-          leafId={leaf.id}
-          panel={leaf.panel}
-          active={visible && active}
-        />
-      ) : (
-        <TerminalView
-          tabId={tab.id}
-          leafId={leaf.id}
-          panel={leaf.panel}
-          active={visible && active}
-          onExit={(code) => {
-            // A clean exit closes the pane; otherwise the overlay shows the code.
-            if (code === 0) ws().closeLeaf(tab.id, leaf.id);
-          }}
-          onTitle={(title) => {
-            ws().updatePanel(tab.id, leaf.id, { title });
-          }}
-          onCwd={(cwd) => {
-            ws().updatePanel(tab.id, leaf.id, { cwd });
-          }}
-          onSessionError={(err) => {
-            toast.error(err.message);
-          }}
+      {Module ? (
+        <PaneErrorBoundary
+          title={module.title}
           onClose={() => {
             ws().closeLeaf(tab.id, leaf.id);
           }}
-        />
+        >
+          <Module
+            tabId={tab.id}
+            leafId={leaf.id}
+            state={leaf.panel}
+            active={visible && active}
+            visible={visible}
+            update={(patch) => {
+              ws().updatePanel(tab.id, leaf.id, patch);
+            }}
+            close={() => {
+              ws().closeLeaf(tab.id, leaf.id);
+            }}
+          />
+        </PaneErrorBoundary>
+      ) : (
+        <div className="flex h-full items-center justify-center text-sm text-text-muted">
+          Panneau inconnu : « {leaf.panel.kind} »
+        </div>
       )}
     </div>
   );
@@ -150,8 +181,9 @@ function findSplit(node: Tab['root'], id: string): Extract<Tab['root'], { type: 
 }
 
 /**
- * One tab's panes. Terminals are rendered as a flat, absolutely positioned list keyed by
- * pane id, so splitting or closing a pane never remounts (and restarts) the others.
+ * One tab's panes, each rendered by its module (src/panels/registry). Panes are rendered
+ * as a flat, absolutely positioned list keyed by pane id, so splitting or closing a pane
+ * never remounts (and restarts) the others.
  * Hidden tabs stay mounted so their shells keep running.
  */
 export function PaneView({ tab, visible }: { tab: Tab; visible: boolean }) {

@@ -44,11 +44,13 @@ import {
   type RemoteEntry,
 } from '@/ipc/sftp';
 import { cn } from '@/lib/utils';
+import { useSettings } from '@/stores/settings';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { useSessionId } from '@/terminal/sessionRegistry';
 import { findLeaf } from '@/workspace/tree';
 import type { SftpPanel } from '@/workspace/types';
+import { previewKind } from '@/panels/preview/previewKind';
 import { ChmodDialog } from './ChmodDialog';
 import { FileList, sortEntries, type Sort } from './FileList';
 import { OSC7_SNIPPETS } from './osc7Snippet';
@@ -386,10 +388,29 @@ export function SftpPanelView({
         ) : (
           <ContextMenuItem
             onSelect={() => {
-              run(sftpEdit(sessionId, e.path));
+              if (useSettings.getState().settings?.sftp.editorMode === 'builtin') {
+                useWorkspace.getState().openEditor(leafId, {
+                  kind: 'remote',
+                  linkedLeafId: panel.linkedLeafId,
+                  path: e.path,
+                });
+              } else run(sftpEdit(sessionId, e.path));
             }}
           >
-            Modifier (éditeur externe)
+            Modifier
+          </ContextMenuItem>
+        )}
+        {e.kind !== 'dir' && previewKind(e.name) && (
+          <ContextMenuItem
+            onSelect={() => {
+              useWorkspace.getState().openPreview(leafId, {
+                kind: 'remote',
+                linkedLeafId: panel.linkedLeafId,
+                path: e.path,
+              });
+            }}
+          >
+            Aperçu
           </ContextMenuItem>
         )}
         <ContextMenuItem

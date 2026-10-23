@@ -5,7 +5,9 @@
 
 pub mod app;
 pub mod connections;
+pub mod editor;
 pub mod keybindings;
+pub mod monitor;
 pub mod profiles;
 pub mod session;
 pub mod settings;

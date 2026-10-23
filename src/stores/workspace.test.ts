@@ -1,6 +1,11 @@
 import { leaves } from '@/workspace/tree';
 import type { WorkspaceSnapshot } from '@/workspace/types';
 import { useWorkspace } from './workspace';
+import { registerCorePanels } from '@/panels/core';
+
+beforeAll(() => {
+  registerCorePanels();
+});
 
 const ws = () => useWorkspace.getState();
 

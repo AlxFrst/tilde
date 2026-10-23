@@ -35,6 +35,12 @@ pub struct AppState {
     pub ssh: SshState,
     pub sftp: SftpState,
     pub quake: Mutex<QuakeState>,
+    /// Local files opened through the dialog, by document id (the front never sends paths).
+    pub local_docs: Mutex<HashMap<u32, PathBuf>>,
+    /// The local monitor (CPU usage and network rates need the previous sample).
+    pub monitor_local: Arc<Mutex<tilde_monitor::LocalMonitor>>,
+    /// Remote monitors by SSH session (same reason).
+    pub monitor_remote: Mutex<HashMap<u32, tilde_monitor::RemoteMonitor>>,
 }
 
 #[derive(Default)]

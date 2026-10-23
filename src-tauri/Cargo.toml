@@ -33,6 +33,7 @@ tilde-session = { path = "../crates/tilde-session" }
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 tilde-ssh = { path = "../crates/tilde-ssh" }
+tilde-monitor = { path = "../crates/tilde-monitor" }
 tilde-ssh-config = { path = "../crates/tilde-ssh-config" }
 async-trait = "0.1"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt"] }

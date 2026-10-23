@@ -3,6 +3,9 @@ import { useEffect } from 'react';
 import { useWorkspace } from '@/stores/workspace';
 import type { TerminalViewProps } from '@/terminal/TerminalView';
 import { leaves } from '@/workspace/tree';
+import { registerCorePanels } from '@/panels/core';
+import { registerPanel } from '@/panels/registry';
+import { Box } from 'lucide-react';
 import { PaneView } from './PaneView';
 
 const mounts = vi.hoisted(() => new Map<string, number>());
@@ -54,6 +57,10 @@ function Live() {
   const t = useWorkspace((s) => s.tabs[0]);
   return t ? <PaneView tab={t} visible /> : null;
 }
+
+beforeAll(() => {
+  registerCorePanels();
+});
 
 beforeEach(() => {
   mounts.clear();
@@ -127,4 +134,115 @@ test('cwd reported by the shell is stored on the panel', () => {
   render(<Live />);
   fireEvent.click(screen.getByText(`cwd-${first.id}`));
   expect(leaves(tab().root)[0]?.panel.cwd).toBe('/srv');
+});
+
+test('renders a pane through its module', () => {
+  const off = registerPanel<{ kind: 'thing'; label: string }>({
+    id: 'test.thing',
+    kind: 'thing',
+    title: 'Chose',
+    icon: Box,
+    component: ({ state }) => <div>chose-{state.label}</div>,
+  });
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'x',
+        root: { type: 'leaf', id: 'x', panel: { kind: 'thing', label: 'ok' } } as never,
+      },
+    ],
+    activeTabId: 't1',
+  });
+  render(<Live />);
+  expect(screen.getByText('chose-ok')).toBeInTheDocument();
+  off();
+});
+
+test('a pane that crashes is contained; the others keep running', () => {
+  const off = registerPanel<{ kind: 'boom' }>({
+    id: 'test.boom',
+    kind: 'boom',
+    title: 'Boum',
+    icon: Box,
+    component: () => {
+      throw new Error('kaboom');
+    },
+  });
+  const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'a',
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          sizes: [50, 50],
+          children: [
+            {
+              type: 'leaf',
+              id: 'a',
+              panel: { kind: 'terminal', profileId: 'pwsh', cwd: null, title: null },
+            },
+            { type: 'leaf', id: 'b', panel: { kind: 'boom' } },
+          ],
+        } as never,
+      },
+    ],
+    activeTabId: 't1',
+  });
+  render(<Live />);
+  expect(screen.getByTestId('term-a')).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent(/kaboom/);
+  spy.mockRestore();
+  off();
+});
+
+test('a clean exit keeps an SSH pane open while an editor linked to it has unsaved changes', async () => {
+  const { useEditors } = await import('@/stores/editors');
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        activeLeafId: 'a',
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          sizes: [50, 50],
+          children: [
+            {
+              type: 'leaf',
+              id: 'a',
+              panel: { kind: 'ssh', target: 'prod', connectionId: null, cwd: null, title: null },
+            },
+            {
+              type: 'leaf',
+              id: 'ed',
+              panel: {
+                kind: 'editor',
+                source: { kind: 'remote', linkedLeafId: 'a', path: '/etc/x' },
+                cwd: null,
+                title: null,
+              },
+            },
+          ],
+        },
+      },
+    ],
+    activeTabId: 't1',
+  });
+  useEditors.setState({ docs: { ed: { name: 'x', dirty: true, text: 'y' } } });
+  render(<Live />);
+  fireEvent.click(screen.getByText('exit0-a'));
+  expect(leaves(tab().root).map((l) => l.id)).toContain('a');
+  useEditors.setState({ docs: {} });
 });

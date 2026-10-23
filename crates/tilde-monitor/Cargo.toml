@@ -1,0 +1,16 @@
+[package]
+name = "tilde-monitor"
+description = "System sampling for Tilde: local (sysinfo) and remote Linux (/proc output)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+sysinfo = { version = "0.37", default-features = false, features = ["system", "disk", "network"] }
+thiserror = "2"
+
+[lints]
+workspace = true

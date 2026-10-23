@@ -157,3 +157,84 @@
     background: color-mix(in srgb, var(--tilde-accent) 35%, transparent);
   }
 }
+
+/* Markdown preview (src/panels/preview). */
+@layer components {
+  .tilde-prose {
+    line-height: 1.6;
+    font-size: 0.95rem;
+    color: var(--tilde-text);
+  }
+  .tilde-prose :where(h1, h2, h3, h4) {
+    margin: 1.4em 0 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .tilde-prose h1 {
+    font-size: 1.6em;
+    border-bottom: 1px solid var(--tilde-border);
+    padding-bottom: 0.3em;
+  }
+  .tilde-prose h2 {
+    font-size: 1.3em;
+    border-bottom: 1px solid var(--tilde-border);
+    padding-bottom: 0.2em;
+  }
+  .tilde-prose h3 {
+    font-size: 1.1em;
+  }
+  .tilde-prose :where(p, ul, ol, pre, blockquote, table) {
+    margin: 0.7em 0;
+  }
+  .tilde-prose :where(ul) {
+    list-style: disc;
+    padding-left: 1.5em;
+  }
+  .tilde-prose :where(ol) {
+    list-style: decimal;
+    padding-left: 1.5em;
+  }
+  .tilde-prose a {
+    color: var(--tilde-accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .tilde-prose :where(code) {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: var(--tilde-surface-2);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+  }
+  .tilde-prose pre {
+    background: var(--tilde-surface-1);
+    border: 1px solid var(--tilde-border);
+    border-radius: 6px;
+    padding: 0.8em 1em;
+    overflow-x: auto;
+  }
+  .tilde-prose pre code {
+    background: none;
+    padding: 0;
+  }
+  .tilde-prose blockquote {
+    border-left: 3px solid var(--tilde-border);
+    padding-left: 1em;
+    color: var(--tilde-text-muted);
+  }
+  .tilde-prose table {
+    border-collapse: collapse;
+  }
+  .tilde-prose :where(th, td) {
+    border: 1px solid var(--tilde-border);
+    padding: 0.3em 0.6em;
+  }
+  .tilde-prose hr {
+    border-color: var(--tilde-border);
+    margin: 1.5em 0;
+  }
+  .tilde-prose .md-image {
+    color: var(--tilde-text-muted);
+    font-style: italic;
+  }
+}

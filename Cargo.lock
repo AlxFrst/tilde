@@ -5637,6 +5637,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tempfile",
  "tilde-config",
+ "tilde-monitor",
  "tilde-pty",
  "tilde-session",
  "tilde-ssh",
@@ -5665,6 +5666,15 @@ dependencies = [
  "thiserror 2.0.21",
  "tilde-ssh-config",
  "tracing",
+]
+
+[[package]]
+name = "tilde-monitor"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "sysinfo",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -5710,6 +5720,7 @@ dependencies = [
  "sha1 0.10.7",
  "tempfile",
  "thiserror 2.0.21",
+ "tilde-monitor",
  "tilde-session",
  "tilde-ssh-config",
  "tokio",

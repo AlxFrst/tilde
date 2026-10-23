@@ -85,3 +85,60 @@ async fn listing_a_large_directory() {
     assert_eq!(entries.len(), 5000);
     assert!(start.elapsed().as_secs() < 3, "{:?}", start.elapsed());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn read_and_write_text_roundtrip() {
+    let _bench = BENCH.read().await;
+    let Some((shell, sftp, dir)) = setup().await else { return };
+    let file = format!("{dir}/notes.md");
+    sh(&shell, &format!("printf '# Titre\nligne\n' > {file}")).await;
+    let (text, stamp) = sftp.read_text(&file).await.unwrap();
+    assert_eq!(text, "# Titre\nligne\n");
+    let new = sftp.write_text(&file, "# Titre\nmodifié\n", Some(stamp)).await.unwrap();
+    assert_eq!(sh(&shell, &format!("cat {file}")).await, "# Titre\nmodifié\n");
+    assert_eq!(new.size, "# Titre\nmodifié\n".len() as u64);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn save_refuses_a_changed_remote_file() {
+    let _bench = BENCH.read().await;
+    let Some((shell, sftp, dir)) = setup().await else { return };
+    let file = format!("{dir}/app.conf");
+    sh(&shell, &format!("echo a=1 > {file}")).await;
+    let (_, stamp) = sftp.read_text(&file).await.unwrap();
+    // Someone else edits it on the server (another size, so even the same second shows).
+    sh(&shell, &format!("echo b=2 >> {file}")).await;
+    let err = sftp.write_text(&file, "a=3\n", Some(stamp)).await.unwrap_err();
+    assert!(matches!(err, tilde_ssh::TextError::Conflict { .. }), "{err}");
+    assert_eq!(sh(&shell, &format!("cat {file}")).await, "a=1\nb=2\n");
+    // Overwriting on purpose works.
+    sftp.write_text(&file, "a=3\n", None).await.unwrap();
+    assert_eq!(sh(&shell, &format!("cat {file}")).await, "a=3\n");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn write_text_keeps_permissions() {
+    let _bench = BENCH.read().await;
+    let Some((shell, sftp, dir)) = setup().await else { return };
+    let file = format!("{dir}/secret.env");
+    sh(&shell, &format!("echo x > {file} && chmod 640 {file}")).await;
+    let (_, stamp) = sftp.read_text(&file).await.unwrap();
+    sftp.write_text(&file, "y\n", Some(stamp)).await.unwrap();
+    assert_eq!(sh(&shell, &format!("stat -c %a {file}")).await.trim(), "640");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn read_text_refuses_large_files_before_downloading() {
+    let _bench = BENCH.read().await;
+    let Some((shell, sftp, dir)) = setup().await else { return };
+    let file = format!("{dir}/big.log");
+    sh(&shell, &format!("head -c 6291456 /dev/zero | tr '\\0' a > {file}")).await;
+    let started = Instant::now();
+    let err = sftp.read_text(&file).await.unwrap_err();
+    assert!(matches!(err, tilde_ssh::TextError::TooLarge { .. }), "{err}");
+    // Refused from the size alone: no 6 MiB download.
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    let bin = format!("{dir}/a.bin");
+    sh(&shell, &format!("printf 'a\\000b' > {bin}")).await;
+    assert!(matches!(sftp.read_text(&bin).await, Err(tilde_ssh::TextError::Binary)));
+}

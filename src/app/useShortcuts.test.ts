@@ -48,3 +48,26 @@ test('app shortcuts are ignored while typing in a field, except the palette', ()
   input.remove();
   xterm.remove();
 });
+
+test('app shortcuts work inside the code editor, as in a terminal', () => {
+  const newTab = vi.fn();
+  const off = registerCommands([
+    { id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run: newTab },
+  ]);
+  renderHook(() => {
+    useShortcuts();
+  });
+  const editor = document.createElement('div');
+  editor.className = 'cm-editor';
+  const content = document.createElement('div');
+  content.className = 'cm-content';
+  content.contentEditable = 'true';
+  // jsdom does not compute it; a browser does.
+  Object.defineProperty(content, 'isContentEditable', { value: true });
+  editor.append(content);
+  document.body.append(editor);
+  press(content, 'KeyT', 'T');
+  expect(newTab).toHaveBeenCalledTimes(1);
+  editor.remove();
+  off();
+});

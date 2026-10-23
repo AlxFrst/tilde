@@ -18,6 +18,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { getPanelModule } from '@/panels/registry';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
@@ -68,8 +69,22 @@ function useTabLabel(tab: Tab) {
       connection,
     };
   }
-  const profile = profiles.find((p) => p.id === panel?.profileId);
-  const title = tab.customTitle ?? panel?.title ?? profile?.name ?? panel?.profileId ?? '';
+  // Any other pane (editor, preview, monitor, plugins): its module names it.
+  const kind: string = panel?.kind ?? 'terminal';
+  if (panel && kind !== 'terminal') {
+    const module = getPanelModule(kind);
+    return {
+      title: tab.customTitle ?? module?.tabTitle?.(panel) ?? module?.title ?? kind,
+      Icon: module?.icon ?? FolderTree,
+      profileColor: null,
+      leaf,
+      panel,
+      connection,
+    };
+  }
+  const term = panel?.kind === 'terminal' ? panel : undefined;
+  const profile = profiles.find((p) => p.id === term?.profileId);
+  const title = tab.customTitle ?? term?.title ?? profile?.name ?? term?.profileId ?? '';
   return {
     title,
     Icon: profileIcon(profile?.icon),
@@ -222,6 +237,15 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
             }}
           >
             Tunnels…
+          </ContextMenuItem>
+        )}
+        {panel?.kind === 'ssh' && leaf && (
+          <ContextMenuItem
+            onSelect={() => {
+              ws().openMonitor(leaf.id, { kind: 'remote', linkedLeafId: leaf.id });
+            }}
+          >
+            Moniteur du serveur…
           </ContextMenuItem>
         )}
         <ContextMenuItem
