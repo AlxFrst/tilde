@@ -4,7 +4,12 @@ use tilde_ssh_config::{ResolveContext, ResolvedHost, SshConfig};
 
 use russh::client::Handle;
 
-use crate::{ClientHandler, ConnectError, Connector, HopLabel, proxy_command::spawn_proxy_command};
+use std::sync::Arc;
+
+use crate::{
+    ClientHandler, ConnectError, Connector, HopLabel, forward::Routes,
+    proxy_command::spawn_proxy_command,
+};
 
 /// Maximum number of hops (jump hosts + target).
 pub const MAX_HOPS: usize = 8;
@@ -77,7 +82,19 @@ impl Connector {
         config: &SshConfig,
         ctx: &ResolveContext,
         target: &ResolvedHost,
+        on_hop: impl FnMut(&HopLabel),
+    ) -> Result<Connection, ConnectError> {
+        self.connect_chain_routed(config, ctx, target, on_hop, None).await
+    }
+
+    /// [`Self::connect_chain`], serving the session's remote forwards on the target.
+    pub(crate) async fn connect_chain_routed(
+        &self,
+        config: &SshConfig,
+        ctx: &ResolveContext,
+        target: &ResolvedHost,
         mut on_hop: impl FnMut(&HopLabel),
+        routes: Option<Arc<Routes>>,
     ) -> Result<Connection, ConnectError> {
         let hops = plan_chain(config, ctx, target)?;
         let total = hops.len();
@@ -85,6 +102,7 @@ impl Connector {
         for (i, host) in hops.iter().enumerate() {
             let label = HopLabel { index: i + 1, total, host: host.hostname.clone() };
             on_hop(&label);
+            let routes = if i + 1 == total { routes.clone() } else { None };
             let handle = match handles.last() {
                 // Through the previous hop: a direct-tcpip channel becomes the stream.
                 Some(prev) => {
@@ -100,9 +118,10 @@ impl Connector {
                             hop: label.clone(),
                             source: std::io::Error::other(e),
                         })?;
-                    self.connect_direct(host, Some(Box::new(channel.into_stream())), label).await?
+                    let stream = Some(Box::new(channel.into_stream()) as Box<_>);
+                    self.connect_routed(host, stream, label, routes).await?
                 }
-                None => self.connect_first(host, label).await?,
+                None => self.connect_first(host, label, routes).await?,
             };
             handles.push(handle);
         }
@@ -114,13 +133,14 @@ impl Connector {
         &self,
         host: &ResolvedHost,
         label: HopLabel,
+        routes: Option<Arc<Routes>>,
     ) -> Result<Handle<ClientHandler>, ConnectError> {
         let Some(cmd) = &host.proxy_command else {
-            return self.connect_direct(host, None, label).await;
+            return self.connect_routed(host, None, label, routes).await;
         };
         let proxy = spawn_proxy_command(cmd)?;
         let stderr = proxy.stderr_handle();
-        match self.connect_direct(host, Some(Box::new(proxy)), label).await {
+        match self.connect_routed(host, Some(Box::new(proxy)), label, routes).await {
             Ok(h) => Ok(h),
             Err(e) => {
                 tokio::time::sleep(std::time::Duration::from_millis(300)).await;

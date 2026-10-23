@@ -7,6 +7,8 @@ use std::{
     time::Duration,
 };
 
+pub mod session;
+
 pub const USER: &str = "tilde";
 
 /// Where the bench listens and where its keys are.

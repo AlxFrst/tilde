@@ -21,7 +21,11 @@ use parking_lot::Mutex;
 use tilde_session::{Backend, FlowState};
 use tokio::sync::{Notify, mpsc::UnboundedSender};
 
-use crate::chain::Connection;
+use crate::{
+    ForwardInfo, ForwardSpec,
+    chain::Connection,
+    forward::{Forwards, Routes},
+};
 
 /// Output held while the UI is paused, before the reader starts waiting for it.
 pub const HOLD_CAP: usize = 4 * 1024 * 1024;
@@ -50,6 +54,7 @@ pub struct SshShell {
     paused: OnceLock<Gate>,
     held: AtomicUsize,
     connection: Mutex<Option<Arc<Connection>>>,
+    pub(crate) forwards: Forwards,
 }
 
 impl SshShell {
@@ -64,6 +69,7 @@ impl SshShell {
             paused: OnceLock::new(),
             held: AtomicUsize::new(0),
             connection: Mutex::new(None),
+            forwards: Forwards::default(),
         }
     }
 
@@ -89,6 +95,26 @@ impl SshShell {
         self.connection.lock().clone()
     }
 
+    /// Opens a tunnel on this session. A failure (port taken, refused by the server) is
+    /// reported in [`ForwardInfo::error`]; the session is unaffected.
+    pub async fn add_forward(self: &Arc<Self>, spec: ForwardSpec) -> ForwardInfo {
+        self.forwards.add(spec, self).await
+    }
+
+    /// Closes a tunnel. `false` for an unknown id.
+    pub async fn remove_forward(&self, id: u32) -> bool {
+        self.forwards.remove(id, self.connection()).await
+    }
+
+    #[must_use]
+    pub fn forwards(&self) -> Vec<ForwardInfo> {
+        self.forwards.list()
+    }
+
+    pub(crate) fn routes(&self) -> Arc<Routes> {
+        Arc::clone(&self.forwards.routes)
+    }
+
     pub(crate) fn size(&self) -> (u16, u16) {
         *self.size.lock()
     }
@@ -104,6 +130,7 @@ impl SshShell {
 
     pub(crate) fn end(&self) {
         self.attach(None);
+        self.forwards.stop_all();
         self.ended.store(true, Ordering::Release);
     }
 

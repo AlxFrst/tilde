@@ -28,7 +28,9 @@ use crate::{
     AgentSource, AuthStep, ConnectError, HopLabel, HostKeyDecision, HostKeyPrompt, HostKeyStatus,
     KbdPrompt, KnownHosts, Prompter, SecretAnswer, SecretKind, SecretPrompt, SecretStore,
     agent::{DynAgent, connect_agent, default_agent_sources},
-    auth_plan, fingerprint, passphrase_account, password_account,
+    auth_plan, fingerprint,
+    forward::Routes,
+    passphrase_account, password_account,
 };
 
 /// Attempts per secret (password or passphrase) before giving up.
@@ -82,6 +84,8 @@ pub struct ClientHandler {
     /// `ForwardAgent yes`: serve the server's agent requests from the local agent.
     forward_agent: bool,
     agent_sources: Vec<AgentSource>,
+    /// Remote forwards of the session (target hop only).
+    routes: Option<Arc<Routes>>,
 }
 
 impl ClientHandler {
@@ -116,6 +120,25 @@ impl client::Handler for ClientHandler {
             let mut remote = channel.into_stream();
             let _ = tokio::io::copy_bidirectional(&mut local, &mut remote).await;
         });
+        Ok(())
+    }
+
+    /// A connection to one of our remote forwards (`ssh -R`).
+    async fn server_channel_open_forwarded_tcpip(
+        &mut self,
+        channel: Channel<client::Msg>,
+        _connected_address: &str,
+        connected_port: u32,
+        _originator_address: &str,
+        _originator_port: u32,
+        reply: ChannelOpenHandle,
+        _session: &mut client::Session,
+    ) -> Result<(), Self::Error> {
+        if let Some(routes) = &self.routes
+            && routes.serve(connected_port, channel)
+        {
+            reply.accept().await;
+        }
         Ok(())
     }
 
@@ -261,6 +284,17 @@ impl Connector {
         stream: Option<Box<dyn AsyncStream>>,
         hop: HopLabel,
     ) -> Result<Handle<ClientHandler>, ConnectError> {
+        self.connect_routed(host, stream, hop, None).await
+    }
+
+    /// [`Self::connect_direct`], serving the session's remote forwards on this hop.
+    pub(crate) async fn connect_routed(
+        &self,
+        host: &ResolvedHost,
+        stream: Option<Box<dyn AsyncStream>>,
+        hop: HopLabel,
+        routes: Option<Arc<Routes>>,
+    ) -> Result<Handle<ClientHandler>, ConnectError> {
         let rejection = Arc::new(Mutex::new(None));
         let prompting = Arc::new(AtomicBool::new(false));
         let handler = ClientHandler {
@@ -272,6 +306,7 @@ impl Connector {
             prompting: Arc::clone(&prompting),
             forward_agent: host.forward_agent,
             agent_sources: self.agent_sources(),
+            routes,
         };
         let deadline = host
             .connect_timeout

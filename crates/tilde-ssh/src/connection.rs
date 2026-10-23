@@ -13,7 +13,7 @@ use tilde_ssh_config::{ResolveContext, ResolvedHost, SshConfig};
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 use crate::{
-    ConnectError, Connector, HopLabel,
+    ConnectError, Connector, ForwardKind, ForwardSpec, HopLabel,
     chain::Connection,
     shell::{Delivery, Input, SshShell},
 };
@@ -123,12 +123,18 @@ pub async fn open_ssh_session(
 ) -> Result<(Arc<SshShell>, OutputFeed), ConnectError> {
     on_state(ConnState::Resolving);
     let host = spec.target.resolve(&spec.config, &spec.ctx);
-    let (connection, channel) =
-        establish(&connector, &spec, &host, (spec.cols, spec.rows), &on_state).await?;
-
     let (input_tx, input_rx) = unbounded_channel();
     let shell = Arc::new(SshShell::new(input_tx, spec.cols, spec.rows));
+    let (connection, channel) =
+        establish(&connector, &spec, &host, &shell, (spec.cols, spec.rows), &on_state).await?;
     shell.attach(Some(Arc::clone(&connection)));
+    let configured =
+        host.local_forwards.iter().map(|f| ForwardSpec::from_config(ForwardKind::Local, f)).chain(
+            host.remote_forwards.iter().map(|f| ForwardSpec::from_config(ForwardKind::Remote, f)),
+        );
+    for forward in configured {
+        shell.add_forward(forward).await;
+    }
     on_state(ConnState::Ready);
 
     let (chunk_tx, chunks) = mpsc::channel();
@@ -152,13 +158,13 @@ async fn establish(
     connector: &Connector,
     spec: &SshSessionSpec,
     host: &ResolvedHost,
+    shell: &SshShell,
     (cols, rows): (u16, u16),
     on_state: &StateCallback,
 ) -> Result<(Arc<Connection>, Channel<client::Msg>), ConnectError> {
+    let on_hop = |hop: &HopLabel| on_state(ConnState::Connecting { hop: hop.to_string() });
     let connection = connector
-        .connect_chain(&spec.config, &spec.ctx, host, |hop| {
-            on_state(ConnState::Connecting { hop: hop.to_string() });
-        })
+        .connect_chain_routed(&spec.config, &spec.ctx, host, on_hop, Some(shell.routes()))
         .await?;
     let hop = HopLabel::target(&host.hostname);
     let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source: Box::new(source) };
@@ -230,6 +236,7 @@ impl Supervisor {
                     while self.input.lock().await.try_recv().is_ok() {}
                     self.delivery.push(RECONNECTED_LINE.to_vec()).await;
                     self.shell.attach(Some(Arc::clone(&connection)));
+                    self.shell.forwards.reattach(&connection).await;
                     (self.on_state)(ConnState::Ready);
                 }
             }
@@ -307,7 +314,8 @@ impl Supervisor {
                 () = self.shell.closed.notified() => None,
                 r = async {
                     tokio::time::sleep(delay).await;
-                    establish(&self.connector, &self.spec, &self.host, size, &self.on_state).await
+                    establish(&self.connector, &self.spec, &self.host, &self.shell, size, &self.on_state)
+                        .await
                 } => Some(r),
             };
             match result {

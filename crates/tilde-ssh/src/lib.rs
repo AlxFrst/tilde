@@ -6,6 +6,7 @@ mod chain;
 mod connect;
 mod connection;
 mod error;
+mod forward;
 mod interact;
 mod known_hosts;
 mod proxy_command;
@@ -24,6 +25,7 @@ pub use connection::{
     open_ssh_session,
 };
 pub use error::{ConnectError, HopLabel};
+pub use forward::{ForwardInfo, ForwardKind, ForwardSpec};
 pub use interact::{
     HostKeyDecision, HostKeyPrompt, KbdPrompt, Prompter, SecretAnswer, SecretKind, SecretPrompt,
 };
