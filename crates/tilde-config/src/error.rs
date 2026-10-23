@@ -17,11 +17,7 @@ pub enum ConfigError {
     Io { path: PathBuf, source: io::Error },
 
     #[error("JSON invalide (ligne {line}, colonne {column}) : {message}")]
-    Parse {
-        message: String,
-        line: usize,
-        column: usize,
-    },
+    Parse { message: String, line: usize, column: usize },
 
     #[error("type incorrect pour « {path} » : {message}")]
     Type { path: String, message: String },
@@ -40,11 +36,7 @@ pub enum ConfigError {
 }
 
 fn format_fields(fields: &[FieldError]) -> String {
-    fields
-        .iter()
-        .map(|f| format!("{} ({})", f.path, f.message))
-        .collect::<Vec<_>>()
-        .join(", ")
+    fields.iter().map(|f| format!("{} ({})", f.path, f.message)).collect::<Vec<_>>().join(", ")
 }
 
 /// Serializable view of [`ConfigError`] sent to the front-end.
@@ -68,21 +60,12 @@ impl From<&ConfigError> for ConfigErrorDto {
             ConfigError::Io { .. } => ("io", None, None, None),
             ConfigError::Parse { line, column, .. } => ("parse", Some(*line), Some(*column), None),
             ConfigError::Type { path, .. } => ("type", None, None, Some(path.clone())),
-            ConfigError::Invalid(fields) => (
-                "invalid",
-                None,
-                None,
-                fields.first().map(|f| f.path.clone()),
-            ),
+            ConfigError::Invalid(fields) => {
+                ("invalid", None, None, fields.first().map(|f| f.path.clone()))
+            }
             ConfigError::FutureVersion { .. } => ("futureVersion", None, None, None),
             ConfigError::ReadOnly => ("readOnly", None, None, None),
         };
-        Self {
-            kind,
-            message: err.to_string(),
-            line,
-            column,
-            path,
-        }
+        Self { kind, message: err.to_string(), line, column, path }
     }
 }

@@ -3,10 +3,9 @@
 use std::{env, fs, path::PathBuf, process::ExitCode};
 
 fn main() -> ExitCode {
-    let out = env::args_os().nth(1).map_or_else(
-        || PathBuf::from("schemas/settings.schema.json"),
-        PathBuf::from,
-    );
+    let out = env::args_os()
+        .nth(1)
+        .map_or_else(|| PathBuf::from("schemas/settings.schema.json"), PathBuf::from);
     let json =
         serde_json::to_string_pretty(&tilde_config::settings_schema()).expect("schema serializes");
     if let Some(parent) = out.parent()

@@ -11,9 +11,7 @@ pub fn merge_patch(target: &mut Value, patch: &Value) {
     if !target.is_object() {
         *target = Value::Object(serde_json::Map::new());
     }
-    let Value::Object(target_map) = target else {
-        unreachable!("target was just made an object")
-    };
+    let Value::Object(target_map) = target else { unreachable!("target was just made an object") };
     for (key, value) in patch_map {
         if value.is_null() {
             target_map.remove(key);

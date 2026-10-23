@@ -137,10 +137,7 @@ pub struct WindowAppearance {
 
 impl Default for WindowAppearance {
     fn default() -> Self {
-        Self {
-            effect: WindowEffect::None,
-            opacity: 1.0,
-        }
+        Self { effect: WindowEffect::None, opacity: 1.0 }
     }
 }
 
@@ -215,11 +212,7 @@ pub struct Sftp {
 
 impl Default for Sftp {
     fn default() -> Self {
-        Self {
-            concurrency: 3,
-            editor_mode: EditorMode::External,
-            external_editor: None,
-        }
+        Self { concurrency: 3, editor_mode: EditorMode::External, external_editor: None }
     }
 }
 
@@ -232,10 +225,7 @@ pub struct General {
 
 impl Default for General {
     fn default() -> Self {
-        Self {
-            restore_session: true,
-            quake: Quake::default(),
-        }
+        Self { restore_session: true, quake: Quake::default() }
     }
 }
 
@@ -248,10 +238,7 @@ pub struct Quake {
 
 impl Default for Quake {
     fn default() -> Self {
-        Self {
-            enabled: false,
-            shortcut: "Ctrl+`".into(),
-        }
+        Self { enabled: false, shortcut: "Ctrl+`".into() }
     }
 }
 
@@ -291,24 +278,10 @@ impl Settings {
         c.check("terminal.fontSize", t.font_size, 6, 72);
         c.check("terminal.lineHeight", t.line_height, 0.8, 3.0);
         c.check("terminal.scrollback", t.scrollback, 0, 1_000_000);
-        c.check(
-            "ssh.keepaliveIntervalSecs",
-            self.ssh.keepalive_interval_secs,
-            0,
-            3600,
-        );
-        c.check(
-            "ssh.keepaliveCountMax",
-            self.ssh.keepalive_count_max,
-            1,
-            100,
-        );
+        c.check("ssh.keepaliveIntervalSecs", self.ssh.keepalive_interval_secs, 0, 3600);
+        c.check("ssh.keepaliveCountMax", self.ssh.keepalive_count_max, 1, 100);
         c.check("sftp.concurrency", self.sftp.concurrency, 1, 16);
-        if c.0.is_empty() {
-            Ok(())
-        } else {
-            Err(ConfigError::Invalid(c.0))
-        }
+        if c.0.is_empty() { Ok(()) } else { Err(ConfigError::Invalid(c.0)) }
     }
 }
 
@@ -324,10 +297,7 @@ pub fn settings_schema() -> serde_json::Value {
     let mut schema = serde_json::to_value(schemars::schema_for!(Settings))
         .expect("a derived JSON schema always serializes");
     if let Some(obj) = schema.as_object_mut() {
-        obj.insert(
-            "$id".into(),
-            "https://tilde.dev/schemas/settings.schema.json".into(),
-        );
+        obj.insert("$id".into(), "https://tilde.dev/schemas/settings.schema.json".into());
         // Every settings.json starts with a `$schema` key; declare it so editors don't flag it.
         if let Some(props) = obj.get_mut("properties").and_then(|p| p.as_object_mut()) {
             props.insert("$schema".into(), serde_json::json!({ "type": "string" }));

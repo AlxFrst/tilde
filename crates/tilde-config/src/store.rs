@@ -29,6 +29,17 @@ pub struct SettingsStore {
     last_written_hash: Option<u64>,
 }
 
+/// Result of [`SettingsStore::reload_from_disk`].
+#[derive(Debug, Clone, PartialEq)]
+pub enum ReloadOutcome {
+    /// The file changed and yields new settings.
+    Changed(Box<Settings>),
+    /// The file was rewritten but the effective settings are identical.
+    Unchanged,
+    /// The file is exactly what this store last wrote.
+    SelfWrite,
+}
+
 /// A successfully parsed, migrated and validated document.
 pub(crate) struct Parsed {
     pub raw: Value,
@@ -126,6 +137,36 @@ impl SettingsStore {
         Ok(settings)
     }
 
+    /// Re-reads `settings.json` after an external change (called by the file watcher).
+    ///
+    /// Our own writes are recognised by content hash and reported as
+    /// [`ReloadOutcome::SelfWrite`], so saving from the UI never loops back.
+    ///
+    /// # Errors
+    ///
+    /// Any load error; the previous settings are kept and the store becomes read-only
+    /// until a valid file is saved.
+    pub fn reload_from_disk(&mut self) -> Result<ReloadOutcome, ConfigError> {
+        let file = self.paths.settings_file();
+        let text = fs::read_to_string(&file).map_err(|e| io_err(&file, e))?;
+        if self.last_written_hash == Some(hash_bytes(text.as_bytes())) {
+            return Ok(ReloadOutcome::SelfWrite);
+        }
+        let parsed = parse_document(&text).inspect_err(|_| self.read_only = true)?;
+        let was_read_only = std::mem::replace(&mut self.read_only, false);
+        self.raw = with_schema_first(parsed.raw);
+        if let Some(from) = parsed.migrated_from {
+            let backup = self.paths.root.join(format!("settings.json.v{from}.bak"));
+            fs::write(&backup, &text).map_err(|e| io_err(&backup, e))?;
+            self.write_raw(&self.raw.clone())?;
+        }
+        if parsed.settings == self.settings && !was_read_only {
+            return Ok(ReloadOutcome::Unchanged);
+        }
+        self.settings = parsed.settings.clone();
+        Ok(ReloadOutcome::Changed(Box::new(parsed.settings)))
+    }
+
     fn write_schema(&self) {
         let path = self.paths.schema_file();
         let json = serde_json::to_string_pretty(&settings_schema()).unwrap_or_default() + "\n";
@@ -156,11 +197,7 @@ pub(crate) fn parse_document(text: &str) -> Result<Parsed, ConfigError> {
     let (raw, migrated_from) = migrate(raw)?;
     let settings = deserialize(&raw)?;
     settings.validate()?;
-    Ok(Parsed {
-        raw,
-        settings,
-        migrated_from,
-    })
+    Ok(Parsed { raw, settings, migrated_from })
 }
 
 fn deserialize(raw: &Value) -> Result<Settings, ConfigError> {
@@ -178,10 +215,7 @@ fn defaults_value() -> Value {
 fn with_schema_first(raw: Value) -> Value {
     let Value::Object(map) = raw else { return raw };
     let mut out = Map::with_capacity(map.len() + 1);
-    let schema = map
-        .get("$schema")
-        .cloned()
-        .unwrap_or_else(|| SCHEMA_REF.into());
+    let schema = map.get("$schema").cloned().unwrap_or_else(|| SCHEMA_REF.into());
     out.insert("$schema".into(), schema);
     out.extend(map.into_iter().filter(|(k, _)| k != "$schema"));
     Value::Object(out)
@@ -194,8 +228,5 @@ pub(crate) fn hash_bytes(bytes: &[u8]) -> u64 {
 }
 
 fn io_err(path: &Path, source: io::Error) -> ConfigError {
-    ConfigError::Io {
-        path: path.to_path_buf(),
-        source,
-    }
+    ConfigError::Io { path: path.to_path_buf(), source }
 }

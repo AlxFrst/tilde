@@ -37,17 +37,11 @@ fn load_with_syntax_error_keeps_defaults_and_is_read_only() {
     let original = r#"{"terminal": {"#;
     let (_dir, paths) = setup(Some(original));
     let (mut store, err) = SettingsStore::load(paths.clone());
-    let Some(ConfigError::Parse { line, .. }) = err else {
-        panic!("expected Parse, got {err:?}")
-    };
+    let Some(ConfigError::Parse { line, .. }) = err else { panic!("expected Parse, got {err:?}") };
     assert_eq!(line, 1);
     assert_eq!(store.settings(), &Settings::default());
     assert!(store.read_only());
-    assert!(
-        store
-            .update(&json!({"terminal": {"fontSize": 20}}))
-            .is_err()
-    );
+    assert!(store.update(&json!({"terminal": {"fontSize": 20}})).is_err());
     assert_eq!(fs::read_to_string(paths.settings_file()).unwrap(), original);
 }
 
@@ -55,9 +49,7 @@ fn load_with_syntax_error_keeps_defaults_and_is_read_only() {
 fn invalid_type_reports_key_path() {
     let (_dir, paths) = setup(Some(r#"{"version":1,"terminal":{"fontSize":"big"}}"#));
     let (_store, err) = SettingsStore::load(paths);
-    let Some(ConfigError::Type { path, .. }) = err else {
-        panic!("expected Type, got {err:?}")
-    };
+    let Some(ConfigError::Type { path, .. }) = err else { panic!("expected Type, got {err:?}") };
     assert_eq!(path, "terminal.fontSize");
 }
 
@@ -66,13 +58,7 @@ fn future_version_is_read_only_and_untouched() {
     let original = r#"{"version": 99}"#;
     let (_dir, paths) = setup(Some(original));
     let (store, err) = SettingsStore::load(paths.clone());
-    assert!(matches!(
-        err,
-        Some(ConfigError::FutureVersion {
-            found: 99,
-            supported: 1
-        })
-    ));
+    assert!(matches!(err, Some(ConfigError::FutureVersion { found: 99, supported: 1 })));
     assert!(store.read_only());
     assert_eq!(fs::read_to_string(paths.settings_file()).unwrap(), original);
 }
@@ -91,14 +77,11 @@ fn v0_file_is_migrated_with_backup() {
 
 #[test]
 fn update_preserves_unknown_keys_and_schema() {
-    let (_dir, paths) = setup(Some(
-        r#"{"$schema":"./settings.schema.json","version":1,"x-plugin":{"a":1}}"#,
-    ));
+    let (_dir, paths) =
+        setup(Some(r#"{"$schema":"./settings.schema.json","version":1,"x-plugin":{"a":1}}"#));
     let (mut store, err) = SettingsStore::load(paths.clone());
     assert!(err.is_none(), "{err:?}");
-    let updated = store
-        .update(&json!({"terminal": {"fontSize": 20}}))
-        .unwrap();
+    let updated = store.update(&json!({"terminal": {"fontSize": 20}})).unwrap();
     assert_eq!(updated.terminal.font_size, 20);
     let raw = read_json(&paths);
     assert_eq!(raw["x-plugin"]["a"], 1);
@@ -111,9 +94,7 @@ fn update_rejects_invalid_and_keeps_previous() {
     let (_dir, paths) = setup(None);
     let (mut store, _) = SettingsStore::load(paths.clone());
     let before = fs::read_to_string(paths.settings_file()).unwrap();
-    let err = store
-        .update(&json!({"terminal": {"fontSize": 100}}))
-        .unwrap_err();
+    let err = store.update(&json!({"terminal": {"fontSize": 100}})).unwrap_err();
     assert!(matches!(err, ConfigError::Invalid(_)));
     assert_eq!(fs::read_to_string(paths.settings_file()).unwrap(), before);
     assert_eq!(store.settings(), &Settings::default());

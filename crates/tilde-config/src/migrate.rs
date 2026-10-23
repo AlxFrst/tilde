@@ -34,19 +34,15 @@ pub fn migrate(mut raw: Value) -> Result<(Value, Option<u32>), ConfigError> {
     };
     let found = match obj.get("version") {
         None => 0,
-        Some(v) => v
-            .as_u64()
-            .and_then(|v| u32::try_from(v).ok())
-            .ok_or_else(|| ConfigError::Type {
+        Some(v) => {
+            v.as_u64().and_then(|v| u32::try_from(v).ok()).ok_or_else(|| ConfigError::Type {
                 path: "version".into(),
                 message: "doit être un entier positif".into(),
-            })?,
+            })?
+        }
     };
     if found > SETTINGS_VERSION {
-        return Err(ConfigError::FutureVersion {
-            found,
-            supported: SETTINGS_VERSION,
-        });
+        return Err(ConfigError::FutureVersion { found, supported: SETTINGS_VERSION });
     }
     if found == SETTINGS_VERSION {
         return Ok((raw, None));
