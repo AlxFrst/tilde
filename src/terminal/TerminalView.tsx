@@ -72,6 +72,21 @@ const DEFAULT_CHOICE = {
 } as const;
 const noop = () => undefined;
 
+/**
+ * Fits the terminal to its container, unless the container has no size: a pane in a
+ * hidden tab (`display: none`) would otherwise be shrunk to a few columns, reflowing
+ * and truncating its scrollback and resizing the program inside.
+ */
+function safeFit(h: TerminalHandle, el: HTMLElement): boolean {
+  if (el.clientWidth === 0 || el.clientHeight === 0) return false;
+  try {
+    h.fit.fit();
+    return true;
+  } catch {
+    return false; // not laid out yet
+  }
+}
+
 function errorText(err: unknown): string {
   if (isSessionError(err)) return err.message;
   return err instanceof Error ? err.message : String(err);
@@ -134,11 +149,7 @@ export function TerminalView(props: TerminalViewProps) {
       if (id != null) resizeSession(id, cols, rows).catch(noop);
     });
     const fitAndResize = () => {
-      try {
-        h.fit.fit();
-      } catch {
-        return; // not laid out yet
-      }
+      if (!safeFit(h, el)) return;
       scheduler.schedule(term.cols, term.rows);
     };
     const observer = new ResizeObserver(fitAndResize);
@@ -198,11 +209,8 @@ export function TerminalView(props: TerminalViewProps) {
       disposed: false,
     };
     session.current = s;
-    try {
-      h.fit.fit();
-    } catch {
-      // keep xterm's default size
-    }
+    // A pane in a background tab has no size yet: keep the default until it is shown.
+    if (container.current) safeFit(h, container.current);
     const opened = { cols: h.term.cols, rows: h.term.rows };
     const ack = (bytes: number) => {
       if (s.disposed) return;
@@ -264,11 +272,7 @@ export function TerminalView(props: TerminalViewProps) {
     const h = handle.current;
     if (!h || !terminalSettings) return;
     h.term.options = terminalOptions(terminalSettings, toXtermTheme(theme.terminal));
-    try {
-      h.fit.fit();
-    } catch {
-      // not laid out yet
-    }
+    if (container.current) safeFit(h, container.current);
   }, [terminalSettings, theme]);
 
   useEffect(() => {

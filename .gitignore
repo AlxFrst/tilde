@@ -19,3 +19,6 @@ dist-ssr
 
 # Agent scratch
 .superpowers/
+
+# Claude Code local state and agent worktrees
+.claude/

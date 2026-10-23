@@ -17,6 +17,7 @@ import type {
   TerminalPanel,
   WorkspaceSnapshot,
 } from '@/workspace/types';
+import { sanitizeSnapshot } from '@/workspace/sanitize';
 
 interface WorkspaceState {
   tabs: Tab[];
@@ -47,36 +48,6 @@ const newLeaf = (profileId: string, cwd: string | null = null): LeafNode => ({
   id: crypto.randomUUID(),
   panel: { kind: 'terminal', profileId, cwd, title: null },
 });
-
-function isNode(n: unknown): n is LayoutNode {
-  if (typeof n !== 'object' || n === null) return false;
-  const node = n as Partial<LayoutNode>;
-  if (node.type === 'leaf') {
-    const p = node.panel;
-    return typeof node.id === 'string' && p?.kind === 'terminal' && typeof p.profileId === 'string';
-  }
-  if (node.type === 'split') {
-    const s = node as Partial<{ children: unknown; sizes: unknown }>;
-    return (
-      Array.isArray(s.children) &&
-      Array.isArray(s.sizes) &&
-      s.children.length === s.sizes.length &&
-      s.children.length > 0 &&
-      s.children.every(isNode)
-    );
-  }
-  return false;
-}
-
-function isSnapshot(s: unknown): s is WorkspaceSnapshot {
-  if (typeof s !== 'object' || s === null) return false;
-  const snap = s as Partial<WorkspaceSnapshot>;
-  return (
-    snap.version === 1 &&
-    Array.isArray(snap.tabs) &&
-    snap.tabs.every((t) => typeof t.id === 'string' && isNode(t.root))
-  );
-}
 
 /** Index of the tab to activate after removing the one at `index`. */
 const neighborIndex = (index: number, remaining: number) => Math.min(index, remaining - 1);
@@ -201,8 +172,10 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
 
     snapshot: () => ({ version: 1, tabs: get().tabs, activeTabId: get().activeTabId }),
 
-    hydrate: (snap, available, fallback) => {
-      if (!isSnapshot(snap)) return { replaced: 0 };
+    hydrate: (raw, available, fallback) => {
+      // The snapshot comes from a user-reachable file: sanitize, never trust.
+      const snap = sanitizeSnapshot(raw);
+      if (!snap || snap.tabs.length === 0) return { replaced: 0 };
       let replaced = 0;
       const fix = (n: LayoutNode): LayoutNode => {
         if (n.type === 'split') return { ...n, children: n.children.map(fix) };
@@ -210,17 +183,8 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         replaced += 1;
         return { ...n, panel: { ...n.panel, profileId: fallback } };
       };
-      const tabs = snap.tabs.map((t) => {
-        const root = fix(t.root);
-        const activeLeafId = findLeaf(root, t.activeLeafId)
-          ? t.activeLeafId
-          : (leaves(root)[0]?.id ?? '');
-        return { ...t, root, activeLeafId };
-      });
-      const activeTabId = tabs.some((t) => t.id === snap.activeTabId)
-        ? snap.activeTabId
-        : (tabs[0]?.id ?? null);
-      set({ tabs, activeTabId });
+      const tabs = snap.tabs.map((t) => ({ ...t, root: fix(t.root) }));
+      set({ tabs, activeTabId: snap.activeTabId });
       return { replaced };
     },
   };
