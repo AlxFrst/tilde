@@ -90,6 +90,16 @@ fn remote_command_reads_every_section() {
 }
 
 #[test]
+fn remote_command_runs_under_sh_whatever_the_login_shell() {
+    // The SSH server runs exec commands through the user's shell: fish rejects
+    // `VAR=x;`, csh turns `2>&1` into a file named 1. Everything goes through /bin/sh.
+    assert!(REMOTE_COMMAND.starts_with("/bin/sh -c '"), "{REMOTE_COMMAND}");
+    assert!(REMOTE_COMMAND.ends_with('\''));
+    let inner = &REMOTE_COMMAND["/bin/sh -c '".len()..REMOTE_COMMAND.len() - 1];
+    assert!(!inner.contains('\''), "the script must not contain a single quote");
+}
+
+#[test]
 fn local_sample_is_sane() {
     let mut m = LocalMonitor::new();
     let first = m.sample();

@@ -4,16 +4,19 @@ use std::time::Instant;
 
 use crate::{Disk, MonitorError, Snapshot, is_pseudo_mount};
 
-/// One POSIX shell command printing every section the monitor needs, each after a
+/// One command printing every section the monitor needs, each after a
 /// `@@tilde:<section>@@` marker. `LC_ALL=C` keeps `df`'s output parseable.
-pub const REMOTE_COMMAND: &str = "LC_ALL=C; export LC_ALL; \
+///
+/// The SSH server runs it through the user's login shell, which may be fish or csh:
+/// the script itself always runs under `/bin/sh` (it contains no single quote).
+pub const REMOTE_COMMAND: &str = "/bin/sh -c 'LC_ALL=C; export LC_ALL; \
 echo @@tilde:stat@@; cat /proc/stat 2>&1; \
 echo @@tilde:meminfo@@; cat /proc/meminfo 2>&1; \
 echo @@tilde:loadavg@@; cat /proc/loadavg 2>&1; \
 echo @@tilde:uptime@@; cat /proc/uptime 2>&1; \
 echo @@tilde:netdev@@; cat /proc/net/dev 2>&1; \
 echo @@tilde:hostname@@; hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null; \
-echo @@tilde:df@@; df -kP 2>/dev/null";
+echo @@tilde:df@@; df -kP 2>/dev/null'";
 
 /// What one run of [`REMOTE_COMMAND`] says, before rates are computed.
 #[derive(Debug, Clone, PartialEq)]
