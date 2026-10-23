@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConnectionsFile",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0,
+      "default": 1
+    },
+    "folders": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Folder"
+      },
+      "default": []
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Connection"
+      },
+      "default": []
+    },
+    "recents": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Recent"
+      },
+      "default": []
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "Folder": {
+      "description": "A folder of connections (one level).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "type": "string",
+          "default": ""
+        },
+        "color": {
+          "description": "`#RRGGBB`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "Connection": {
+      "description": "A saved connection. `host` is an alias of `~/.ssh/config` or a host name; the\nfields set here override what `ssh_config` says for it.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "type": "string",
+          "default": ""
+        },
+        "host": {
+          "type": "string",
+          "default": ""
+        },
+        "port": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": null
+        },
+        "user": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "identityFile": {
+          "description": "Private key path (`~` allowed).",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "proxyJump": {
+          "description": "`ProxyJump` syntax: `[user@]host[:port]`, comma-separated.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "forwardAgent": {
+          "description": "`None`: as `ssh_config` says.",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "folderId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "color": {
+          "description": "`#RRGGBB`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "icon": {
+          "description": "One of [`ICONS`].",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "favorite": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "Recent": {
+      "description": "A recently opened target: `conn:<id>` or `ssh:<typed target>`.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "default": ""
+        },
+        "label": {
+          "type": "string",
+          "default": ""
+        },
+        "at": {
+          "description": "Seconds since the Unix epoch.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    }
+  },
+  "$id": "https://tilde.dev/schemas/connections.schema.json"
+}

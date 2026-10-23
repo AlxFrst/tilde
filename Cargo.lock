@@ -5486,6 +5486,7 @@ dependencies = [
  "serde_path_to_error",
  "tempfile",
  "thiserror 2.0.21",
+ "tilde-ssh-config",
  "tracing",
 ]
 

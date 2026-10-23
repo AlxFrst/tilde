@@ -26,3 +26,18 @@ const ts = await compile(schema, 'Settings', {
 });
 await writeFile('src/ipc/generated/settings.ts', ts);
 console.log('wrote src/ipc/generated/settings.ts');
+
+// connections.json: keys are optional on disk, but Rust sends complete objects, so the
+// same "every property required" view applies.
+const connSchema = JSON.parse(await readFile('schemas/connections.schema.json', 'utf8'));
+delete connSchema.properties.$schema;
+requireAll(connSchema);
+const connTs = await compile(connSchema, 'ConnectionsFile', {
+  bannerComment:
+    '/* Généré par scripts/gen-types.mjs depuis schemas/connections.schema.json — ne pas éditer. */',
+  additionalProperties: false,
+  strictIndexSignatures: true,
+  style: { singleQuote: true, printWidth: 100 },
+});
+await writeFile('src/ipc/generated/connections.ts', connTs);
+console.log('wrote src/ipc/generated/connections.ts');

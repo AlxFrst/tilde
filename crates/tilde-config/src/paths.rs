@@ -29,6 +29,16 @@ impl ConfigPaths {
     }
 
     #[must_use]
+    pub fn connections_file(&self) -> PathBuf {
+        self.root.join("connections.json")
+    }
+
+    #[must_use]
+    pub fn connections_schema_file(&self) -> PathBuf {
+        self.root.join("connections.schema.json")
+    }
+
+    #[must_use]
     pub fn workspace_file(&self) -> PathBuf {
         self.root.join("workspace.json")
     }
