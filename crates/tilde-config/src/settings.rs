@@ -255,11 +255,19 @@ pub struct General {
     pub quake: Quake,
     /// Look for a new version on GitHub at startup (at most once a day).
     pub check_updates: bool,
+    /// "Ouvrir dans Tilde" in Windows Explorer's context menu (folders, drives, the
+    /// background of an open folder). Ignored on other systems.
+    pub explorer_menu: bool,
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { restore_session: true, quake: Quake::default(), check_updates: true }
+        Self {
+            restore_session: true,
+            quake: Quake::default(),
+            check_updates: true,
+            explorer_menu: true,
+        }
     }
 }
 
@@ -372,6 +380,13 @@ mod tests {
         .unwrap();
         assert_eq!(custom.appearance.ssh_config_hosts.hidden, ["old-box"]);
         assert!(!custom.ssh.status_bar);
+    }
+
+    #[test]
+    fn open_in_tilde_is_offered_in_explorer_by_default() {
+        assert!(Settings::default().general.explorer_menu);
+        let off: Settings = serde_json::from_str(r#"{"general":{"explorerMenu":false}}"#).unwrap();
+        assert!(!off.general.explorer_menu);
     }
 
     #[test]

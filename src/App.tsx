@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
+import { startLaunchHandling } from '@/app/launch';
 import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
@@ -229,6 +230,12 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
       clearTimeout(timer);
     };
   }, [canShow, quake]);
+
+  // "Ouvrir dans Tilde": a terminal in the folder this launch, or a later one, names.
+  useEffect(() => {
+    if (!ready || quake) return;
+    return startLaunchHandling();
+  }, [ready, quake]);
 
   if (startupError !== null) return <StartupError message={startupError} />;
   if (!ready) return null;

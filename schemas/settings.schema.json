@@ -71,7 +71,8 @@
           "enabled": false,
           "shortcut": "Alt+F12"
         },
-        "checkUpdates": true
+        "checkUpdates": true,
+        "explorerMenu": true
       }
     },
     "profiles": {
@@ -360,6 +361,11 @@
         },
         "checkUpdates": {
           "description": "Look for a new version on GitHub at startup (at most once a day).",
+          "type": "boolean",
+          "default": true
+        },
+        "explorerMenu": {
+          "description": "\"Ouvrir dans Tilde\" in Windows Explorer's context menu (folders, drives, the\nbackground of an open folder). Ignored on other systems.",
           "type": "boolean",
           "default": true
         }

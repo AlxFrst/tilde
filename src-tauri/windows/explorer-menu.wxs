@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tilde writes "Ouvrir dans Tilde" into Explorer's context menu itself (for the current
+     user, see src-tauri/src/explorer_menu.rs); uninstalling the MSI removes it. -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="ExplorerMenuCleanup" Guid="6F0A3C2E-8B1D-4E5A-9C7F-2D4B6E8A1C30">
+        <RegistryValue Root="HKCU" Key="Software\Tilde\Installer" Name="ExplorerMenuCleanup"
+          Type="integer" Value="1" KeyPath="yes" />
+        <RemoveRegistryKey Root="HKCU" Key="Software\Classes\Directory\shell\Tilde"
+          Action="removeOnUninstall" />
+        <RemoveRegistryKey Root="HKCU" Key="Software\Classes\Directory\Background\shell\Tilde"
+          Action="removeOnUninstall" />
+        <RemoveRegistryKey Root="HKCU" Key="Software\Classes\Drive\shell\Tilde"
+          Action="removeOnUninstall" />
+        <RemoveRegistryKey Root="HKCU" Key="Software\Tilde\Installer"
+          Action="removeOnUninstall" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

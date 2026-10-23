@@ -72,6 +72,11 @@ export interface General {
    * Look for a new version on GitHub at startup (at most once a day).
    */
   checkUpdates: boolean;
+  /**
+   * "Ouvrir dans Tilde" in Windows Explorer's context menu (folders, drives, the
+   * background of an open folder). Ignored on other systems.
+   */
+  explorerMenu: boolean;
 }
 export interface Quake {
   enabled: boolean;

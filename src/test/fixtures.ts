@@ -40,6 +40,7 @@ export const defaultSettings: Settings = {
     restoreSession: true,
     quake: { enabled: false, shortcut: 'Alt+F12' },
     checkUpdates: true,
+    explorerMenu: true,
   },
   profiles: [],
 };

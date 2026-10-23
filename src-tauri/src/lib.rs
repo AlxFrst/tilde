@@ -1,6 +1,9 @@
 //! Tilde desktop application: wires the core crates into Tauri.
 
 mod commands;
+#[cfg(windows)]
+mod explorer_menu;
+mod launch;
 mod logging;
 mod prompter;
 mod quake;
@@ -81,6 +84,11 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
     let quake = app.state::<AppState>().settings.lock().settings().general.quake.clone();
     quake::sync_quake(app, &quake, &app.state::<AppState>().quake);
+    #[cfg(windows)]
+    {
+        let enabled = app.state::<AppState>().settings.lock().settings().general.explorer_menu;
+        std::thread::spawn(move || explorer_menu::apply(enabled));
+    }
     let handle = app.clone();
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
@@ -106,6 +114,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::settings::settings_get,
         commands::settings::settings_update,
         commands::app::app_info,
+        launch::launch_take_dir,
         commands::app::open_logs_dir,
         commands::app::open_settings_file,
         commands::app::open_connections_file,
@@ -206,12 +215,13 @@ pub fn run() {
         tracing::error!(error = %e, "keybindings.json cannot be used; defaults apply");
     }
 
+    let args: Vec<String> = std::env::args().collect();
+    let launch_dir =
+        std::env::current_dir().ok().and_then(|cwd| launch::dir_from_args(&args, &cwd));
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            launch::on_second_instance(app, &args, &cwd);
         }))
         // Restore size/position, but let the front-end decide when to show the window.
         .plugin(
@@ -252,6 +262,7 @@ pub fn run() {
             local_docs: Mutex::default(),
             monitor_local: Arc::default(),
             monitor_remote: Mutex::default(),
+            launch_dir: launch::LaunchDir(Mutex::new(launch_dir)),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

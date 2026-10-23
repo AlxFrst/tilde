@@ -29,8 +29,8 @@ const conf = JSON.parse(readFileSync(join(root, 'src-tauri/tauri.conf.json'), 'u
     shortDescription?: string;
     windows?: {
       webviewInstallMode?: { type: string };
-      nsis?: { installMode?: string };
-      wix?: { language?: string[] };
+      nsis?: { installMode?: string; installerHooks?: string };
+      wix?: { language?: string[]; fragmentPaths?: string[]; componentRefs?: string[] };
     };
     macOS?: { minimumSystemVersion?: string };
   };
@@ -53,4 +53,19 @@ test('bundle config declares every target the spec asks for', () => {
     expect(targets).toEqual(expect.arrayContaining(['msi', 'nsis', 'appimage', 'deb', 'dmg']));
   }
   expect(conf.identifier).toBe('dev.tilde.app');
+});
+
+test('both Windows uninstallers remove the "Ouvrir dans Tilde" entry', () => {
+  const w = conf.bundle.windows;
+  const tauriDir = join(root, 'src-tauri');
+  const hooks = readFileSync(join(tauriDir, w?.nsis?.installerHooks ?? 'missing'), 'utf8');
+  for (const place of ['Directory', 'Directory\\Background', 'Drive']) {
+    expect(hooks).toContain(`DeleteRegKey HKCU "Software\\Classes\\${place}\\shell\\Tilde"`);
+  }
+  expect(hooks).toContain('!macro NSIS_HOOK_PREUNINSTALL');
+  const [fragment] = w?.wix?.fragmentPaths ?? [];
+  const wxs = readFileSync(join(tauriDir, fragment ?? 'missing'), 'utf8');
+  expect(w?.wix?.componentRefs).toEqual(['ExplorerMenuCleanup']);
+  expect(wxs).toContain('Component Id="ExplorerMenuCleanup"');
+  expect(wxs.match(/Action="removeOnUninstall"/g)).toHaveLength(4);
 });

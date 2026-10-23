@@ -63,6 +63,18 @@ export function GeneralSection() {
             onChange={(restoreSession) => void update({ general: { restoreSession } })}
           />
         </Row>
+        <Row
+          label="« Ouvrir dans Tilde » dans l’Explorateur"
+          hint="Windows : clic droit sur un dossier ou dans un dossier ouvre un terminal à cet endroit (sous Windows 11, dans « Afficher plus d’options »)."
+        >
+          <SwitchField
+            setting="general.explorerMenu"
+            label="« Ouvrir dans Tilde » dans l’Explorateur"
+            checked={g.explorerMenu}
+            disabled={readOnly}
+            onChange={(explorerMenu) => void update({ general: { explorerMenu } })}
+          />
+        </Row>
       </Section>
 
       <Section title="Mises à jour">

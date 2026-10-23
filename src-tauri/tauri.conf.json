@@ -27,9 +27,7 @@
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src ipc: http://ipc.localhost",
-      "dangerousDisableAssetCspModification": [
-        "style-src"
-      ]
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "bundle": {
@@ -56,17 +54,14 @@
       },
       "nsis": {
         "installMode": "currentUser",
-        "languages": [
-          "English",
-          "French"
-        ],
-        "displayLanguageSelector": false
+        "languages": ["English", "French"],
+        "displayLanguageSelector": false,
+        "installerHooks": "windows/hooks.nsh"
       },
       "wix": {
-        "language": [
-          "en-US",
-          "fr-FR"
-        ]
+        "language": ["en-US", "fr-FR"],
+        "fragmentPaths": ["windows/explorer-menu.wxs"],
+        "componentRefs": ["ExplorerMenuCleanup"]
       }
     },
     "macOS": {
@@ -74,11 +69,7 @@
     },
     "linux": {
       "deb": {
-        "depends": [
-          "libwebkit2gtk-4.1-0",
-          "libgtk-3-0",
-          "libayatana-appindicator3-1"
-        ]
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1"]
       },
       "appimage": {
         "bundleMediaFramework": false
@@ -89,9 +80,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIxRTIyREFCQTNEREQzQUUKUldTdTA5MmpxeTNpSWM5VDBVNGt6VU9wV01VWUpML2pjcTF0T1BsZVV2M2QxMVhhTmRrNy9iTGgK",
-      "endpoints": [
-        "https://github.com/AlxFrst/tilde/releases/latest/download/latest.json"
-      ],
+      "endpoints": ["https://github.com/AlxFrst/tilde/releases/latest/download/latest.json"],
       "windows": {
         "installMode": "passive"
       }
