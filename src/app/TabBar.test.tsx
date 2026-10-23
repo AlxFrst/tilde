@@ -154,7 +154,7 @@ test('an ssh tab opened from a saved connection shows its name', async () => {
   ]);
 });
 
-test('an ssh pane shows buttons that show and hide its files and its monitor', async () => {
+test('an ssh pane shows a button that shows and hides its files', async () => {
   ws().openTab('cmd');
   render(<TabBar />);
   expect(screen.queryByRole('button', { name: 'Fichiers' })).not.toBeInTheDocument();
@@ -173,10 +173,5 @@ test('an ssh pane shows buttons that show and hide its files and its monitor', a
   await userEvent.click(screen.getByRole('button', { name: 'Fichiers' }));
   expect(kinds()).toEqual(['terminal', 'ssh']);
 
-  await userEvent.click(screen.getByRole('button', { name: 'Moniteur du serveur' }));
-  expect(kinds()).toEqual(['terminal', 'ssh', 'monitor']);
-  expect(screen.getByRole('button', { name: 'Moniteur du serveur' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  expect(screen.queryByRole('button', { name: 'Moniteur du serveur' })).toBeNull();
 });

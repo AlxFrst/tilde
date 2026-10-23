@@ -46,6 +46,10 @@ vi.mock('@/terminal/TerminalView', () => ({
   },
 }));
 
+vi.mock('@/panels/monitor/ServerStatusBar', () => ({
+  ServerStatusBar: ({ leafId }: { leafId: string }) => <div data-testid={`strip-${leafId}`} />,
+}));
+
 const ws = () => useWorkspace.getState();
 const tab = () => {
   const t = ws().tabs[0];
@@ -245,4 +249,14 @@ test('a clean exit keeps an SSH pane open while an editor linked to it has unsav
   fireEvent.click(screen.getByText('exit0-a'));
   expect(leaves(tab().root).map((l) => l.id)).toContain('a');
   useEditors.setState({ docs: {} });
+});
+
+test('ssh panes get the server status strip, local terminals do not', () => {
+  ws().openSshTab('prod');
+  const sshTab = ws().tabs.at(-1);
+  if (!sshTab) throw new Error('no tab');
+  render(<PaneView tab={sshTab} visible />);
+  expect(screen.getByTestId(`strip-${sshTab.activeLeafId}`)).toBeInTheDocument();
+  render(<Live />);
+  for (const l of leaves(tab().root)) expect(screen.queryByTestId(`strip-${l.id}`)).toBeNull();
 });

@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Activity, FolderTree, Plus, Server, X, type LucideIcon } from 'lucide-react';
+import { FolderTree, Plus, Server, X, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import {
   ContextMenu,
@@ -308,13 +308,10 @@ function ToggleButton({
   );
 }
 
-/** Buttons showing or hiding the files and the monitor of the active SSH session. */
+/** Shows or hides the files of the active SSH session (its monitor is in the status strip). */
 function SessionActions() {
   const sshLeafId = useActiveSshLeaf();
   const filesOpen = useWorkspace((s) => !!sshLeafId && !!findLinked(s.tabs, sshLeafId, 'sftp'));
-  const monitorOpen = useWorkspace(
-    (s) => !!sshLeafId && !!findLinked(s.tabs, sshLeafId, 'monitor'),
-  );
   if (!sshLeafId) return null;
   return (
     <div className="mb-1 flex items-center gap-0.5 self-center border-r pr-1">
@@ -327,15 +324,6 @@ function SessionActions() {
         pressed={filesOpen}
         onClick={() => {
           useWorkspace.getState().toggleSftp(sshLeafId);
-        }}
-      />
-      <ToggleButton
-        label="Moniteur du serveur"
-        title={monitorOpen ? 'Masquer le moniteur du serveur' : 'Afficher le moniteur du serveur'}
-        Icon={Activity}
-        pressed={monitorOpen}
-        onClick={() => {
-          useWorkspace.getState().toggleRemoteMonitor(sshLeafId);
         }}
       />
     </div>
