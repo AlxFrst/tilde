@@ -68,10 +68,16 @@ jobs:
       - run: cargo fmt --all --check
       - name: Clippy
         shell: bash
-        run: cargo clippy --workspace $([ "$APP" = "true" ] || echo --exclude tilde) --all-targets -- -D warnings
+        run: |
+          exclude=()
+          [ "$APP" = "true" ] || exclude=(--exclude tilde)
+          cargo clippy --workspace "${exclude[@]}" --all-targets -- -D warnings
       - name: Tests
         shell: bash
-        run: cargo test --workspace $([ "$APP" = "true" ] || echo --exclude tilde)
+        run: |
+          exclude=()
+          [ "$APP" = "true" ] || exclude=(--exclude tilde)
+          cargo test --workspace "${exclude[@]}"
 
   generated:
     name: Generated files are up to date
