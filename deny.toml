@@ -7,6 +7,13 @@ all-features = true
 # Unmaintained crates are reported but only crates we depend on directly fail the build.
 unmaintained = "workspace"
 yanked = "deny"
+ignore = [
+  # Marvin attack: timing side-channel on RSA private-key operations in the `rsa` crate
+  # (via russh). No fixed version exists. Exploiting it requires measuring a very large
+  # number of signatures made with the victim key; an SSH client signs once per login.
+  # Host-key verification (public key) is unaffected. Ed25519 keys are recommended.
+  { id = "RUSTSEC-2023-0071", reason = "no fix available; negligible exposure for an SSH client, see comment" },
+]
 
 [licenses]
 confidence-threshold = 0.9
