@@ -42,9 +42,10 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 | Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller |
 | Ctrl+Maj+F | Rechercher |
 
-Les raccourcis suivent la **position physique** des touches (disposition US). Sur un clavier
-AZERTY, « Alt+Maj+- » se fait avec la touche `)` ; l'écran d'accueil affiche les touches de
-votre clavier. Le `+` et le `-` du pavé numérique fonctionnent aussi. Ils deviendront
+Les lettres suivent la touche **imprimée** (Ctrl+Maj+W = la touche W, y compris en AZERTY).
+Les symboles suivent la **position physique** (disposition US) : sur un clavier AZERTY,
+« Alt+Maj+- » se fait avec la touche `)`, et l’écran d’accueil affiche les touches de votre
+clavier. Le `+` et le `-` du pavé numérique fonctionnent aussi. Ils deviendront
 configurables en phase 6.
 
 ### Profils personnalisés

@@ -132,3 +132,92 @@ test('hydrate ignores an invalid snapshot', () => {
   });
   expect(ws().snapshot()).toEqual(before);
 });
+
+const term = (id: string, extra: Record<string, unknown> = {}) => ({
+  type: 'leaf',
+  id,
+  panel: { kind: 'terminal', profileId: 'cmd', cwd: null, title: null, ...extra },
+});
+
+function hydrateRaw(raw: unknown) {
+  return ws().hydrate(raw as WorkspaceSnapshot, ['cmd'], 'cmd');
+}
+
+test('hostile snapshots never throw and keep what is usable', () => {
+  const good = { id: 'g', customTitle: null, color: null, root: term('a'), activeLeafId: 'a' };
+  expect(() =>
+    hydrateRaw({ version: 1, tabs: [null, 42, { id: 'x' }, good], activeTabId: 'g' }),
+  ).not.toThrow();
+  expect(ws().tabs.map((t) => t.id)).toEqual(['g']);
+});
+
+test('wrong field types are reset instead of crashing the UI', () => {
+  hydrateRaw({
+    version: 1,
+    tabs: [
+      {
+        id: 't',
+        customTitle: { evil: true },
+        color: 7,
+        root: term('a', { title: ['x'], cwd: 12 }),
+        activeLeafId: 'a',
+      },
+    ],
+    activeTabId: 't',
+  });
+  const [t] = ws().tabs;
+  expect(t?.customTitle).toBeNull();
+  expect(t?.color).toBeNull();
+  expect(leaves(t?.root ?? (term('z') as never))[0]?.panel).toMatchObject({
+    title: null,
+    cwd: null,
+  });
+});
+
+test('bad split sizes are normalized and bad directions fixed', () => {
+  hydrateRaw({
+    version: 1,
+    tabs: [
+      {
+        id: 't',
+        customTitle: null,
+        color: null,
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'diagonal',
+          children: [term('a'), term('b')],
+          sizes: ['a', -5],
+        },
+        activeLeafId: 'a',
+      },
+    ],
+    activeTabId: 't',
+  });
+  const root = ws().tabs[0]?.root;
+  expect(root).toMatchObject({ type: 'split', direction: 'row', sizes: [50, 50] });
+});
+
+test('duplicate leaf ids are made unique', () => {
+  hydrateRaw({
+    version: 1,
+    tabs: [
+      {
+        id: 't',
+        customTitle: null,
+        color: null,
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          children: [term('a'), term('a')],
+          sizes: [50, 50],
+        },
+        activeLeafId: 'a',
+      },
+    ],
+    activeTabId: 't',
+  });
+  const ids = leaves(ws().tabs[0]?.root ?? (term('z') as never)).map((l) => l.id);
+  expect(new Set(ids).size).toBe(2);
+});

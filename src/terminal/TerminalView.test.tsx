@@ -29,7 +29,10 @@ const { FakeTerminal } = vi.hoisted(() => {
     loadAddon(a: { activate?: (t: unknown) => void }) {
       this.loaded.push(a);
     }
-    open() {}
+    container: HTMLElement | null = null;
+    open(el: HTMLElement) {
+      this.container = el;
+    }
     write(data: string | Uint8Array, cb?: () => void) {
       this.written.push({ data, cb });
     }
@@ -71,11 +74,15 @@ const { FakeTerminal } = vi.hoisted(() => {
 type FakeTerminal = InstanceType<typeof FakeTerminal>;
 
 const webglShouldThrow = vi.hoisted(() => ({ value: false }));
+const fitCalls = vi.hoisted(() => ({ count: 0 }));
+const observers: (() => void)[] = [];
 
 vi.mock('@xterm/xterm', () => ({ Terminal: FakeTerminal }));
 vi.mock('@xterm/addon-fit', () => ({
   FitAddon: class {
-    fit() {}
+    fit() {
+      fitCalls.count += 1;
+    }
   },
 }));
 vi.mock('@xterm/addon-webgl', () => ({
@@ -138,10 +145,13 @@ beforeAll(() => {
     removeEventListener: vi.fn(),
   }));
   globalThis.ResizeObserver = class {
+    constructor(cb: () => void) {
+      observers.push(cb);
+    }
     observe() {}
     unobserve() {}
     disconnect() {}
-  };
+  } as unknown as typeof ResizeObserver;
 });
 
 beforeEach(() => {
@@ -265,4 +275,30 @@ test('exit is reported and shows the exit overlay', async () => {
   });
   expect(props.onExit).toHaveBeenCalledWith(3);
   expect(await findByText(/Processus terminé \(code 3\)/)).toBeInTheDocument();
+});
+
+function sizeOf(el: HTMLElement | null, width: number, height: number) {
+  if (!el) throw new Error('terminal not opened');
+  Object.defineProperty(el, 'clientWidth', { configurable: true, value: width });
+  Object.defineProperty(el, 'clientHeight', { configurable: true, value: height });
+}
+
+test('a hidden pane (zero size) is never refitted', async () => {
+  const { term } = renderView();
+  await resolveSession();
+  fitCalls.count = 0;
+  sizeOf(term.container, 0, 0); // display:none (background tab)
+  act(() => {
+    observers.forEach((cb) => {
+      cb();
+    });
+  });
+  expect(fitCalls.count).toBe(0);
+  sizeOf(term.container, 800, 600);
+  act(() => {
+    observers.forEach((cb) => {
+      cb();
+    });
+  });
+  expect(fitCalls.count).toBeGreaterThan(0);
 });

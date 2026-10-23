@@ -51,7 +51,8 @@ fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
 }
 
 fn shell() -> SessionSpec {
-    let (command, args) = if cfg!(windows) { ("cmd.exe", vec![]) } else { ("/bin/sh", vec![]) };
+    // `/d` skips the AutoRun registry hook (clink etc.), which spawns helper processes.
+    let (command, args) = if cfg!(windows) { ("cmd.exe", vec!["/d"]) } else { ("/bin/sh", vec![]) };
     spec(command, &args)
 }
 
@@ -135,8 +136,8 @@ fn busy_while_child_runs_idle_otherwise() {
     let rec = Arc::new(Recorder::default());
     let id = open(&mgr, shell(), &rec);
     wait_until("prompt", || rec.received.load(Ordering::SeqCst) > 0);
-    thread::sleep(Duration::from_millis(300));
-    assert!(!mgr.is_busy(id).unwrap(), "an idle shell is not busy");
+    // Prompt helpers may run briefly after the prompt appears: wait until idle.
+    wait_until("idle shell", || !mgr.is_busy(id).unwrap());
 
     let cmd: &[u8] = if cfg!(windows) { b"ping -n 6 127.0.0.1\r" } else { b"sleep 6\n" };
     mgr.write(id, cmd).unwrap();
@@ -168,7 +169,8 @@ fn flood_is_backpressured_until_acked() {
     thread::sleep(Duration::from_secs(1));
     let unacked = rec.received.load(Ordering::SeqCst);
     assert!(unacked > 0, "some output arrives");
-    assert!(unacked <= HIGH_WATERMARK + FLUSH_BYTES, "{unacked} bytes sent without acks");
+    // One flush may be in flight when the pause starts: up to a read chunk (64 KiB) more.
+    assert!(unacked <= HIGH_WATERMARK + 2 * FLUSH_BYTES, "{unacked} bytes sent without acks");
 
     // Acking as the UI renders lets the whole file through.
     let mut acked = 0;
@@ -199,4 +201,44 @@ fn zero_size_resize_is_ignored() {
     assert!(mgr.resize(id, 0, 10).is_ok());
     assert!(mgr.resize(id, 100, 40).is_ok());
     mgr.close(id).unwrap();
+}
+
+#[test]
+fn write_never_blocks_the_caller() {
+    // The program doesn't read its input, so the PTY input buffer fills up.
+    let s = if cfg!(windows) {
+        spec("cmd.exe", &["/d", "/c", "ping -n 4 127.0.0.1 >nul"])
+    } else {
+        spec("/bin/sh", &["-c", "sleep 3"])
+    };
+    let mgr = SessionManager::new();
+    let rec = Arc::new(Recorder::default());
+    let id = open(&mgr, s, &rec);
+    let start = Instant::now();
+    for _ in 0..64 {
+        mgr.write(id, &[b'x'; 16 * 1024]).unwrap();
+    }
+    assert!(
+        start.elapsed() < Duration::from_millis(500),
+        "write blocked for {:?}",
+        start.elapsed()
+    );
+    mgr.close(id).unwrap();
+}
+
+#[test]
+fn exit_reported_even_if_background_job_keeps_pty_open() {
+    let s = if cfg!(windows) {
+        spec("cmd.exe", &["/d", "/c", "start /b ping -n 30 127.0.0.1 >nul & exit 3"])
+    } else {
+        spec("/bin/sh", &["-c", "sleep 30 & exit 3"])
+    };
+    let mgr = SessionManager::new();
+    let rec = Arc::new(Recorder::default());
+    let start = Instant::now();
+    open(&mgr, s, &rec);
+    wait_until("exit event", || !rec.exits.lock().is_empty());
+    assert!(start.elapsed() < Duration::from_secs(5), "exit took {:?}", start.elapsed());
+    assert_eq!(*rec.exits.lock(), [Some(3)]);
+    wait_until("session removed", || mgr.count() == 0);
 }

@@ -23,6 +23,18 @@ test('matches by physical key code', () => {
   );
 });
 
+test('letter shortcuts follow the printed letter (AZERTY)', () => {
+  // AZERTY: the key printed "W" sends code KeyZ; the key printed "Z" sends code KeyW.
+  expect(matchShortcut(ev({ code: 'KeyZ', key: 'W', ctrlKey: true, shiftKey: true }))).toBe(
+    'tab.close',
+  );
+  expect(matchShortcut(ev({ code: 'KeyW', key: 'Z', ctrlKey: true, shiftKey: true }))).toBeNull();
+  // Non-Latin layouts (e.g. Russian "Ц" on KeyW) fall back to the physical key.
+  expect(matchShortcut(ev({ code: 'KeyW', key: 'Ц', ctrlKey: true, shiftKey: true }))).toBe(
+    'tab.close',
+  );
+});
+
 test('modifiers must match exactly', () => {
   expect(matchShortcut(ev({ code: 'KeyT', key: 't', ctrlKey: true }))).toBeNull();
   expect(
