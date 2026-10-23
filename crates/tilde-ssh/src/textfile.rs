@@ -78,14 +78,22 @@ const GONE: Stamp = Stamp { size: 0, mtime: None };
 ///
 /// Too large, binary, or I/O.
 pub fn read_local_text(path: &Path) -> Result<(String, Stamp), TextError> {
+    read_local_text_using(path, |p| fs::read(p))
+}
+
+/// The version is the one seen **before** reading: if the file changes during the read,
+/// the text is older than the file, and the next save must report a conflict.
+fn read_local_text_using(
+    path: &Path,
+    read: impl FnOnce(&Path) -> io::Result<Vec<u8>>,
+) -> Result<(String, Stamp), TextError> {
     let meta = fs::metadata(path).map_err(|e| io_err(path, &e))?;
     if meta.len() > TEXT_MAX_BYTES {
         return Err(TextError::TooLarge { size: meta.len(), max: TEXT_MAX_BYTES });
     }
-    let bytes = fs::read(path).map_err(|e| io_err(path, &e))?;
+    let bytes = read(path).map_err(|e| io_err(path, &e))?;
     let text = decode_text(bytes, TEXT_MAX_BYTES)?;
-    let stamp = fs::metadata(path).map_or(GONE, |m| local_stamp(&m));
-    Ok((text, stamp))
+    Ok((text, local_stamp(&meta)))
 }
 
 /// Reads at most `max` bytes of a local file (preview).
@@ -157,8 +165,9 @@ impl SftpClient {
         }
         let bytes = self.read_raw(path).await?;
         let text = decode_text(bytes, TEXT_MAX_BYTES)?;
-        let after = self.stat(path).await?;
-        Ok((text, remote_stamp(&after)))
+        // The version seen before reading: a change during the read makes the next save
+        // a conflict instead of overwriting it.
+        Ok((text, remote_stamp(&before)))
     }
 
     /// Reads at most `max` bytes of a remote file (preview).
@@ -271,6 +280,27 @@ mod tests {
         assert!(!path.exists());
         // No temporary file is left behind.
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn a_change_during_the_read_is_a_conflict_on_save() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("pulled.txt");
+        std::fs::write(&path, "old\n").unwrap();
+        // A `git pull` lands while the file is being read: we got the old bytes.
+        let (text, stamp) = read_local_text_using(&path, |p| {
+            let old = std::fs::read(p)?;
+            std::fs::write(p, "new content from the pull\n")?;
+            Ok(old)
+        })
+        .unwrap();
+        assert_eq!(text, "old\n");
+        // Saving from that text must not overwrite the pulled change.
+        assert!(matches!(
+            write_local_text(&path, "old, edited\n", Some(stamp)),
+            Err(TextError::Conflict { .. })
+        ));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "new content from the pull\n");
     }
 
     #[test]
