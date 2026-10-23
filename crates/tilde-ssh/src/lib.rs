@@ -11,6 +11,7 @@ mod interact;
 mod known_hosts;
 mod proxy_command;
 mod secrets;
+mod sftp;
 mod shell;
 
 pub use agent::{
@@ -32,4 +33,7 @@ pub use interact::{
 pub use known_hosts::{HostKeyStatus, KnownHosts, fingerprint};
 pub use proxy_command::{ProxyStream, spawn_proxy_command};
 pub use secrets::{KeyringStore, MemoryStore, SecretStore, passphrase_account, password_account};
+pub use sftp::{
+    EntryKind, MAX_REMOVE, RemoteEntry, SftpClient, SftpError, join_remote, safe_local_name,
+};
 pub use shell::{HOLD_CAP, STALL_MAX, SshShell};
