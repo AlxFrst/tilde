@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
+import { useKeybindings } from '@/stores/keybindings';
 import { bindingKeys, resolveKeyLabels } from '@/terminal/keyLabels';
-import type { CommandId } from '@/terminal/keys';
 import { Logo } from './Logo';
 import { profileIcon } from './profileIcon';
 
-const SHORTCUTS: [CommandId, string][] = [
+const SHORTCUTS: [string, string][] = [
   ['tab.new', 'Nouvel onglet'],
   ['ssh.quickConnect', 'Connexion SSH'],
   ['palette.toggle', 'Palette de commandes'],
@@ -19,21 +19,27 @@ const SHORTCUTS: [CommandId, string][] = [
   ['terminal.search', 'Rechercher'],
 ];
 
-/** Keycaps shown for each shortcut; focus moves list all four arrows. */
+/** Keycaps shown for each shortcut (none when unbound), labelled for the keyboard layout. */
 function useShortcutKeys() {
-  const [labels, setLabels] = useState<Partial<Record<CommandId, string[]>>>(() =>
-    Object.fromEntries(SHORTCUTS.map(([id]) => [id, bindingKeys(id)])),
-  );
+  const effective = useKeybindings((s) => s.effective);
+  const [labels, setLabels] = useState<Record<string, string[]>>({});
   useEffect(() => {
     let cancelled = false;
-    void resolveKeyLabels(SHORTCUTS.map(([id]) => id)).then((l) => {
+    const bindings = SHORTCUTS.map(([id]) => effective[id]).filter((b) => b != null);
+    void resolveKeyLabels(bindings).then((l) => {
       if (!cancelled) setLabels(l);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
-  return (id: CommandId) => (id === 'pane.focusLeft' ? ['Alt', '←↑→↓'] : (labels[id] ?? []));
+  }, [effective]);
+  return (id: string) => {
+    const binding = effective[id];
+    if (!binding) return [];
+    // The four focus moves share a modifier; show them as one line when unchanged.
+    if (id === 'pane.focusLeft' && binding === 'Alt+ArrowLeft') return ['Alt', '←↑→↓'];
+    return labels[binding] ?? bindingKeys(binding);
+  };
 }
 
 /** Shown when no tab is open. */
@@ -78,7 +84,7 @@ export function Welcome({ version }: { version: string }) {
         </Button>
       </div>
       <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-2 text-text-muted">
-        {SHORTCUTS.map(([id, label]) => (
+        {SHORTCUTS.filter(([id]) => keysFor(id).length > 0).map(([id, label]) => (
           <div key={label} className="contents">
             <dt className="flex justify-end gap-1">
               {keysFor(id).map((k) => (

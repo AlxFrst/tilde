@@ -7,6 +7,7 @@ import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useConnections } from '@/stores/connections';
+import { useKeybindings } from '@/stores/keybindings';
 import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { useTransfers } from '@/stores/transfers';
@@ -61,6 +62,20 @@ export default function App() {
     let stopConnections: (() => void) | undefined;
     let stopTransfers: (() => void) | undefined;
     let stopThemes: (() => void) | undefined;
+    let stopKeybindings: (() => void) | undefined;
+    useKeybindings
+      .getState()
+      .init()
+      .then(
+        (off) => {
+          if (isCancelled()) off();
+          else stopKeybindings = off;
+        },
+        (err: unknown) => {
+          // The default shortcuts stay active.
+          console.warn('keybindings unavailable', err);
+        },
+      );
     useThemes
       .getState()
       .init()
@@ -105,6 +120,7 @@ export default function App() {
       stopConnections?.();
       stopTransfers?.();
       stopThemes?.();
+      stopKeybindings?.();
       stopPersistence?.();
     };
   }, [init]);

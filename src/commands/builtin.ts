@@ -7,7 +7,6 @@ import { blankConnection, useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
-import { DEFAULT_KEYBINDINGS, type CommandId } from '@/terminal/keys';
 import { activeTerminal } from '@/terminal/terminalActions';
 import { findLeaf } from '@/workspace/tree';
 import { toast } from 'sonner';
@@ -205,7 +204,5 @@ export function registerBuiltins(): () => void {
       run: () => void openLogsDir().catch(noop),
     },
   ];
-  // A command whose id is a CommandId shows that shortcut.
-  for (const c of commands) if (c.id in DEFAULT_KEYBINDINGS) c.keybinding = c.id as CommandId;
   return registerCommands(commands);
 }

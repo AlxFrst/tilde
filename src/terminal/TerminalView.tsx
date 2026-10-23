@@ -37,6 +37,7 @@ import { useWorkspace } from '@/stores/workspace';
 import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { createTerminal, terminalOptions, type TerminalHandle } from './createTerminal';
 import { ExitOverlay } from './ExitOverlay';
+import { useKeybindings } from '@/stores/keybindings';
 import { matchShortcut } from './keys';
 import { parseOsc7 } from './osc7';
 import { needsPasteConfirmation, pastedLineCount } from './paste';
@@ -194,7 +195,7 @@ export function TerminalView(props: TerminalViewProps) {
     });
 
     term.attachCustomKeyEventHandler((e) => {
-      const command = matchShortcut(e);
+      const command = matchShortcut(e, useKeybindings.getState().table);
       if (!command) return true;
       if (e.type === 'keydown') {
         if (command === 'terminal.copy') copySelection();

@@ -1,8 +1,6 @@
 // The single list of user commands, read by the command palette and the keyboard
 // shortcut handler alike (spec §4.8). Panels and plugins add theirs with
-// `registerCommands`.
-
-import type { CommandId } from '@/terminal/keys';
+// `registerCommands`. Shortcuts are looked up by command id in the keybindings store.
 
 export type CommandGroup = 'Onglets' | 'Panneaux' | 'Terminal' | 'Connexions' | 'Application';
 
@@ -11,8 +9,6 @@ export interface Command {
   title: string;
   group: CommandGroup;
   run: () => void;
-  /** Its keyboard shortcut, shown in the palette. */
-  keybinding?: CommandId;
   /** Hidden from the palette (still reachable by its shortcut). */
   hidden?: boolean;
 }

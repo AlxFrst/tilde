@@ -8,6 +8,7 @@ import { connectionIcon } from '@/connections/icons';
 import { fold } from '@/connections/search';
 import type { Connection } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
+import { useKeybindings } from '@/stores/keybindings';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
@@ -86,10 +87,11 @@ function useTargets(): Target[] {
 }
 
 function Shortcut({ command }: { command: AppCommand }) {
-  if (!command.keybinding) return null;
+  const binding = useKeybindings((s) => s.effective[command.id] ?? null);
+  if (!binding) return null;
   return (
     <span className="ml-auto flex gap-1">
-      {bindingKeys(command.keybinding).map((k) => (
+      {bindingKeys(binding).map((k) => (
         <kbd
           key={k}
           className="rounded border bg-surface-2 px-1 font-mono text-[10px] text-text-muted"

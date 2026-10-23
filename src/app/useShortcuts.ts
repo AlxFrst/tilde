@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { hasCommand, runCommand } from '@/commands/registry';
+import { useKeybindings } from '@/stores/keybindings';
 import { matchShortcut } from '@/terminal/keys';
 
 /**
@@ -23,7 +24,7 @@ function isTyping(target: EventTarget | null): boolean {
 export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const command = matchShortcut(e);
+      const command = matchShortcut(e, useKeybindings.getState().table);
       if (!command) return;
       if (!hasCommand(command)) return;
       if (command !== 'palette.toggle' && isTyping(e.target)) return;
