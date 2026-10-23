@@ -42,6 +42,7 @@ import { needsPasteConfirmation, pastedLineCount } from './paste';
 import { createResizeScheduler } from './resize';
 import { SearchBar } from './SearchBar';
 import { registerSession, unregisterSession } from './sessionRegistry';
+import { registerTerminalActions } from './terminalActions';
 
 export interface TerminalViewProps {
   tabId: string;
@@ -186,6 +187,17 @@ export function TerminalView(props: TerminalViewProps) {
       }),
     ];
 
+    const unregisterActions = registerTerminalActions(latest.current.props.leafId, {
+      focus: () => {
+        term.focus();
+      },
+      copy: copySelection,
+      paste: pasteFromClipboard,
+      search: () => {
+        setSearchOpen(true);
+      },
+    });
+
     term.attachCustomKeyEventHandler((e) => {
       const command = matchShortcut(e);
       if (!command) return true;
@@ -199,6 +211,7 @@ export function TerminalView(props: TerminalViewProps) {
     });
 
     return () => {
+      unregisterActions();
       observer.disconnect();
       scheduler.dispose();
       subscriptions.forEach((s) => {

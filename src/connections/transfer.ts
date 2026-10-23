@@ -1,0 +1,36 @@
+import { toast } from 'sonner';
+import { exportConnections, importConnections } from '@/ipc/connections';
+import { formatConfigError, isConfigError } from '@/ipc/errors';
+
+const plural = (n: number, one: string, many: string) => `${String(n)} ${n > 1 ? many : one}`;
+
+function fail(err: unknown): void {
+  toast.error(isConfigError(err) ? formatConfigError(err, 'connections.json') : String(err));
+}
+
+/** Asks for a file and imports it; says what was imported. Silent if cancelled. */
+export async function importWithReport(): Promise<void> {
+  try {
+    const report = await importConnections();
+    if (!report) return;
+    const skipped = report.skipped
+      ? `, ${plural(report.skipped, 'ignorée', 'ignorées')} (déjà présentes ou invalides)`
+      : '';
+    toast.success(
+      `${plural(report.imported, 'connexion importée', 'connexions importées')}${skipped}`,
+    );
+  } catch (err) {
+    fail(err);
+  }
+}
+
+/** Asks where to save and exports. Silent if cancelled. */
+export async function exportWithToast(): Promise<void> {
+  try {
+    if (await exportConnections()) {
+      toast.success('Connexions exportées (aucun mot de passe n’est inclus)');
+    }
+  } catch (err) {
+    fail(err);
+  }
+}

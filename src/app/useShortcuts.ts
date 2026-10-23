@@ -1,56 +1,35 @@
 import { useEffect } from 'react';
-import { useSsh } from '@/stores/ssh';
-import { useWorkspace } from '@/stores/workspace';
-import { matchShortcut, type CommandId } from '@/terminal/keys';
-import { closeActivePane, closeTab, openDefaultTab } from './actions';
+import { hasCommand, runCommand } from '@/commands/registry';
+import { matchShortcut } from '@/terminal/keys';
 
-/** App-level commands. `terminal.*` commands are handled by the focused TerminalView. */
-const APP_COMMANDS: Partial<Record<CommandId, () => void>> = {
-  'tab.new': openDefaultTab,
-  'tab.close': () => {
-    const id = useWorkspace.getState().activeTabId;
-    if (id) void closeTab(id);
-  },
-  'tab.next': () => {
-    useWorkspace.getState().activateRelative(1);
-  },
-  'tab.prev': () => {
-    useWorkspace.getState().activateRelative(-1);
-  },
-  'pane.splitRight': () => {
-    useWorkspace.getState().splitActive('row');
-  },
-  'pane.splitDown': () => {
-    useWorkspace.getState().splitActive('column');
-  },
-  'pane.close': () => void closeActivePane(),
-  'pane.focusLeft': () => {
-    useWorkspace.getState().focusNeighbor('left');
-  },
-  'pane.focusRight': () => {
-    useWorkspace.getState().focusNeighbor('right');
-  },
-  'pane.focusUp': () => {
-    useWorkspace.getState().focusNeighbor('up');
-  },
-  'pane.focusDown': () => {
-    useWorkspace.getState().focusNeighbor('down');
-  },
-  'ssh.quickConnect': () => {
-    useSsh.getState().setQuickConnectOpen(true);
-  },
-};
+/**
+ * True when keys belong to what the user is typing in (a form field, a dialog), not to
+ * the app. The terminal's hidden textarea is not a field: shortcuts work in terminals.
+ */
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement) || target.closest('.xterm')) return false;
+  return (
+    target.isContentEditable ||
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+    target.closest('[role="dialog"]') !== null
+  );
+}
 
-/** Listens in the capture phase so shortcuts win over the focused terminal. */
+/**
+ * Runs the command bound to a key (through the command registry). Listens in the
+ * capture phase so shortcuts win over the focused terminal. While typing in a field or a
+ * dialog only the palette toggle passes.
+ */
 export function useShortcuts(): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const command = matchShortcut(e);
-      const run = command ? APP_COMMANDS[command] : undefined;
-      if (!run) return;
+      if (!command) return;
+      if (!hasCommand(command)) return;
+      if (command !== 'palette.toggle' && isTyping(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
-      if (!e.repeat) run();
+      if (!e.repeat) runCommand(command);
     };
     window.addEventListener('keydown', onKeyDown, { capture: true });
     return () => {

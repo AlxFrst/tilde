@@ -15,7 +15,8 @@ export type CommandId =
   | 'terminal.copy'
   | 'terminal.paste'
   | 'terminal.search'
-  | 'ssh.quickConnect';
+  | 'ssh.quickConnect'
+  | 'palette.toggle';
 
 export const DEFAULT_KEYBINDINGS: Record<CommandId, string> = {
   'tab.new': 'Ctrl+Shift+T',
@@ -33,6 +34,7 @@ export const DEFAULT_KEYBINDINGS: Record<CommandId, string> = {
   'terminal.paste': 'Ctrl+Shift+V',
   'terminal.search': 'Ctrl+Shift+F',
   'ssh.quickConnect': 'Ctrl+Shift+K',
+  'palette.toggle': 'Ctrl+Shift+P',
 };
 
 type KeyEventLike = Pick<
