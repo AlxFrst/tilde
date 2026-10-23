@@ -7,7 +7,7 @@ derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans 
 Le tout dans une interface soignée, rapide et entièrement personnalisable.
 
 > 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local), 3 (SSH) et 4
-> (sidebar de connexions et palette) sont terminées. Voir la [feuille de route](#feuille-de-route).
+> (sidebar de connexions et palette) sont terminées ; la phase 5 (SFTP) est en validation. Voir la [feuille de route](#feuille-de-route).
 
 ## Fonctionnalités (aujourd'hui)
 
@@ -30,6 +30,7 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
   agent, reconnexion automatique, tunnels
 - **Connexions enregistrées** dans la sidebar (voir [plus bas](#connexions)) et **palette de
   commandes** (Ctrl+Maj+P)
+- **Fichiers (SFTP)** sur la même connexion que le terminal (voir [plus bas](#fichiers-sftp))
 - Aucune télémétrie ; aucune requête réseau en dehors des connexions que vous ouvrez
 
 ## Raccourcis
@@ -47,6 +48,7 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 | Ctrl+Maj+F | Rechercher |
 | Ctrl+Maj+K | Connexion SSH |
 | Ctrl+Maj+P | Palette de commandes (connexions et commandes) |
+| Ctrl+Maj+E | Fichiers (SFTP) de l'onglet SSH |
 
 Les lettres suivent la touche **imprimée** (Ctrl+Maj+W = la touche W, y compris en AZERTY).
 Les symboles suivent la **position physique** (disposition US) : sur un clavier AZERTY,
@@ -130,6 +132,31 @@ Tout est dans `connections.json`, à côté de `settings.json`, éditable à la 
 fourni pour l'autocomplétion, rechargement à chaud). S'il contient une erreur, Tilde l'affiche
 avec la ligne et ne l'écrase jamais. Les mots de passe restent dans le trousseau du système.
 
+## Fichiers (SFTP)
+
+Depuis un onglet SSH : **Ctrl+Maj+E** (ou clic droit sur l'onglet → « Fichiers… »). Le panneau
+s'ouvre à droite du terminal, sur la même connexion : pas de seconde authentification, et il
+revient tout seul après une reconnexion.
+
+- **Il suit votre `cd`** si le shell distant signale son dossier (séquence OSC 7). Sinon, le
+  panneau propose la ligne à ajouter à `~/.bashrc`, `~/.zshrc` ou `config.fish`. Naviguer à la
+  main détache le suivi ; le bouton 🔗 le rétablit.
+- Double-clic sur un dossier pour y entrer, sur un fichier pour le télécharger (dans
+  *Téléchargements*, sans jamais écraser un fichier existant). Retour arrière : dossier
+  parent ; Suppr : supprimer ; F2 : renommer. Ctrl et Maj pour la sélection multiple.
+- Clic droit : télécharger, télécharger vers…, **modifier** dans votre éditeur, renommer,
+  permissions (octal + cases à cocher), copier le chemin, supprimer. Les suppressions
+  demandent confirmation ; un lien symbolique est supprimé sans toucher à sa cible.
+- **Envoyer** : bouton ⬆ ou glisser-déposer des fichiers et dossiers depuis l'explorateur.
+- **Transferts** (icône dans la barre de titre) : progression, vitesse, temps restant,
+  annulation. « Réessayer » **reprend** où le transfert s'est arrêté. Trois transferts à la
+  fois par défaut (`sftp.concurrency`).
+- **Édition** : le fichier est ouvert dans `sftp.externalEditor` (par exemple `code --wait`)
+  ou dans l'application par défaut. Chaque enregistrement est renvoyé sur le serveur ; si le
+  fichier y a changé entre-temps, Tilde ne l'écrase pas et vous demande quelle version garder.
+- Un nom de fichier distant ne peut jamais faire écrire en dehors du dossier choisi (`..`,
+  noms réservés Windows, caractères interdits).
+
 ## Prérequis
 
 | Outil | Version |
@@ -192,7 +219,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 2. ✅ Terminal local : PTY, onglets, splits, profils de shells
 3. ✅ SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand, tunnels
 4. ✅ Sidebar de connexions et palette de commandes
-5. SFTP
+5. 🧪 SFTP (en validation)
 6. Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence
 7. Panneaux modulaires : éditeur, preview, moniteur
 8. Packaging et CI multiplateforme
