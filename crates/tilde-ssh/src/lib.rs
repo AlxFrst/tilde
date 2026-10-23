@@ -14,6 +14,7 @@ mod proxy_command;
 mod secrets;
 mod sftp;
 mod shell;
+mod textfile;
 mod transfer;
 
 pub use agent::{
@@ -43,6 +44,10 @@ pub use sftp::{
     EntryKind, MAX_REMOVE, RemoteEntry, SftpClient, SftpError, join_remote, safe_local_name,
 };
 pub use shell::{HOLD_CAP, STALL_MAX, SshShell};
+pub use textfile::{
+    PREVIEW_MAX_BYTES, TEXT_MAX_BYTES, TextError, decode_text, read_local_bytes, read_local_text,
+    write_local_text,
+};
 pub use transfer::{
     CHUNK, Direction, PROGRESS_EVERY, Speed, Throttle, TransferInfo, TransferQueue, TransferState,
 };

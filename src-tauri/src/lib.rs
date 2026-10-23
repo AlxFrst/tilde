@@ -146,6 +146,13 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::ssh::ssh_forwards,
         commands::ssh::ssh_forward_add,
         commands::ssh::ssh_forward_remove,
+        commands::editor::editor_open_remote,
+        commands::editor::editor_save_remote,
+        commands::editor::editor_open_local,
+        commands::editor::editor_save_local,
+        commands::editor::editor_close_local,
+        commands::editor::preview_read_remote,
+        commands::editor::preview_read_local,
         commands::keybindings::keybindings_get,
         commands::keybindings::keybindings_set,
         commands::keybindings::keybindings_reset,
@@ -235,6 +242,7 @@ pub fn run() {
             ssh: state::SshState::default(),
             sftp: state::SftpState::default(),
             quake: Mutex::default(),
+            local_docs: Mutex::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

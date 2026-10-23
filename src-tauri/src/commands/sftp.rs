@@ -28,7 +28,10 @@ fn shell(state: &AppState, session_id: u32) -> Result<Arc<SshShell>, SessionErro
     })
 }
 
-async fn client(state: &AppState, session_id: u32) -> Result<Arc<SftpClient>, SessionErrorDto> {
+pub(crate) async fn client(
+    state: &AppState,
+    session_id: u32,
+) -> Result<Arc<SftpClient>, SessionErrorDto> {
     shell(state, session_id)?.sftp().await.map_err(|e| sftp_err(&e))
 }
 

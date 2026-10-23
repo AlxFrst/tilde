@@ -35,6 +35,8 @@ pub struct AppState {
     pub ssh: SshState,
     pub sftp: SftpState,
     pub quake: Mutex<QuakeState>,
+    /// Local files opened through the dialog, by document id (the front never sends paths).
+    pub local_docs: Mutex<HashMap<u32, PathBuf>>,
 }
 
 #[derive(Default)]
