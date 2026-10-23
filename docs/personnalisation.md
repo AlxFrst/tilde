@@ -49,6 +49,7 @@ palette du terminal.
 - **Windows Terminal** : un jeu de couleurs seul (objet JSON avec `name`, `background`,
   `black`…), ou un `settings.json` complet, dont on choisit les jeux à importer ;
 - **base16 / base24** : YAML (`scheme:` ou `name:`, puis `base00` à `base0F`).
+- **Tilde** : un thème exporté depuis Tilde (format ci-dessous).
 
 Ces formats ne décrivent que le terminal ; les couleurs de l'interface en sont **dérivées**.
 Un thème importé s'ouvre dans l'éditeur avant d'être enregistré. Les fichiers de plus de

@@ -76,3 +76,19 @@ test('slugify produces safe ids', () => {
   expect(slugify('A'.repeat(100))).toHaveLength(64);
   for (const s of ['a/b', 'a\\b', 'C:\\x', '...', '  ']) expect(slugify(s)).toMatch(/^[a-z0-9-]+$/);
 });
+
+test('an exported Tilde theme imports back', async () => {
+  const { getTheme } = await import('../registry');
+  const { serializeTheme } = await import('../parse');
+  const nord = getTheme('nord');
+  if (!nord) throw new Error('nord missing');
+  const { themes } = importTheme(
+    'Nord perso.json',
+    serializeTheme({ ...nord, name: 'Nord perso' }),
+  );
+  expect(themes).toHaveLength(1);
+  expect(themes[0]?.name).toBe('Nord perso');
+  expect(themes[0]?.id).toBe('nord-perso');
+  expect(themes[0]?.ui).toEqual(nord.ui);
+  expect(themes[0]?.terminal).toEqual(nord.terminal);
+});
