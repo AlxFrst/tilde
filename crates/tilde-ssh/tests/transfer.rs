@@ -155,7 +155,7 @@ async fn upload_resumes_from_a_partial_remote_file() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn cancel_stops_and_keeps_the_part_file() {
+async fn cancel_stops_and_removes_the_part_file() {
     let _bench = BENCH.read().await;
     let Some(f) = fixture(3).await else { return };
     let remote = format!("{}/huge.bin", f.remote);
@@ -172,7 +172,7 @@ async fn cancel_stops_and_keeps_the_part_file() {
     }
     f.queue.cancel(id);
     assert_eq!(f.wait(id, Duration::from_secs(10)).await, TransferState::Cancelled);
-    assert!(f.local.path().join("huge.bin.part").exists());
+    assert!(!f.local.path().join("huge.bin.part").exists(), "nothing half-written is left");
     assert!(!f.local.path().join("huge.bin").exists());
 }
 
@@ -251,4 +251,34 @@ async fn shell_flood_does_not_stall_a_transfer() {
     assert_eq!(f.wait(id, Duration::from_secs(20)).await, TransferState::Done);
     assert!(start.elapsed() < Duration::from_secs(20));
     assert_eq!(std::fs::metadata(f.local.path().join("twenty.bin")).unwrap().len(), 20_000_000);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_new_upload_ignores_a_stale_partial() {
+    let _bench = BENCH.read().await;
+    let Some(f) = fixture(3).await else { return };
+    let original = data(4 * MIB, 21);
+    let src = f.local.path().join("app.jar");
+    std::fs::write(&src, &original).unwrap();
+    // Left by an earlier, cancelled upload of another version.
+    f.put("app.jar.tilde-part", &data(MIB, 99)).await;
+
+    let id = f.queue.upload(1, Arc::clone(&f.client), &src, &f.remote).await.unwrap()[0];
+    assert_eq!(f.wait(id, Duration::from_secs(30)).await, TransferState::Done);
+    let back = f.client.inner().read(format!("{}/app.jar", f.remote)).await.unwrap();
+    assert_eq!(back, original, "no stitched file");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn upload_keeps_the_replaced_files_mode() {
+    let _bench = BENCH.read().await;
+    let Some(f) = fixture(3).await else { return };
+    let remote = f.put("deploy.sh", b"old").await;
+    f.client.chmod(&remote, 0o750).await.unwrap();
+    let src = f.local.path().join("deploy.sh");
+    std::fs::write(&src, b"#!/bin/sh\necho new\n").unwrap();
+
+    let id = f.queue.upload(1, Arc::clone(&f.client), &src, &f.remote).await.unwrap()[0];
+    assert_eq!(f.wait(id, Duration::from_secs(30)).await, TransferState::Done);
+    assert_eq!(f.client.stat(&remote).await.unwrap().permissions, Some(0o750));
 }

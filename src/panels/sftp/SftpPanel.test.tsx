@@ -20,6 +20,14 @@ const tree: Record<string, RemoteEntry[]> = {
       modified: 1,
       permissions: 0o644,
     },
+    {
+      name: 'current',
+      path: '/home/me/current',
+      kind: 'symlink',
+      size: 0,
+      modified: 1,
+      permissions: 0o777,
+    },
   ],
   '/home/me/src': [
     {
@@ -136,4 +144,11 @@ test('a pane whose ssh session is gone says so', () => {
   expect(screen.getByText(/Déconnecté/)).toBeInTheDocument();
   const tab = useWorkspace.getState().tabs[0];
   expect(tab && findLeaf(tab.root, sshLeaf)).not.toBeNull();
+});
+
+test('permissions are never changed through a symbolic link', async () => {
+  render(<View />);
+  fireEvent.contextMenu(await screen.findByRole('row', { name: /current/ }));
+  await screen.findByRole('menuitem', { name: 'Supprimer' });
+  expect(screen.queryByRole('menuitem', { name: 'Permissions…' })).toBeNull();
 });

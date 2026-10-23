@@ -9,6 +9,7 @@
 use std::{
     collections::VecDeque,
     io,
+    path::Path,
     sync::{
         Arc, OnceLock,
         atomic::{AtomicBool, AtomicUsize, Ordering},
@@ -22,7 +23,7 @@ use tilde_session::{Backend, FlowState};
 use tokio::sync::{Notify, mpsc::UnboundedSender};
 
 use crate::{
-    ForwardInfo, ForwardSpec, SftpClient, SftpError,
+    ForwardInfo, ForwardSpec, RemoteFile, SftpClient, SftpError, Stamp,
     chain::Connection,
     forward::{Forwards, Routes},
 };
@@ -144,6 +145,7 @@ impl SshShell {
         let mut cached = self.sftp.lock().await;
         if let Some((on, client)) = cached.as_ref()
             && Arc::ptr_eq(on, &connection)
+            && !client.is_dead()
         {
             return Ok(Arc::clone(client));
         }
@@ -165,6 +167,23 @@ impl SshShell {
 
     fn paused(&self) -> bool {
         self.paused.get().is_some_and(|gate| gate())
+    }
+}
+
+/// Edits go through the session's current SFTP client, so they keep working across
+/// reconnections and reopened channels.
+#[async_trait::async_trait]
+impl RemoteFile for SshShell {
+    async fn fetch(&self, remote: &str, local: &Path) -> Result<Stamp, SftpError> {
+        self.sftp().await?.fetch(remote, local).await
+    }
+
+    async fn stamp(&self, remote: &str) -> Result<Stamp, SftpError> {
+        self.sftp().await?.stamp(remote).await
+    }
+
+    async fn push(&self, local: &Path, remote: &str) -> Result<Stamp, SftpError> {
+        self.sftp().await?.push(local, remote).await
     }
 }
 

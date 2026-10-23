@@ -10,7 +10,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 use tilde_ssh::{
     EditSession, RemoteEntry, RemoteFile, SftpClient, SftpError, SshShell, TransferInfo,
-    TransferQueue, session_temp_dir,
+    TransferQueue, TransferState, session_temp_dir,
 };
 
 use crate::{commands::session::SessionErrorDto, state::AppState};
@@ -172,27 +172,115 @@ pub async fn sftp_upload(
     Ok(ids)
 }
 
-/// Opens a local copy in the editor (`sftp.externalEditor`, else the OS default app).
-fn open_in_editor(app: &AppHandle, editor: Option<&str>, path: &Path) {
-    let opened = match editor.map(str::trim).filter(|e| !e.is_empty()) {
-        // « code --wait », « notepad++ »: program then its arguments, the file last.
-        Some(cmd) => {
-            let mut parts = cmd.split_whitespace();
-            let program = parts.next().unwrap_or(cmd);
-            std::process::Command::new(program)
-                .args(parts)
-                .arg(path)
-                .spawn()
-                .map(drop)
-                .map_err(|e| e.to_string())
+/// Splits an editor command like a shell would: spaces separate words, quotes keep
+/// them together (`"C:\Program Files\Notepad++\notepad++.exe" -multiInst`).
+pub fn split_command(cmd: &str) -> Vec<String> {
+    let mut words = Vec::new();
+    let mut word = String::new();
+    let mut quote: Option<char> = None;
+    let mut started = false;
+    for c in cmd.chars() {
+        match (quote, c) {
+            (Some(q), c) if c == q => quote = None,
+            (None, '"' | '\'') => {
+                quote = Some(c);
+                started = true;
+            }
+            (None, c) if c.is_whitespace() => {
+                if started {
+                    words.push(std::mem::take(&mut word));
+                    started = false;
+                }
+            }
+            (_, c) => {
+                word.push(c);
+                started = true;
+            }
         }
-        None => {
-            app.opener().open_path(path.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
-        }
-    };
-    if let Err(e) = opened {
-        tracing::warn!(error = %e, "could not open the external editor");
     }
+    if started {
+        words.push(word);
+    }
+    words
+}
+
+/// Extensions the desktop treats as programs or launchers: never handed to the system's
+/// default action (it would run a file that came from the server).
+const LAUNCHERS: &[&str] = &[
+    "bat", "cmd", "com", "cpl", "exe", "hta", "inf", "js", "jse", "lnk", "msc", "msi", "msp",
+    "pif", "ps1", "reg", "scf", "scr", "url", "vb", "vbe", "vbs", "ws", "wsc", "wsf", "wsh",
+    "desktop", "app", "command", "terminal", "fileloc", "webloc", "workflow",
+];
+
+/// The program and arguments that open `path` for editing. A configured editor is used as
+/// is (the file last). Otherwise a text editor is named explicitly — never the system's
+/// default « open », which runs scripts on Windows.
+///
+/// # Errors
+///
+/// No usable editor (empty command, or a launcher file on Linux without one).
+pub fn editor_invocation(
+    configured: Option<&str>,
+    path: &Path,
+    os: &str,
+) -> Result<(String, Vec<String>), String> {
+    let file = path.to_string_lossy().into_owned();
+    if let Some(cmd) = configured.map(str::trim).filter(|c| !c.is_empty()) {
+        let mut words = split_command(cmd);
+        if words.is_empty() {
+            return Err("commande d'éditeur vide".into());
+        }
+        let program = words.remove(0);
+        words.push(file);
+        return Ok((program, words));
+    }
+    match os {
+        "windows" => Ok(("notepad.exe".into(), vec![file])),
+        // `-t`: the default *text* editor, whatever the file's type.
+        "macos" => Ok(("open".into(), vec!["-t".into(), file])),
+        _ => {
+            let ext =
+                path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+            if LAUNCHERS.contains(&ext.as_str()) {
+                return Err(format!(
+                    "pour modifier un fichier « .{ext} », indiquez un éditeur dans sftp.externalEditor"
+                ));
+            }
+            Ok(("xdg-open".into(), vec![file]))
+        }
+    }
+}
+
+/// On Windows, `code` is `code.cmd`: find the program on PATH with its PATHEXT extension.
+fn resolve_program(program: &str) -> String {
+    if !cfg!(windows) || Path::new(program).extension().is_some() || program.contains(['\\', '/']) {
+        return program.to_owned();
+    }
+    let exts = std::env::var("PATHEXT").unwrap_or_else(|_| ".COM;.EXE;.BAT;.CMD".into());
+    let paths = std::env::var_os("PATH").unwrap_or_default();
+    for dir in std::env::split_paths(&paths) {
+        for ext in exts.split(';').filter(|e| !e.is_empty()) {
+            let candidate = dir.join(format!("{program}{}", ext.to_lowercase()));
+            if candidate.is_file() {
+                return candidate.to_string_lossy().into_owned();
+            }
+        }
+    }
+    program.to_owned()
+}
+
+/// Opens a local copy for editing; the error says why it could not.
+fn open_in_editor(editor: Option<&str>, path: &Path) -> Result<(), String> {
+    let (program, args) = editor_invocation(editor, path, std::env::consts::OS)?;
+    let mut child = std::process::Command::new(resolve_program(&program))
+        .args(&args)
+        .spawn()
+        .map_err(|e| format!("« {program} » : {e}"))?;
+    // Reap it when it exits (no zombie per edit on Unix).
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }
 
 /// Downloads a file, opens it in the editor and uploads each save. Returns its id in
@@ -204,18 +292,32 @@ pub async fn sftp_edit(
     session_id: u32,
     path: String,
 ) -> Result<u32, SessionErrorDto> {
-    let client: Arc<dyn RemoteFile> = client(&state, session_id).await?;
-    let id = queue(&state)?.next_id();
     let editor = state.settings.lock().settings().sftp.external_editor.clone();
+    // Already being edited: open the same local copy again (a second download would
+    // overwrite unsent changes).
+    let existing = state
+        .sftp
+        .edits
+        .lock()
+        .iter()
+        .find(|(_, (s, e))| *s == session_id && e.info().remote == path)
+        .map(|(id, (_, e))| (*id, Arc::clone(e)));
+    if let Some((id, edit)) = existing {
+        edit.reopen(|local| open_in_editor(editor.as_deref(), local))
+            .map_err(|message| SessionErrorDto { kind: "sftp", message })?;
+        return Ok(id);
+    }
+    // Through the session, not one SFTP client: edits keep working after a reconnection.
+    let remote: Arc<dyn RemoteFile> = shell(&state, session_id)?;
+    let id = queue(&state)?.next_id();
     let events = app.clone();
-    let opener = app.clone();
     let edit = EditSession::start(
         id,
         session_id,
         &session_temp_dir(session_id),
-        client,
+        remote,
         &path,
-        move |local| open_in_editor(&opener, editor.as_deref(), local),
+        move |local| open_in_editor(editor.as_deref(), local),
         Arc::new(move |info: TransferInfo| emit_transfer(&events, info)),
     )
     .await
@@ -247,6 +349,10 @@ pub fn transfers_list(state: State<'_, AppState>) -> Vec<TransferInfo> {
 
 #[tauri::command]
 pub fn transfer_cancel(state: State<'_, AppState>, id: u32) {
+    // An edit: stop watching it (its local copy stays where it is).
+    if state.sftp.edits.lock().remove(&id).is_some() {
+        return;
+    }
     if let Some(q) = state.sftp.transfers.get() {
         q.cancel(id);
     }
@@ -255,6 +361,11 @@ pub fn transfer_cancel(state: State<'_, AppState>, id: u32) {
 /// Retries a failed transfer on the session's current SFTP session (it resumes).
 #[tauri::command]
 pub async fn transfer_retry(state: State<'_, AppState>, id: u32) -> Result<(), SessionErrorDto> {
+    let edit = state.sftp.edits.lock().get(&id).map(|(_, e)| Arc::clone(e));
+    if let Some(edit) = edit {
+        edit.retry().await;
+        return Ok(());
+    }
     let queue = queue(&state)?;
     let Some(info) = queue.list().into_iter().find(|t| t.id == id) else { return Ok(()) };
     let client = client(&state, info.session).await?;
@@ -287,16 +398,66 @@ pub(crate) fn on_session_closed(app: &AppHandle, session_id: u32) {
     if let Some(q) = state.sftp.transfers.get() {
         q.cancel_session(session_id);
     }
-    state.sftp.edits.lock().retain(|_, (s, _)| *s != session_id);
-    let dir = session_temp_dir(session_id);
-    std::thread::spawn(move || {
-        let _ = std::fs::remove_dir_all(dir);
-    });
+    let ended: Vec<Arc<EditSession>> = {
+        let mut edits = state.sftp.edits.lock();
+        let ids: Vec<u32> =
+            edits.iter().filter(|(_, (s, _))| *s == session_id).map(|(id, _)| *id).collect();
+        ids.iter().filter_map(|id| edits.remove(id)).map(|(_, e)| e).collect()
+    };
+    // Changes not yet on the server are never deleted: their copy stays, and the list says
+    // where.
+    let mut unsent = false;
+    for edit in &ended {
+        if edit.is_dirty() {
+            unsent = true;
+            let mut info = edit.info();
+            info.state = TransferState::Failed {
+                message: format!(
+                    "session fermée avant l'envoi : votre version est conservée dans {}",
+                    edit.local_path().display()
+                ),
+            };
+            emit_transfer(app, info);
+        }
+    }
+    if !unsent {
+        let dir = session_temp_dir(session_id);
+        std::thread::spawn(move || {
+            let _ = std::fs::remove_dir_all(dir);
+        });
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn editor_commands_split_like_a_shell() {
+        assert_eq!(split_command("code --wait"), ["code", "--wait"]);
+        assert_eq!(
+            split_command(r#""C:\Program Files\Notepad++\notepad++.exe" -multiInst"#),
+            [r"C:\Program Files\Notepad++\notepad++.exe", "-multiInst"]
+        );
+        assert_eq!(split_command("  vim  "), ["vim"]);
+        assert_eq!(split_command("ed ''"), ["ed", ""]);
+    }
+
+    #[test]
+    fn without_an_editor_a_server_file_is_never_run() {
+        let script = Path::new(r"C:\tmp\build.js");
+        let (program, args) = editor_invocation(None, script, "windows").unwrap();
+        assert_eq!(program, "notepad.exe", "never the system's « open », which runs .js");
+        assert_eq!(args, [script.to_string_lossy()]);
+        let (program, args) =
+            editor_invocation(None, Path::new("/tmp/x.command"), "macos").unwrap();
+        assert_eq!((program.as_str(), args[0].as_str()), ("open", "-t"));
+        assert!(editor_invocation(None, Path::new("/tmp/evil.desktop"), "linux").is_err());
+        assert!(editor_invocation(None, Path::new("/tmp/notes.txt"), "linux").is_ok());
+        let (program, args) =
+            editor_invocation(Some("code --wait"), Path::new("/tmp/a.js"), "windows").unwrap();
+        assert_eq!((program.as_str(), args), ("code", vec!["--wait".into(), "/tmp/a.js".into()]));
+    }
 
     #[test]
     fn download_destination_is_the_downloads_folder_unless_save_as() {

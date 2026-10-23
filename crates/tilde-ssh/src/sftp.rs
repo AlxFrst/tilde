@@ -3,10 +3,13 @@
 //! The session is opened on demand on the connection the shell already uses: no second
 //! authentication.
 
-use std::time::Duration;
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
 
 use russh_sftp::{
-    client::{SftpSession, fs::Metadata},
+    client::{SftpSession, error::Error as SessionError, fs::Metadata},
     protocol::{FileAttributes, FileType},
 };
 use serde::Serialize;
@@ -15,6 +18,8 @@ use crate::chain::Connection;
 
 /// Bound on opening the SFTP subsystem (a server without one may never answer).
 const OPEN_TIMEOUT: Duration = Duration::from_secs(15);
+/// Bound on the liveness probe after a failed transfer.
+const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 /// A recursive delete stops past this many entries.
 pub const MAX_REMOVE: u64 = 100_000;
 /// Longest local file name we produce, in UTF-8 bytes (NTFS/ext4 allow 255).
@@ -144,6 +149,8 @@ fn entry(name: String, path: String, m: &Metadata) -> RemoteEntry {
 /// An SFTP session on one SSH connection.
 pub struct SftpClient {
     session: SftpSession,
+    /// The channel failed (not a refusal by the server): the session must be reopened.
+    dead: AtomicBool,
 }
 
 impl SftpClient {
@@ -163,7 +170,30 @@ impl SftpClient {
         let session = tokio::time::timeout(OPEN_TIMEOUT, open)
             .await
             .map_err(|_| SftpError::Unavailable("le serveur ne répond pas".into()))??;
-        Ok(Self { session })
+        Ok(Self { session, dead: AtomicBool::new(false) })
+    }
+
+    /// The channel broke (connection, `sftp-server` gone…): open a new session.
+    #[must_use]
+    pub fn is_dead(&self) -> bool {
+        self.dead.load(Ordering::Acquire)
+    }
+
+    /// After a failure whose cause is unclear (a transfer cut): a cheap request tells
+    /// whether the session still answers.
+    pub async fn check_alive(&self) {
+        let probe = tokio::time::timeout(PROBE_TIMEOUT, self.session.canonicalize(".")).await;
+        if !matches!(probe, Ok(Ok(_))) {
+            self.dead.store(true, Ordering::Release);
+        }
+    }
+
+    /// Maps a library error; anything but a refusal by the server marks the session dead.
+    fn fail(&self, path: &str, e: SessionError) -> SftpError {
+        if !matches!(e, SessionError::Status(_)) {
+            self.dead.store(true, Ordering::Release);
+        }
+        io(path, e)
     }
 
     #[must_use]
@@ -177,7 +207,7 @@ impl SftpClient {
     ///
     /// The server cannot resolve `.`.
     pub async fn home(&self) -> Result<String, SftpError> {
-        self.session.canonicalize(".").await.map_err(|e| io(".", e))
+        self.session.canonicalize(".").await.map_err(|e| self.fail(".", e))
     }
 
     /// Directories first, then by name (case-insensitive); `.` and `..` left out.
@@ -186,7 +216,7 @@ impl SftpClient {
     ///
     /// The directory cannot be read.
     pub async fn list(&self, path: &str) -> Result<Vec<RemoteEntry>, SftpError> {
-        let dir = self.session.read_dir(path).await.map_err(|e| io(path, e))?;
+        let dir = self.session.read_dir(path).await.map_err(|e| self.fail(path, e))?;
         let mut entries: Vec<RemoteEntry> = dir
             .filter(|e| e.file_name() != "." && e.file_name() != "..")
             .map(|e| entry(e.file_name(), join_remote(path, &e.file_name()), &e.metadata()))
@@ -203,7 +233,7 @@ impl SftpClient {
     ///
     /// The path does not exist or cannot be read.
     pub async fn stat(&self, path: &str) -> Result<RemoteEntry, SftpError> {
-        let m = self.session.metadata(path).await.map_err(|e| io(path, e))?;
+        let m = self.session.metadata(path).await.map_err(|e| self.fail(path, e))?;
         let name = path.rsplit('/').next().unwrap_or(path).to_owned();
         Ok(entry(name, path.to_owned(), &m))
     }
@@ -212,14 +242,14 @@ impl SftpClient {
     ///
     /// The directory cannot be created.
     pub async fn mkdir(&self, path: &str) -> Result<(), SftpError> {
-        self.session.create_dir(path).await.map_err(|e| io(path, e))
+        self.session.create_dir(path).await.map_err(|e| self.fail(path, e))
     }
 
     /// # Errors
     ///
     /// The rename is refused.
     pub async fn rename(&self, from: &str, to: &str) -> Result<(), SftpError> {
-        self.session.rename(from, to).await.map_err(|e| io(from, e))
+        self.session.rename(from, to).await.map_err(|e| self.fail(from, e))
     }
 
     /// Sets the permission bits (`0o7777`), keeping the file type.
@@ -229,7 +259,7 @@ impl SftpClient {
     /// The change is refused.
     pub async fn chmod(&self, path: &str, mode: u32) -> Result<(), SftpError> {
         let attrs = FileAttributes { permissions: Some(mode & 0o7777), ..FileAttributes::empty() };
-        self.session.set_metadata(path, attrs).await.map_err(|e| io(path, e))
+        self.session.set_metadata(path, attrs).await.map_err(|e| self.fail(path, e))
     }
 
     /// Deletes a file, a link or a whole directory tree; returns how many entries went.
@@ -239,9 +269,9 @@ impl SftpClient {
     ///
     /// The first failure, or [`SftpError::TooMany`] past [`MAX_REMOVE`] entries.
     pub async fn remove(&self, path: &str) -> Result<u64, SftpError> {
-        let m = self.session.symlink_metadata(path).await.map_err(|e| io(path, e))?;
+        let m = self.session.symlink_metadata(path).await.map_err(|e| self.fail(path, e))?;
         if m.file_type() != FileType::Dir {
-            self.session.remove_file(path).await.map_err(|e| io(path, e))?;
+            self.session.remove_file(path).await.map_err(|e| self.fail(path, e))?;
             return Ok(1);
         }
         // Depth-first, without recursion: directories are removed once emptied.
@@ -249,12 +279,12 @@ impl SftpClient {
         let mut stack = vec![(path.to_owned(), false)];
         while let Some((dir, emptied)) = stack.pop() {
             if emptied {
-                self.session.remove_dir(&dir).await.map_err(|e| io(&dir, e))?;
+                self.session.remove_dir(&dir).await.map_err(|e| self.fail(&dir, e))?;
                 removed += 1;
                 continue;
             }
             stack.push((dir.clone(), true));
-            let listing = self.session.read_dir(&dir).await.map_err(|e| io(&dir, e))?;
+            let listing = self.session.read_dir(&dir).await.map_err(|e| self.fail(&dir, e))?;
             for e in listing {
                 let name = e.file_name();
                 if name == "." || name == ".." {
@@ -265,7 +295,7 @@ impl SftpClient {
                 if e.file_type() == FileType::Dir {
                     stack.push((child, false));
                 } else {
-                    self.session.remove_file(&child).await.map_err(|e| io(&child, e))?;
+                    self.session.remove_file(&child).await.map_err(|e| self.fail(&child, e))?;
                     removed += 1;
                 }
                 if removed > MAX_REMOVE {

@@ -20,6 +20,9 @@ use crate::{Direction, SftpClient, SftpError, TransferInfo, TransferState, safe_
 
 /// Editors save in bursts (temp file, rename, metadata): wait for quiet first.
 pub const EDIT_DEBOUNCE: Duration = Duration::from_millis(500);
+/// Files larger than this are not opened for editing (they are read in memory): use
+/// « Télécharger » instead.
+pub const EDIT_MAX_BYTES: u64 = 64 * 1024 * 1024;
 /// Temporary edit folders older than this are removed at startup.
 const STALE_AFTER: Duration = Duration::from_hours(7 * 24);
 
@@ -142,7 +145,7 @@ impl EditSession {
         root: &Path,
         remote: Arc<dyn RemoteFile>,
         remote_path: &str,
-        open: impl FnOnce(&Path),
+        open: impl FnOnce(&Path) -> Result<(), String>,
         on_event: OnEvent,
     ) -> Result<Self, SftpError> {
         let mut h = DefaultHasher::new();
@@ -151,6 +154,16 @@ impl EditSession {
         std::fs::create_dir_all(&dir).map_err(|e| local_err(&dir, &e))?;
         let name = remote_path.rsplit('/').next().unwrap_or(remote_path);
         let local = dir.join(safe_local_name(name));
+        let size = remote.stamp(remote_path).await?.size;
+        if size > EDIT_MAX_BYTES {
+            return Err(SftpError::Io {
+                path: remote_path.to_owned(),
+                message: format!(
+                    "fichier trop volumineux pour être modifié ({} Mio au plus) : téléchargez-le",
+                    EDIT_MAX_BYTES / (1024 * 1024)
+                ),
+            });
+        }
         let stamp = remote.fetch(remote_path, &local).await?;
         let info = TransferInfo {
             id,
@@ -201,8 +214,12 @@ impl EditSession {
                 }
             })
         };
-        open(&local);
-        Ok(Self { state, remote, on_event, local, _watcher: watcher, worker })
+        let session = Self { state, remote, on_event, local, _watcher: watcher, worker };
+        open(&session.local).map_err(|message| SftpError::Io {
+            path: session.local.display().to_string(),
+            message: format!("impossible d'ouvrir l'éditeur : {message}"),
+        })?;
+        Ok(session)
     }
 
     #[must_use]
@@ -213,6 +230,30 @@ impl EditSession {
     #[must_use]
     pub fn info(&self) -> TransferInfo {
         self.state.lock().info.clone()
+    }
+
+    /// Local changes not on the server yet (unsent save, conflict, failed upload).
+    #[must_use]
+    pub fn is_dirty(&self) -> bool {
+        let st = self.state.lock();
+        !matches!(st.info.state, TransferState::Done) || hash_file(&self.local) != st.synced
+    }
+
+    /// Tries the upload again after a failure (still refusing to overwrite a remote
+    /// change).
+    pub async fn retry(&self) {
+        let remote_path = self.state.lock().info.remote.clone();
+        sync(&self.state, self.remote.as_ref(), &self.on_event, &self.local, &remote_path, false)
+            .await;
+    }
+
+    /// Opens the local copy again (« Modifier » on a file already being edited).
+    ///
+    /// # Errors
+    ///
+    /// The editor could not be started.
+    pub fn reopen(&self, open: impl FnOnce(&Path) -> Result<(), String>) -> Result<(), String> {
+        open(&self.local)
     }
 
     /// After a conflict: `true` uploads the local version anyway, `false` replaces it with
@@ -280,7 +321,8 @@ async fn sync(
         let st = state.lock();
         (st.stamp, st.synced, matches!(st.info.state, TransferState::Conflict { .. }))
     };
-    if current.is_none() || (current == synced && !force) {
+    let failed = matches!(state.lock().info.state, TransferState::Failed { .. });
+    if current.is_none() || (current == synced && !force && !failed) {
         return;
     }
     if !force {
@@ -368,7 +410,7 @@ mod tests {
             root.path(),
             remote,
             "/srv/app/config.yml",
-            |_| {},
+            |_| Ok(()),
             Arc::new(move |i| sink.lock().push(i)),
         )
         .await
@@ -382,6 +424,76 @@ mod tests {
             assert!(Instant::now() < deadline, "condition not reached");
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn editing_a_huge_file_is_refused() {
+        // Pretend the remote file is huge: only its stamp is checked before fetching.
+        struct Huge(Arc<Fake>);
+        #[async_trait]
+        impl RemoteFile for Huge {
+            async fn fetch(&self, r: &str, l: &Path) -> Result<Stamp, SftpError> {
+                self.0.fetch(r, l).await
+            }
+            async fn stamp(&self, _r: &str) -> Result<Stamp, SftpError> {
+                Ok(Stamp { size: EDIT_MAX_BYTES + 1, mtime: Some(1) })
+            }
+            async fn push(&self, l: &Path, r: &str) -> Result<Stamp, SftpError> {
+                self.0.push(l, r).await
+            }
+        }
+        let fake = Arc::new(Fake::default());
+        *fake.content.lock() = vec![0; 16];
+        let root = tempfile::TempDir::new().unwrap();
+        let huge: Arc<dyn RemoteFile> = Arc::new(Huge(Arc::clone(&fake)));
+        let err = EditSession::start(
+            1,
+            1,
+            root.path(),
+            huge,
+            "/var/log/big.log",
+            |_| Ok(()),
+            Arc::new(|_| {}),
+        )
+        .await
+        .err()
+        .expect("refused");
+        assert!(err.to_string().contains("trop volumineux"), "{err}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn unsent_changes_make_the_edit_dirty() {
+        let fake = Arc::new(Fake::default());
+        let (edit, _events, _root) = start(&fake).await;
+        assert!(!edit.is_dirty());
+        *fake.content.lock() = b"theirs".to_vec();
+        *fake.mtime.lock() += 10;
+        std::fs::write(edit.local_path(), "mine").unwrap();
+        settle(|| matches!(edit.info().state, TransferState::Conflict { .. })).await;
+        assert!(edit.is_dirty(), "a conflict holds unsent work");
+        edit.resolve(true).await;
+        assert!(!edit.is_dirty());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn an_editor_that_cannot_start_is_reported() {
+        let fake = Arc::new(Fake::default());
+        *fake.content.lock() = b"v1".to_vec();
+        let root = tempfile::TempDir::new().unwrap();
+        let remote: Arc<dyn RemoteFile> = Arc::clone(&fake) as Arc<dyn RemoteFile>;
+        let err = EditSession::start(
+            1,
+            1,
+            root.path(),
+            remote,
+            "/a",
+            |_| Err("programme introuvable".into()),
+            Arc::new(|_| {}),
+        )
+        .await
+        .err()
+        .expect("reported");
+        assert!(err.to_string().contains("programme introuvable"), "{err}");
     }
 
     #[tokio::test(flavor = "multi_thread")]

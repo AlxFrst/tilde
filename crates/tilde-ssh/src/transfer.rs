@@ -6,7 +6,7 @@
 //! real name, and « Réessayer » resumes from the partial file's size.
 
 use std::{
-    collections::VecDeque,
+    collections::{HashSet, VecDeque},
     io::SeekFrom,
     path::{Path, PathBuf},
     sync::{
@@ -17,7 +17,7 @@ use std::{
 };
 
 use parking_lot::Mutex;
-use russh_sftp::protocol::OpenFlags;
+use russh_sftp::protocol::{FileAttributes, OpenFlags};
 use serde::Serialize;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
@@ -133,6 +133,9 @@ struct Job {
     info: TransferInfo,
     client: Arc<SftpClient>,
     cancel: Arc<AtomicBool>,
+    /// Only « Réessayer » resumes from a partial file: a new transfer must never pick up
+    /// an unrelated partial file left by an earlier one.
+    resume: bool,
 }
 
 type OnEvent = Arc<dyn Fn(TransferInfo) + Send + Sync>;
@@ -140,6 +143,11 @@ type OnEvent = Arc<dyn Fn(TransferInfo) + Send + Sync>;
 struct Inner {
     concurrency: Mutex<usize>,
     jobs: Mutex<Vec<Job>>,
+    /// Jobs in `Running` (kept here: counting them on every change is O(n²)).
+    running: Mutex<usize>,
+    /// Local destinations claimed by queued or running downloads (case-folded): two
+    /// downloads never share a file.
+    reserved: Mutex<HashSet<String>>,
     next_id: AtomicU32,
     on_event: OnEvent,
 }
@@ -157,6 +165,8 @@ impl TransferQueue {
             inner: Arc::new(Inner {
                 concurrency: Mutex::new(concurrency.max(1)),
                 jobs: Mutex::new(Vec::new()),
+                running: Mutex::new(0),
+                reserved: Mutex::new(HashSet::new()),
                 next_id: AtomicU32::new(0),
                 on_event,
             }),
@@ -195,15 +205,17 @@ impl TransferQueue {
         let root = client.stat(remote).await?;
         let mut files = Vec::new();
         if root.kind == EntryKind::Dir {
-            let base = unique_path(&local_dir.join(safe_local_name(&root.name)));
+            let base = self.reserve_unique(&local_dir.join(safe_local_name(&root.name)));
             let mut stack = vec![(remote.to_owned(), base)];
             while let Some((dir, local)) = stack.pop() {
                 std::fs::create_dir_all(&local).map_err(|e| local_err(&local, &e))?;
                 for e in client.list(&dir).await? {
                     let target = local.join(safe_local_name(&e.name));
                     match e.kind {
-                        EntryKind::Dir => stack.push((e.path, target)),
-                        EntryKind::File => files.push((e.path, target, e.size)),
+                        EntryKind::Dir => stack.push((e.path, self.reserve_unique(&target))),
+                        EntryKind::File => {
+                            files.push((e.path, self.reserve_unique(&target), e.size));
+                        }
                         // Links and devices are not copied: following a link could pull
                         // in anything on the server.
                         EntryKind::Symlink | EntryKind::Other => {}
@@ -213,7 +225,7 @@ impl TransferQueue {
         } else {
             files.push((
                 remote.to_owned(),
-                unique_path(&local_dir.join(safe_local_name(&root.name))),
+                self.reserve_unique(&local_dir.join(safe_local_name(&root.name))),
                 root.size,
             ));
         }
@@ -294,12 +306,39 @@ impl TransferQueue {
             info,
             client: Arc::clone(client),
             cancel: Arc::new(AtomicBool::new(false)),
+            resume: false,
         });
         self.pump();
         id
     }
 
-    /// Stops a queued or running transfer; its partial file is kept for a retry.
+    /// `path`, or « nom (1).ext »… — never an existing file nor one another download is
+    /// writing (names differing only by case count as the same, as on Windows and macOS).
+    pub(crate) fn reserve_unique(&self, path: &Path) -> PathBuf {
+        let mut reserved = self.inner.reserved.lock();
+        let key = |p: &Path| p.to_string_lossy().to_lowercase();
+        let taken = |p: &Path| p.exists() || reserved.contains(&key(p));
+        let chosen = if taken(path) {
+            let stem =
+                path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+            let ext =
+                path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+            (1..10_000)
+                .map(|n| path.with_file_name(format!("{stem} ({n}){ext}")))
+                .find(|p| !taken(p))
+                .unwrap_or_else(|| path.to_path_buf())
+        } else {
+            path.to_path_buf()
+        };
+        reserved.insert(key(&chosen));
+        chosen
+    }
+
+    fn release(&self, path: &str) {
+        self.inner.reserved.lock().remove(&path.to_lowercase());
+    }
+
+    /// Stops a queued or running transfer and removes its partial file.
     pub fn cancel(&self, id: u32) {
         let mut cancelled = None;
         if let Some(job) = self.inner.jobs.lock().iter_mut().find(|j| j.info.id == id) {
@@ -338,6 +377,7 @@ impl TransferQueue {
         {
             job.client = client;
             job.cancel = Arc::new(AtomicBool::new(false));
+            job.resume = true;
             job.info.state = TransferState::Queued;
             job.info.bytes_per_sec = 0;
             queued = Some(job.info.clone());
@@ -350,7 +390,17 @@ impl TransferQueue {
 
     /// Forgets finished transfers.
     pub fn clear_finished(&self) {
-        self.inner.jobs.lock().retain(|j| !j.info.state.is_finished());
+        let mut released = Vec::new();
+        self.inner.jobs.lock().retain(|j| {
+            let keep = !j.info.state.is_finished();
+            if !keep && j.info.direction == Direction::Download {
+                released.push(j.info.local.clone());
+            }
+            keep
+        });
+        for path in released {
+            self.release(&path);
+        }
     }
 
     /// Starts queued transfers while fewer than `concurrency` run.
@@ -359,34 +409,45 @@ impl TransferQueue {
         let mut to_start = Vec::new();
         {
             let mut jobs = self.inner.jobs.lock();
-            let mut running =
-                jobs.iter().filter(|j| j.info.state == TransferState::Running).count();
+            let mut running = self.inner.running.lock();
             for job in jobs.iter_mut() {
-                if running >= limit {
+                if *running >= limit {
                     break;
                 }
                 if job.info.state == TransferState::Queued {
                     job.info.state = TransferState::Running;
-                    running += 1;
+                    *running += 1;
                     to_start.push((
                         job.info.clone(),
                         Arc::clone(&job.client),
                         Arc::clone(&job.cancel),
+                        job.resume,
                     ));
                 }
             }
         }
-        for (info, client, cancel) in to_start {
+        for (info, client, cancel, resume) in to_start {
             (self.inner.on_event)(info.clone());
             let queue = self.clone();
             tokio::spawn(async move {
-                let state = match run(&queue, &info, &client, &cancel).await {
+                let state = match run(&queue, &info, &client, &cancel, resume).await {
                     Ok(()) if cancel.load(Ordering::Acquire) => TransferState::Cancelled,
                     Ok(()) => TransferState::Done,
-                    Err(e) => TransferState::Failed { message: e.to_string() },
+                    Err(e) => {
+                        // A dead SFTP channel is reopened on the next use.
+                        client.check_alive().await;
+                        TransferState::Failed { message: e.to_string() }
+                    }
                 };
                 queue.finish(info.id, state);
             });
+        }
+    }
+
+    /// The download landed under another name (the target appeared meanwhile).
+    fn relocate(&self, id: u32, local: &Path) {
+        if let Some(job) = self.inner.jobs.lock().iter_mut().find(|j| j.info.id == id) {
+            job.info.local = local.to_string_lossy().into_owned();
         }
     }
 
@@ -408,6 +469,10 @@ impl TransferQueue {
         let info = {
             let mut jobs = self.inner.jobs.lock();
             let Some(job) = jobs.iter_mut().find(|j| j.info.id == id) else { return };
+            if job.info.state == TransferState::Running {
+                let mut running = self.inner.running.lock();
+                *running = running.saturating_sub(1);
+            }
             if state == TransferState::Done {
                 job.info.done = job.info.total;
             }
@@ -415,6 +480,11 @@ impl TransferQueue {
             job.info.bytes_per_sec = 0;
             job.info.clone()
         };
+        if info.direction == Direction::Download
+            && matches!(info.state, TransferState::Done | TransferState::Cancelled)
+        {
+            self.release(&info.local);
+        }
         if let TransferState::Failed { message } = &info.state {
             tracing::info!(transfer = id, %message, "transfer failed");
         }
@@ -431,17 +501,10 @@ fn remote_err(path: &str, e: impl std::fmt::Display) -> SftpError {
     SftpError::Io { path: path.to_owned(), message: e.to_string() }
 }
 
-/// `path`, or « name (1).ext », « name (2).ext »… if it exists.
-fn unique_path(path: &Path) -> PathBuf {
-    if !path.exists() {
-        return path.to_path_buf();
-    }
-    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-    let ext = path.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
-    (1..10_000)
-        .map(|n| path.with_file_name(format!("{stem} ({n}){ext}")))
-        .find(|p| !p.exists())
-        .unwrap_or_else(|| path.to_path_buf())
+/// Where a transfer starts: from the partial file only on a retry, and only if it is
+/// shorter than the source.
+fn start_offset(have: u64, total: u64, resume: bool) -> u64 {
+    if resume && have < total { have } else { 0 }
 }
 
 fn local_part(local: &Path) -> PathBuf {
@@ -455,8 +518,9 @@ async fn run(
     info: &TransferInfo,
     client: &SftpClient,
     cancel: &AtomicBool,
+    resume: bool,
 ) -> Result<(), SftpError> {
-    let ctx = Ctx { queue, info, cancel };
+    let ctx = Ctx { queue, info, cancel, resume };
     match info.direction {
         Direction::Download => download_file(&ctx, client).await,
         Direction::Upload => upload_file(&ctx, client).await,
@@ -468,6 +532,7 @@ struct Ctx<'a> {
     queue: &'a TransferQueue,
     info: &'a TransferInfo,
     cancel: &'a AtomicBool,
+    resume: bool,
 }
 
 /// Copies `reader` into `writer` from `done`, reporting progress, until EOF or cancel.
@@ -508,8 +573,7 @@ async fn download_file(ctx: &Ctx<'_>, client: &SftpClient) -> Result<(), SftpErr
     let part = local_part(&local);
     let total = client.stat(&info.remote).await?.size;
     let have = tokio::fs::metadata(&part).await.map_or(0, |m| m.len());
-    // A partial file shorter than the remote one is resumed; anything else restarts.
-    let offset = if have < total { have } else { 0 };
+    let offset = start_offset(have, total, ctx.resume);
     let mut out = tokio::fs::OpenOptions::new()
         .create(true)
         .write(true)
@@ -526,12 +590,21 @@ async fn download_file(ctx: &Ctx<'_>, client: &SftpClient) -> Result<(), SftpErr
         pump_bytes(ctx, &mut remote, &mut out, offset, total, (&info.remote, &part_name)).await?;
     drop(out);
     if cancel.load(Ordering::Acquire) {
+        let _ = tokio::fs::remove_file(&part).await;
         return Ok(());
     }
     if done < total {
         return Err(remote_err(&info.remote, "fichier distant raccourci pendant le transfert"));
     }
-    tokio::fs::rename(&part, &local).await.map_err(|e| local_err(&local, &e))
+    // Never replace a file that appeared under that name meanwhile.
+    let target = if local.exists() {
+        let other = ctx.queue.reserve_unique(&local);
+        ctx.queue.relocate(info.id, &other);
+        other
+    } else {
+        local
+    };
+    tokio::fs::rename(&part, &target).await.map_err(|e| local_err(&target, &e))
 }
 
 async fn upload_file(ctx: &Ctx<'_>, client: &SftpClient) -> Result<(), SftpError> {
@@ -540,13 +613,18 @@ async fn upload_file(ctx: &Ctx<'_>, client: &SftpClient) -> Result<(), SftpError
     let part = format!("{}{REMOTE_PART}", info.remote);
     let total = tokio::fs::metadata(&local).await.map_err(|e| local_err(&local, &e))?.len();
     let have = client.stat(&part).await.map_or(0, |e| e.size);
-    let offset = if have < total { have } else { 0 };
+    let offset = start_offset(have, total, ctx.resume);
     let mut flags = OpenFlags::WRITE | OpenFlags::CREATE;
     if offset == 0 {
         flags |= OpenFlags::TRUNCATE;
     }
-    let mut remote =
-        client.inner().open_with_flags(&part, flags).await.map_err(|e| remote_err(&part, e))?;
+    // Private while it is incomplete (a partial `.env` must not be world-readable).
+    let private = FileAttributes { permissions: Some(0o600), ..FileAttributes::empty() };
+    let mut remote = client
+        .inner()
+        .open_with_flags_and_attributes(&part, flags, private)
+        .await
+        .map_err(|e| remote_err(&part, e))?;
     remote.seek(SeekFrom::Start(offset)).await.map_err(|e| remote_err(&part, e))?;
     let mut input = tokio::fs::File::open(&local).await.map_err(|e| local_err(&local, &e))?;
     input.seek(SeekFrom::Start(offset)).await.map_err(|e| local_err(&local, &e))?;
@@ -555,8 +633,13 @@ async fn upload_file(ctx: &Ctx<'_>, client: &SftpClient) -> Result<(), SftpError
     remote.shutdown().await.map_err(|e| remote_err(&part, e))?;
     drop(remote);
     if cancel.load(Ordering::Acquire) {
+        let _ = client.inner().remove_file(&part).await;
         return Ok(());
     }
+    // The replaced file keeps its permissions (a script stays executable, a secret stays
+    // private); a new file gets the usual 0644.
+    let mode = client.stat(&info.remote).await.ok().and_then(|e| e.permissions).unwrap_or(0o644);
+    client.chmod(&part, mode).await?;
     // SFTP v3 cannot rename over an existing file: replace it.
     let _ = client.inner().remove_file(&info.remote).await;
     client.rename(&part, &info.remote).await
@@ -586,14 +669,36 @@ mod tests {
         assert_eq!(later, 0);
     }
 
+    fn queue() -> TransferQueue {
+        TransferQueue::new(2, Arc::new(|_| {}))
+    }
+
     #[test]
     fn unique_names_never_overwrite() {
         let dir = tempfile::TempDir::new().unwrap();
+        let q = queue();
         let p = dir.path().join("rapport.pdf");
-        assert_eq!(unique_path(&p), p);
         std::fs::write(&p, "x").unwrap();
-        assert_eq!(unique_path(&p), dir.path().join("rapport (1).pdf"));
-        std::fs::write(dir.path().join("rapport (1).pdf"), "x").unwrap();
-        assert_eq!(unique_path(&p), dir.path().join("rapport (2).pdf"));
+        assert_eq!(q.reserve_unique(&p), dir.path().join("rapport (1).pdf"));
+    }
+
+    #[test]
+    fn two_downloads_never_share_a_target() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let q = queue();
+        let a = q.reserve_unique(&dir.path().join("README"));
+        let b = q.reserve_unique(&dir.path().join("readme"));
+        assert_eq!(a, dir.path().join("README"));
+        assert_eq!(b, dir.path().join("readme (1)"), "same name on Windows and macOS");
+        q.release(&a.to_string_lossy());
+        assert_eq!(q.reserve_unique(&dir.path().join("README")), a);
+    }
+
+    #[test]
+    fn a_fresh_transfer_never_resumes_a_stale_partial() {
+        assert_eq!(start_offset(40, 100, false), 0, "a new transfer starts over");
+        assert_eq!(start_offset(40, 100, true), 40, "« Réessayer » resumes");
+        assert_eq!(start_offset(100, 100, true), 0);
+        assert_eq!(start_offset(150, 100, true), 0);
     }
 }

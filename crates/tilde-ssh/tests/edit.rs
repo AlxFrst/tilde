@@ -25,7 +25,7 @@ async fn edit_round_trip() {
     let client: Arc<dyn RemoteFile> = Arc::new(SftpClient::open(&connection).await.unwrap());
     let root = tempfile::TempDir::new().unwrap();
     let edit =
-        EditSession::start(1, 1, root.path(), client, &remote_path, |_| {}, Arc::new(|_| {}))
+        EditSession::start(1, 1, root.path(), client, &remote_path, |_| Ok(()), Arc::new(|_| {}))
             .await
             .unwrap();
     assert_eq!(std::fs::read_to_string(edit.local_path()).unwrap(), "avant");

@@ -426,13 +426,17 @@ export function SftpPanelView({
         >
           Renommer…
         </ContextMenuItem>
-        <ContextMenuItem
-          onSelect={() => {
-            setChmod(e);
-          }}
-        >
-          Permissions…
-        </ContextMenuItem>
+        {/* SETSTAT follows links: changing a link's « mode » would change its target. */}
+        {e.kind !== 'symlink' && (
+          <ContextMenuItem
+            disabled={e.permissions === null}
+            onSelect={() => {
+              setChmod(e);
+            }}
+          >
+            Permissions…
+          </ContextMenuItem>
+        )}
         <ContextMenuItem
           onSelect={() => {
             void writeText(e.path);
@@ -592,10 +596,10 @@ export function SftpPanelView({
           }}
         />
       )}
-      {chmod && (
+      {chmod?.permissions != null && (
         <ChmodDialog
           name={chmod.name}
-          mode={chmod.permissions ?? 0o644}
+          mode={chmod.permissions}
           onClose={() => {
             setChmod(null);
           }}

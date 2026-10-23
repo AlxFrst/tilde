@@ -15,6 +15,8 @@ import { formatProgress } from '@/panels/sftp/format';
 import { isActive, transferName, useTransfers } from '@/stores/transfers';
 
 const noop = () => undefined;
+/** Rows rendered at most (a folder of thousands of files stays responsive). */
+const MAX_ROWS = 200;
 
 const STATE_TEXT: Record<TransferInfo['state']['kind'], string> = {
   queued: 'En attente',
@@ -188,10 +190,18 @@ export function TransfersButton() {
           </button>
         </div>
         <ul className="grid max-h-96 gap-0.5 overflow-y-auto">
-          {[...transfers].reverse().map((t) => (
-            <Row key={t.id} t={t} />
-          ))}
+          {[...transfers]
+            .reverse()
+            .slice(0, MAX_ROWS)
+            .map((t) => (
+              <Row key={t.id} t={t} />
+            ))}
         </ul>
+        {transfers.length > MAX_ROWS && (
+          <p className="px-2 pt-1 text-xs text-text-muted">
+            … et {transfers.length - MAX_ROWS} transferts plus anciens
+          </p>
+        )}
       </PopoverContent>
     </Popover>
   );

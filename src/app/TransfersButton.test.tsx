@@ -19,6 +19,9 @@ vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), warning: vi.fn() }),
 }));
 
+/** Events reach the store in batches. */
+const flushBatch = () => new Promise((r) => setTimeout(r, 150));
+
 const t = (id: number, extra: Partial<TransferInfo> = {}): TransferInfo => ({
   id,
   session: 1,
@@ -40,26 +43,29 @@ beforeEach(async () => {
 test('transfer events update the list and the badge count', async () => {
   render(<TransfersButton />);
   expect(screen.queryByRole('button', { name: /Transferts/ })).toBeNull();
-  act(() => {
+  await act(async () => {
     emit(t(1, { state: { kind: 'running' }, done: 50, bytesPerSec: 10 }));
     emit(t(2));
+    await flushBatch();
   });
   const button = screen.getByRole('button', { name: 'Transferts : 2 en cours' });
   await userEvent.click(button);
   expect(await screen.findByText('f1.bin')).toBeInTheDocument();
   expect(screen.getByText('50 o / 100 o — 10 o/s — 5 s')).toBeInTheDocument();
-  act(() => {
+  await act(async () => {
     emit(t(1, { state: { kind: 'done' }, done: 100 }));
+    await flushBatch();
   });
   expect(screen.getByRole('button', { name: 'Transferts : 1 en cours' })).toBeInTheDocument();
 });
 
 test('a conflict offers overwrite or download', async () => {
   render(<TransfersButton />);
-  act(() => {
+  await act(async () => {
     emit(
       t(9, { direction: 'upload', state: { kind: 'conflict', message: 'modifié sur le serveur' } }),
     );
+    await flushBatch();
   });
   await userEvent.click(screen.getByRole('button', { name: /Transferts/ }));
   await userEvent.click(await screen.findByRole('button', { name: 'Écraser' }));

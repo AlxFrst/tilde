@@ -245,3 +245,43 @@ async fn sftp_reopens_after_reconnect() {
     assert_ne!(after.list(&home).await.unwrap(), vec![]);
     shell.close();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn edit_survives_a_reconnect() {
+    use tilde_ssh::{EditSession, RemoteFile};
+    let _bench = BENCH.write().await;
+    let Some(bench) = Bench::new() else { return };
+    let (shell, _out, states) = bench.open(true).await;
+    let connection = shell.connection().unwrap();
+    let (dir, _) = support::exec(connection.target(), "mktemp -d").await;
+    let remote_path = format!("{}/notes.txt", dir.trim());
+    support::exec(connection.target(), &format!("printf 'v1' > {remote_path}")).await;
+    drop(connection);
+
+    let remote: Arc<dyn RemoteFile> = shell.clone();
+    let root = tempfile::TempDir::new().unwrap();
+    let edit =
+        EditSession::start(1, 1, root.path(), remote, &remote_path, |_| Ok(()), Arc::new(|_| {}))
+            .await
+            .unwrap();
+
+    tokio::task::spawn_blocking(|| docker(&["restart", "-t", "1", TARGET_CONTAINER]))
+        .await
+        .unwrap();
+    let lost =
+        states.wait(0, Duration::from_secs(15), |s| matches!(s, ConnState::Lost { .. })).await;
+    states.wait(lost, Duration::from_secs(40), |s| *s == ConnState::Ready).await;
+
+    std::fs::write(edit.local_path(), "v2").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let target = shell.connection().unwrap();
+        let (now, _) = support::exec(target.target(), &format!("cat {remote_path}")).await;
+        if now == "v2" {
+            break;
+        }
+        assert!(Instant::now() < deadline, "still {now:?}: {:?}", edit.info().state);
+        tokio::time::sleep(Duration::from_millis(300)).await;
+    }
+    shell.close();
+}

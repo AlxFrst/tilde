@@ -28,7 +28,8 @@ pub use connection::{
     open_ssh_session,
 };
 pub use edit::{
-    EDIT_DEBOUNCE, EditSession, RemoteFile, Stamp, clean_stale_edit_dirs, session_temp_dir,
+    EDIT_DEBOUNCE, EDIT_MAX_BYTES, EditSession, RemoteFile, Stamp, clean_stale_edit_dirs,
+    session_temp_dir,
 };
 pub use error::{ConnectError, HopLabel};
 pub use forward::{ForwardInfo, ForwardKind, ForwardSpec};
