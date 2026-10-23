@@ -8,15 +8,11 @@ import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useConnections } from '@/stores/connections';
 import { useSettings } from '@/stores/settings';
+import { useThemes } from '@/stores/themes';
 import { useTransfers } from '@/stores/transfers';
-import { applyTheme, useResolvedTheme } from '@/themes';
+import { applyTheme } from '@/themes';
+import { useActiveTheme } from '@/themes/useActiveTheme';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
-
-const DEFAULT_CHOICE = {
-  colorScheme: 'system',
-  themeDark: 'tilde-dark',
-  themeLight: 'tilde-light',
-} as const;
 
 export default function App() {
   const settings = useSettings((s) => s.settings);
@@ -24,7 +20,7 @@ export default function App() {
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const [startupError, setStartupError] = useState<string | null>(null);
   const [workspaceReady, setWorkspaceReady] = useState(false);
-  const theme = useResolvedTheme(settings?.appearance ?? DEFAULT_CHOICE);
+  const theme = useActiveTheme();
   const density = settings?.appearance.density ?? 'comfortable';
   const uiFontSize = settings?.appearance.uiFontSize ?? 13;
 
@@ -64,6 +60,20 @@ export default function App() {
     getAppInfo().then(setAppInfo, fail);
     let stopConnections: (() => void) | undefined;
     let stopTransfers: (() => void) | undefined;
+    let stopThemes: (() => void) | undefined;
+    useThemes
+      .getState()
+      .init()
+      .then(
+        (off) => {
+          if (isCancelled()) off();
+          else stopThemes = off;
+        },
+        (err: unknown) => {
+          // Builtin themes still work.
+          console.warn('user themes unavailable', err);
+        },
+      );
     useTransfers
       .getState()
       .init()
@@ -94,6 +104,7 @@ export default function App() {
       unsubscribe?.();
       stopConnections?.();
       stopTransfers?.();
+      stopThemes?.();
       stopPersistence?.();
     };
   }, [init]);

@@ -25,6 +25,20 @@ export const builtinThemes: readonly ThemeDefinition[] = [
   rosePineDawn,
 ];
 
+/** A builtin theme by id. */
 export function getTheme(id: string): ThemeDefinition | undefined {
   return builtinThemes.find((t) => t.id === id);
+}
+
+/** Builtin themes first, then the user's, sorted by name. */
+export function allThemes(user: readonly ThemeDefinition[]): ThemeDefinition[] {
+  return [...builtinThemes, ...[...user].sort((a, b) => a.name.localeCompare(b.name))];
+}
+
+/** A builtin or user theme by id (builtin ids cannot be shadowed). */
+export function findTheme(
+  id: string,
+  user: readonly ThemeDefinition[],
+): ThemeDefinition | undefined {
+  return getTheme(id) ?? user.find((t) => t.id === id);
 }

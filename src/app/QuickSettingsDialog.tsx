@@ -20,7 +20,8 @@ import { formatConfigError } from '@/ipc/errors';
 import type { Appearance } from '@/ipc/generated/settings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { useSettings } from '@/stores/settings';
-import { builtinThemes, type ThemeKind } from '@/themes';
+import { useThemes } from '@/stores/themes';
+import { allThemes, type ThemeKind } from '@/themes';
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -77,6 +78,7 @@ function ThemeSelect({
   disabled: boolean;
   onChange: (id: string) => void;
 }) {
+  const user = useThemes((s) => s.user);
   return (
     <Select value={value} disabled={disabled} onValueChange={onChange}>
       <SelectTrigger
@@ -87,7 +89,7 @@ function ThemeSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {builtinThemes
+        {allThemes(user)
           .filter((t) => t.kind === kind)
           .map((t) => (
             <SelectItem key={t.id} value={t.id}>

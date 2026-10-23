@@ -28,7 +28,8 @@ import {
   type SessionErrorDto,
 } from '@/ipc/session';
 import { useSettings } from '@/stores/settings';
-import { toXtermTheme, useResolvedTheme } from '@/themes';
+import { toXtermTheme } from '@/themes';
+import { useActiveTheme } from '@/themes/useActiveTheme';
 import { ConnectionBanner } from '@/app/ConnectionStatus';
 import type { ConnState } from '@/ipc/ssh';
 import { useSsh } from '@/stores/ssh';
@@ -70,11 +71,6 @@ interface SessionState {
   disposed: boolean;
 }
 
-const DEFAULT_CHOICE = {
-  colorScheme: 'system',
-  themeDark: 'tilde-dark',
-  themeLight: 'tilde-light',
-} as const;
 const noop = () => undefined;
 
 /**
@@ -99,8 +95,7 @@ function errorText(err: unknown): string {
 
 export function TerminalView(props: TerminalViewProps) {
   const terminalSettings = useSettings((s) => s.settings?.terminal);
-  const appearance = useSettings((s) => s.settings?.appearance);
-  const theme = useResolvedTheme(appearance ?? DEFAULT_CHOICE);
+  const theme = useActiveTheme();
 
   const container = useRef<HTMLDivElement>(null);
   const handle = useRef<TerminalHandle | null>(null);
