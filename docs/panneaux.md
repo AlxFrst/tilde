@@ -57,6 +57,17 @@ interface PanelProps<S> {
 6. **Fermeture** : `close()` retire la feuille ; le composant est démonté et libère ses
    ressources (sessions, minuteries).
 
+## Modules internes
+
+| `kind` | Module | Sauvegardé | Notes |
+|---|---|---|---|
+| `terminal` | `core.terminal` | oui | shell local, relancé dans son dernier dossier |
+| `ssh` | `core.ssh` | oui | restauré « déconnecté », Entrée pour reconnecter |
+| `sftp` | `core.sftp` | oui | lié à un panneau SSH (`linkedLeafId`) |
+| `editor` | `core.editor` | non | CodeMirror chargé à la demande ; commande `editor.openFile` |
+| `preview` | `core.preview` | non | Markdown, JSON, images ; peut suivre un éditeur en direct |
+| `monitor` | `core.monitor` | oui | local, ou serveur d'un panneau SSH ; commande `monitor.open` |
+
 ## Exemple minimal
 
 ```tsx

@@ -208,6 +208,29 @@ src/app/TransfersButton       file de transferts dans la barre de titre
   l'utilisateur. Le dossier est supprimé à la fermeture de la session ; les restes de plus de
   7 jours sont nettoyés au démarrage.
 
+## Panneaux
+
+```
+src/panels/registry.ts        PanelModule : rendu, sauvegarde, restauration, commandes
+src/panels/core.tsx           modules internes : terminal, ssh, sftp, editor, preview, monitor
+src/panels/editor             CodeMirror 6 (chargé à la demande), useDocument (version lue)
+src/panels/preview            Markdown (markdown-it, sans HTML), JSON, images (blob:)
+src/panels/monitor            échantillonnage toutes les 2 s, recul après échec
+crates/tilde-ssh/textfile.rs  texte distant et local : plafonds, binaire refusé, conflit
+crates/tilde-ssh/exec.rs      commande sur la connexion existante (sortie et délai bornés)
+crates/tilde-monitor          sysinfo local ; parseur de /proc pour un serveur Linux
+```
+
+- **Le layout ne connaît aucun panneau** : `PaneView`, la restauration de `workspace.json` et
+  la barre d'onglets passent par le registre (voir [panneaux.md](panneaux.md)). Un `kind`
+  inconnu est retiré à la restauration.
+- **Éditeur et aperçu ne sont pas restaurés** (`serialize` renvoie `null`). Le moniteur l'est.
+- **Pas de chemin local venant du front** : un fichier local ne s'ouvre que par le dialogue
+  natif. Rust garde le chemin et ne rend qu'un identifiant de document.
+- **Conflits** : chaque ouverture renvoie la version lue (taille + mtime) ; l'enregistrement la
+  renvoie, et Rust refuse si le fichier a changé, sauf « Écraser ». L'écriture distante se
+  fait en place, ce qui garde le propriétaire et les permissions.
+
 ## Fenêtre
 
 La fenêtre démarre **cachée** et le front l'affiche une fois la coquille rendue, ce qui évite

@@ -39,6 +39,8 @@ Le tout dans une interface soignée, rapide et entièrement personnalisable.
 - **Connexions enregistrées** dans la sidebar (voir [plus bas](#connexions)) et **palette de
   commandes** (Ctrl+Maj+P)
 - **Fichiers (SFTP)** sur la même connexion que le terminal (voir [plus bas](#fichiers-sftp))
+- **Éditeur intégré**, **aperçu** et **moniteur système** à côté du terminal (voir
+  [plus bas](#éditeur-aperçu-et-moniteur))
 - Aucune télémétrie ; aucune requête réseau en dehors des connexions que vous ouvrez
 
 ## Raccourcis
@@ -161,11 +163,43 @@ revient tout seul après une reconnexion.
 - **Transferts** (icône dans la barre de titre) : progression, vitesse, temps restant,
   annulation. « Réessayer » **reprend** où le transfert s'est arrêté. Trois transferts à la
   fois par défaut (`sftp.concurrency`).
-- **Édition** : le fichier est ouvert dans `sftp.externalEditor` (par exemple `code --wait`)
-  ou dans l'application par défaut. Chaque enregistrement est renvoyé sur le serveur ; si le
-  fichier y a changé entre-temps, Tilde ne l'écrase pas et vous demande quelle version garder.
+- **Édition** : « Modifier » ouvre le fichier dans l'éditeur intégré ou dans votre éditeur,
+  au choix (`sftp.editorMode`).
+  - L'éditeur externe est `sftp.externalEditor` (par exemple `code --wait`), à défaut
+    l'éditeur de texte du système. Chaque enregistrement est renvoyé sur le serveur.
+  - Dans les deux cas, si le fichier a changé sur le serveur entre-temps, Tilde ne l'écrase
+    pas et vous demande quelle version garder.
+- **Aperçu** (clic droit) des fichiers Markdown, JSON et des images.
 - Un nom de fichier distant ne peut jamais faire écrire en dehors du dossier choisi (`..`,
   noms réservés Windows, caractères interdits).
+
+## Éditeur, aperçu et moniteur
+
+Chaque panneau s'ouvre à côté du panneau actif.
+
+- **Éditeur** (« Modifier » dans les fichiers, ou « Ouvrir un fichier… » dans la palette) :
+  - coloration de plus de 15 langages, numéros de ligne, repli, recherche (Ctrl+F) ;
+  - Ctrl+S enregistre ; un point signale les modifications non enregistrées, et fermer
+    demande toujours confirmation ;
+  - si le fichier a changé ailleurs entre-temps, un bandeau propose « Écraser » ou
+    « Recharger » ;
+  - les fichiers binaires et ceux de plus de 5 Mio sont refusés et renvoyés vers l'éditeur
+    externe ;
+  - un fichier local ne s'ouvre que par le dialogue du système.
+- **Aperçu** :
+  - Markdown, rendu sans HTML brut ; seuls les liens web s'ouvrent, dans le navigateur ;
+  - JSON en arbre repliable, avec la position de l'erreur s'il est invalide ;
+  - images.
+  
+  Depuis l'éditeur, l'aperçu suit le texte pendant la frappe.
+- **Moniteur système** (palette, ou clic droit sur un onglet SSH → « Moniteur du
+  serveur… ») :
+  - processeur, mémoire, réseau, disques, charge et uptime, actualisés toutes les 2 s tant
+    que le panneau est visible ;
+  - pour un serveur, Tilde lit `/proc` par la connexion SSH déjà ouverte : rien à installer.
+    Seul Linux est pris en charge.
+
+Ces panneaux sont des modules du registre décrit dans [docs/panneaux.md](docs/panneaux.md).
 
 ## Prérequis
 
