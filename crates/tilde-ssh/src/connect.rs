@@ -170,7 +170,7 @@ async fn agent_auth(
     identity_files: &[PathBuf],
     hop: &HopLabel,
 ) -> Result<Option<Option<MethodSet>>, ConnectError> {
-    let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source };
+    let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source: Box::new(source) };
     let Ok(identities) = agent.request_identities().await else { return Ok(Some(None)) };
     let preferred: Vec<PublicKey> = identity_files
         .iter()
@@ -288,7 +288,7 @@ impl Connector {
                 if let Some(reason) = rejection.lock().take() {
                     return Err(ConnectError::HostKeyRejected { hop, reason });
                 }
-                return Err(ConnectError::Ssh { hop, source });
+                return Err(ConnectError::Ssh { hop, source: Box::new(source) });
             }
         };
         self.authenticate(&mut handle, host, &hop).await?;
@@ -302,7 +302,7 @@ impl Connector {
         host: &ResolvedHost,
         hop: &HopLabel,
     ) -> Result<(), ConnectError> {
-        let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source };
+        let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source: Box::new(source) };
         let user = host.user.as_str();
         let target = format!("{user}@{}", host.hostname);
         let mut tried: Vec<String> = Vec::new();
@@ -418,7 +418,7 @@ impl Connector {
         target: &str,
         hop: &HopLabel,
     ) -> Result<bool, ConnectError> {
-        let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source };
+        let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source: Box::new(source) };
         let account = password_account(&host.user, &host.hostname, host.port);
         if let Some(stored) = self.secrets.get(&account) {
             let result = handle.authenticate_password(&host.user, stored).await.map_err(ssh)?;
@@ -462,7 +462,7 @@ impl Connector {
         tried: &mut Vec<String>,
         hop: &HopLabel,
     ) -> Result<Result<(), MethodSet>, ConnectError> {
-        let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source };
+        let ssh = |source| ConnectError::Ssh { hop: hop.clone(), source: Box::new(source) };
         let mut response = handle
             .authenticate_keyboard_interactive_start(user, None::<String>)
             .await

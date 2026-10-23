@@ -53,7 +53,7 @@ pub enum ConnectError {
     Cancelled,
 
     #[error("{hop} : erreur SSH : {source}")]
-    Ssh { hop: HopLabel, source: russh::Error },
+    Ssh { hop: HopLabel, source: Box<russh::Error> },
 }
 
 #[cfg(test)]

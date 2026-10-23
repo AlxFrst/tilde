@@ -27,6 +27,8 @@ integration = []
 
 [dev-dependencies]
 tempfile = "3"
+# stdin/stdout for the tcp-pipe example (a test ProxyCommand).
+tokio = { version = "1", features = ["io-std"] }
 
 [lints]
 workspace = true
