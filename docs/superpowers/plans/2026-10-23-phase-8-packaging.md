@@ -19,7 +19,7 @@
 - Tout ce qui précède reste valable (commits conventionnels + `Co-Authored-By`, aucun secret dans le dépôt ni dans les logs).
 - Cibles : Windows **MSI + NSIS**, Linux **AppImage + deb**, macOS **dmg**.
 - Pas de signature au départ. La CI doit être « prête à recevoir les secrets (certificat Windows, notarisation Apple) sans autre modification ».
-- Pas d'auto-update (non-objectif MVP).
+- **Mise à jour intégrée** : décision de l'auteur pendant la phase 8, qui lève ce non-objectif. Elle s'installe en un clic et se vérifie au démarrage, au plus une fois par jour, avec un réglage pour la désactiver. Les mises à jour sont signées par la clé du plugin updater de Tauri, indépendante des certificats OS.
 - Aucune publication réelle sans l'accord de l'auteur. Pousser un tag ou publier une release est une action externe : la PR ne fait que construire.
 - Ne pas lancer l'app sans l'accord de l'auteur. Les captures d'écran demandent son feu vert, ou ses propres captures.
 
@@ -96,7 +96,51 @@
   - vérifier les sommes SHA-256.
 - [ ] **Step 4 :** commit `ci: release workflow building MSI, NSIS, AppImage, deb and dmg`.
 
-### Task 3 : Documentation publique en anglais
+### Task 3 : Mise à jour intégrée
+
+**Files:**
+- Create: `src-tauri/src/updater.rs`, `src/ipc/updates.ts`, `src/app/updates.ts`, `src/app/updates.test.ts`
+- Modify:
+  - `src-tauri/Cargo.toml` (`tauri-plugin-updater = "2"`), `src-tauri/src/lib.rs` ;
+  - `src-tauri/tauri.conf.json` (`plugins.updater { pubkey, endpoints }`, `bundle.createUpdaterArtifacts: true`) ;
+  - `crates/tilde-config/src/settings.rs` (`general.checkUpdates: bool`, défaut `true`), le schéma et les types générés ;
+  - `src/app/settings/GeneralSection.tsx`, `src/commands/builtin.ts` (`app.checkUpdates`), `src/App.tsx` ;
+  - `.github/workflows/release.yml` (clé de signature des mises à jour) ;
+  - `SECURITY.md` et `docs/release.md`.
+
+**Interfaces:**
+- Rust (`updater.rs`) :
+  - `update_check() -> Option<UpdateInfoDto { version, notes, date }>` ;
+  - `update_install()` : télécharge et installe, avec la progression sur `update://progress { downloaded, total }`, puis `app.restart()`.
+  
+  L'updater n'est utilisé que depuis Rust : aucune permission front.
+- Endpoint : `https://github.com/AlxFrst/tilde/releases/latest/download/latest.json`. `tauri-action` le produit pour une release publiée ; un brouillon ne le sert donc jamais.
+- Clé :
+  - générée par `tauri signer generate`, enregistrée hors du dépôt (`~/.tauri/tilde-updater.key`) ;
+  - la clé publique va dans `tauri.conf.json` ;
+  - la clé privée est le secret `TAURI_SIGNING_PRIVATE_KEY`, que l'auteur ajoute lui-même.
+  
+  Sans ce secret, `release.yml` désactive `createUpdaterArtifacts` (via `--config`) au lieu d'échouer.
+- Front (`src/app/updates.ts`) :
+  - `shouldAutoCheck(settings, lastCheck: number | null, now: number): boolean` : réglage actif, et dernière vérification il y a plus de 24 h. L'horodatage est conservé dans `localStorage`, avec try/catch ;
+  - `checkForUpdates({ manual }): Promise<void>` :
+    - en automatique, un échec est silencieux ;
+    - en manuel, « Tilde est à jour » ou l'erreur ;
+    - si une version est disponible : toast « Tilde X.Y.Z est disponible » avec l'action « Mettre à jour » → `confirmClose(allSessions(), dirtyEditors())` → `updateInstall()`, avec un toast de progression.
+  - Fenêtre principale seulement (pas Quake).
+
+- [ ] **Step 1 :** tests `src/app/updates.test.ts` :
+  - `checks at most once a day, only when enabled` ;
+  - `a failed automatic check stays silent, a manual one says why` ;
+  - `installing asks first when sessions or editors would be lost`.
+  
+  Rust : `settings` (défaut `checkUpdates = true`), snapshot du schéma.
+- [ ] **Step 2 :** `pnpm vitest run src/app/updates` → FAIL.
+- [ ] **Step 3 :** implémenter, générer la clé et mettre à jour `release.yml` et la documentation.
+- [ ] **Step 4 :** `pnpm test`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings` et `pnpm gen:types` → PASS, sans écart.
+- [ ] **Step 5 :** commit `feat(app): built-in updates from GitHub releases`.
+
+### Task 4 : Documentation publique en anglais
 
 **Files:**
 - Create: `README.fr.md` (le README français actuel, mis à jour), `CHANGELOG.md`, `docs/screenshots/.gitkeep`
@@ -120,17 +164,17 @@
 - `src/test/docs.test.ts` : `every relative link and image in the README files resolves`. Ce test lit `README.md`, `README.fr.md`, `CONTRIBUTING.md`, `SECURITY.md` et `docs/*.md`.
 
 - [ ] **Step 1 :** écrire le test des liens → FAIL (`README.fr.md` absent, images absentes).
-- [ ] **Step 2 :** rédiger les documents. Tant que les captures n'existent pas, le test les signale : c'est la Task 4 qui les fournit.
+- [ ] **Step 2 :** rédiger les documents. Tant que les captures n'existent pas, le test les signale : c'est la Task 5 qui les fournit.
 - [ ] **Step 3 :** commit `docs: English README, changelog, contributing and security`.
 
-### Task 4 : Captures d'écran (avec l'auteur)
+### Task 5 : Captures d'écran (avec l'auteur)
 
 - [ ] **Step 1 :** demander à l'auteur s'il fournit les captures, ou s'il autorise le lancement de l'app pour les prendre (fenêtre 1280×800, thème Tilde Dark, données de démonstration sans hôte réel).
 - [ ] **Step 2 :** placer les images dans `docs/screenshots/` (PNG optimisés, moins de 500 Kio chacune).
 - [ ] **Step 3 :** `pnpm vitest run src/test/docs` → PASS.
 - [ ] **Step 4 :** commit `docs: screenshots`.
 
-### Task 5 : Vérification et fin de phase
+### Task 6 : Vérification et fin de phase
 
 - [ ] **Step 1 :** `pnpm tauri build` en local (Windows), sans lancer l'app. Attendu : `target/release/bundle/msi/*.msi` et `nsis/*-setup.exe`.
 - [ ] **Step 2 :** vérification complète :
