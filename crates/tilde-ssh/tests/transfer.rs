@@ -124,34 +124,53 @@ async fn upload_then_download_round_trips() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn download_resumes_from_a_partial_file() {
+async fn retry_resumes_a_download_from_its_partial_file() {
     let _bench = BENCH.read().await;
     let Some(f) = fixture(3).await else { return };
     let original = data(4 * MIB, 2);
     let remote = f.put("big.bin", &original).await;
-    std::fs::write(f.local.path().join("big.bin.part"), &original[..MIB]).unwrap();
+    // The « folder » is a plain file: the first attempt fails, deterministically.
+    let dest = f.local.path().join("dest");
+    std::fs::write(&dest, b"not a folder").unwrap();
+    let id = f.queue.download(1, Arc::clone(&f.client), &remote, &dest).await.unwrap()[0];
+    assert!(matches!(f.wait(id, Duration::from_secs(30)).await, TransferState::Failed { .. }));
 
-    let id = f.queue.download(1, Arc::clone(&f.client), &remote, f.local.path()).await.unwrap()[0];
+    // What a cut transfer leaves behind: the first megabyte.
+    std::fs::remove_file(&dest).unwrap();
+    std::fs::create_dir(&dest).unwrap();
+    std::fs::write(dest.join("big.bin.part"), &original[..MIB]).unwrap();
+    f.events.lock().clear();
+    f.queue.retry(id, Arc::clone(&f.client));
     assert_eq!(f.wait(id, Duration::from_secs(30)).await, TransferState::Done);
-    assert_eq!(read(&f.local.path().join("big.bin")), original);
-    assert!(f.first_done(id) > MIB as u64, "started from the partial file, not from 0");
+    assert_eq!(read(&dest.join("big.bin")), original);
+    assert!(f.first_done(id) > MIB as u64, "« Réessayer » started from the partial file");
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn upload_resumes_from_a_partial_remote_file() {
+async fn retry_resumes_an_upload_from_its_partial_remote_file() {
     let _bench = BENCH.read().await;
     let Some(f) = fixture(3).await else { return };
     let original = data(4 * MIB, 3);
     let src = f.local.path().join("up.bin");
     std::fs::write(&src, &original).unwrap();
-    f.put("up.bin.tilde-part", &original[..MIB]).await;
+    // A remote folder that does not exist yet: the first attempt fails.
+    let remote_dir = format!("{}/later", f.remote);
+    let id = f.queue.upload(1, Arc::clone(&f.client), &src, &remote_dir).await.unwrap()[0];
+    assert!(matches!(f.wait(id, Duration::from_secs(30)).await, TransferState::Failed { .. }));
 
-    let id = f.queue.upload(1, Arc::clone(&f.client), &src, &f.remote).await.unwrap()[0];
+    f.client.mkdir(&remote_dir).await.unwrap();
+    let flags = OpenFlags::CREATE | OpenFlags::WRITE | OpenFlags::TRUNCATE;
+    let part = format!("{remote_dir}/up.bin.tilde-part");
+    let mut file = f.client.inner().open_with_flags(&part, flags).await.unwrap();
+    file.write_all(&original[..MIB]).await.unwrap();
+    file.shutdown().await.unwrap();
+    f.events.lock().clear();
+    f.queue.retry(id, Arc::clone(&f.client));
     assert_eq!(f.wait(id, Duration::from_secs(30)).await, TransferState::Done);
-    let back = f.client.inner().read(format!("{}/up.bin", f.remote)).await.unwrap();
+    let back = f.client.inner().read(format!("{remote_dir}/up.bin")).await.unwrap();
     assert_eq!(back, original);
     assert!(f.first_done(id) > MIB as u64);
-    assert!(f.client.stat(&format!("{}/up.bin.tilde-part", f.remote)).await.is_err());
+    assert!(f.client.stat(&part).await.is_err());
 }
 
 #[tokio::test(flavor = "multi_thread")]
