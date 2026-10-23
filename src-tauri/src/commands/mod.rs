@@ -4,4 +4,7 @@
 #![allow(clippy::needless_pass_by_value)]
 
 pub mod app;
+pub mod profiles;
+pub mod session;
 pub mod settings;
+pub mod workspace;

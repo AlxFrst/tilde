@@ -27,3 +27,36 @@ pub fn open_settings_file(app: AppHandle, state: State<'_, AppState>) -> Result<
     let file = state.settings.lock().paths().settings_file();
     app.opener().open_path(file.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
 }
+
+/// Only web links from terminal output may be opened: `file:`, custom protocol handlers
+/// or `javascript:` would let a remote host make the OS run something.
+pub(crate) fn is_allowed_url(url: &str) -> bool {
+    let lower = url.to_ascii_lowercase();
+    ["http://", "https://"]
+        .iter()
+        .any(|scheme| lower.starts_with(scheme) && lower.len() > scheme.len())
+}
+
+#[tauri::command]
+pub fn open_url(app: AppHandle, url: String) -> Result<(), String> {
+    if !is_allowed_url(&url) {
+        tracing::warn!(%url, "refused to open a non-web link");
+        return Err("seuls les liens http et https peuvent être ouverts".into());
+    }
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_allowed_url;
+
+    #[test]
+    fn only_web_links_are_opened() {
+        assert!(is_allowed_url("https://tilde.dev/docs"));
+        assert!(is_allowed_url("HTTP://example.com"));
+        assert!(!is_allowed_url("file:///C:/Windows/System32/calc.exe"));
+        assert!(!is_allowed_url("javascript:alert(1)"));
+        assert!(!is_allowed_url("ms-settings:"));
+        assert!(!is_allowed_url("https:"));
+    }
+}
