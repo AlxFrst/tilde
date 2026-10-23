@@ -22,10 +22,20 @@ export interface Appearance {
   sidebarPosition: 'left' | 'right';
   sidebarWidth: number;
   window: WindowAppearance;
+  sshConfigHosts: SshConfigHosts;
 }
 export interface WindowAppearance {
   effect: 'none' | 'mica' | 'acrylic' | 'vibrancy';
   opacity: number;
+}
+/**
+ * Hosts of `~/.ssh/config` listed in the sidebar.
+ */
+export interface SshConfigHosts {
+  /**
+   * Aliases tucked away in the section's collapsed "Masqués" group (still adoptable).
+   */
+  hidden: string[];
 }
 export interface Terminal {
   fontFamily: string;
@@ -45,6 +55,10 @@ export interface Ssh {
   keepaliveCountMax: number;
   autoReconnect: boolean;
   confirmCloseSsh: boolean;
+  /**
+   * The strip under SSH terminals with the server's CPU, memory, disk and network.
+   */
+  statusBar: boolean;
 }
 export interface Sftp {
   concurrency: number;

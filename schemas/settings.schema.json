@@ -23,6 +23,9 @@
         "window": {
           "effect": "none",
           "opacity": 1.0
+        },
+        "sshConfigHosts": {
+          "hidden": []
         }
       }
     },
@@ -48,7 +51,8 @@
         "keepaliveIntervalSecs": 15,
         "keepaliveCountMax": 3,
         "autoReconnect": true,
-        "confirmCloseSsh": true
+        "confirmCloseSsh": true,
+        "statusBar": true
       }
     },
     "sftp": {
@@ -130,6 +134,13 @@
             "effect": "none",
             "opacity": 1.0
           }
+        },
+        "sshConfigHosts": {
+          "description": "Hosts of `~/.ssh/config` listed in the sidebar.",
+          "$ref": "#/$defs/SshConfigHosts",
+          "default": {
+            "hidden": []
+          }
         }
       }
     },
@@ -180,6 +191,19 @@
         "acrylic",
         "vibrancy"
       ]
+    },
+    "SshConfigHosts": {
+      "type": "object",
+      "properties": {
+        "hidden": {
+          "description": "Aliases tucked away in the section's collapsed \"Masqués\" group (still adoptable).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
     },
     "Terminal": {
       "type": "object",
@@ -280,6 +304,11 @@
           "default": true
         },
         "confirmCloseSsh": {
+          "type": "boolean",
+          "default": true
+        },
+        "statusBar": {
+          "description": "The strip under SSH terminals with the server's CPU, memory, disk and network.",
           "type": "boolean",
           "default": true
         }

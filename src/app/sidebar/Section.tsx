@@ -22,8 +22,11 @@ export function Section({
   collapsed,
   onToggle,
   menu,
+  count,
 }: {
   title: string;
+  /** Shown at the end of the heading, e.g. how many hosts a folded section holds. */
+  count?: number;
   children: ReactNode;
   icon?: ReactNode;
   color?: string | null;
@@ -48,6 +51,11 @@ export function Section({
       {color && <span className="size-2 rounded-full" style={{ background: color }} />}
       {icon}
       <span className="truncate normal-case">{title}</span>
+      {count !== undefined && (
+        <span className="ml-auto rounded-full bg-surface-2 px-1.5 text-[10px] tabular-nums normal-case">
+          {count}
+        </span>
+      )}
     </h3>
   );
   return (

@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import type { Connection, ConnectionsFile } from '@/ipc/connections';
 import { removeConnection, upsertConnection } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
+import { useSettings } from '@/stores/settings';
+import { defaultSettings } from '@/test/fixtures';
 import { useWorkspace } from '@/stores/workspace';
 import { leaves } from '@/workspace/tree';
 import { ConfirmDialog } from '../ConfirmDialog';
@@ -53,7 +55,11 @@ function show() {
   );
 }
 
-const headings = () => screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+// Section titles, without the host count some headings end with.
+const headings = () =>
+  screen
+    .getAllByRole('heading', { level: 3 })
+    .map((h) => h.querySelector('.truncate')?.textContent ?? h.textContent);
 const openTargets = () =>
   useWorkspace.getState().tabs.map((t) => {
     const panel = leaves(t.root)[0]?.panel;
@@ -204,4 +210,43 @@ test('recents that cannot be shown leave no empty section behind', () => {
   });
   show();
   expect(headings()).not.toContain('Récents');
+});
+
+const host = (alias: string) => ({ alias, hostname: `${alias}.lan`, user: 'me', port: 22 });
+
+test('a long ~/.ssh/config starts folded, shows its size and unfolds on click', async () => {
+  setFile({}, { sshHosts: Array.from({ length: 12 }, (_, i) => host(`h${i}`)) });
+  show();
+  const section = screen.getByRole('group', { name: '~/.ssh/config' });
+  expect(within(section).getByText('12')).toBeInTheDocument();
+  expect(within(section).queryByRole('button', { name: 'Adopter h0' })).toBeNull();
+  await userEvent.click(within(section).getByRole('heading', { name: /ssh\/config/ }));
+  expect(within(section).getByRole('button', { name: 'Adopter h0' })).toBeInTheDocument();
+});
+
+test('a tucked-away host stays adoptable in a folded "Masqués" group', async () => {
+  const update = vi.fn(() => Promise.resolve());
+  useSettings.setState({
+    settings: {
+      ...defaultSettings,
+      appearance: { ...defaultSettings.appearance, sshConfigHosts: { hidden: ['old'] } },
+    },
+    update,
+  });
+  setFile({}, { sshHosts: [host('mail'), host('old')] });
+  show();
+  const section = screen.getByRole('group', { name: '~/.ssh/config' });
+  expect(within(section).queryByRole('button', { name: 'Adopter old' })).toBeNull();
+  await userEvent.click(within(section).getByRole('button', { name: 'Masqués (1)' }));
+  expect(within(section).getByRole('button', { name: 'Adopter old' })).toBeInTheDocument();
+
+  fireEvent.contextMenu(within(section).getByRole('button', { name: /^mail/ }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Masquer' }));
+  expect(update).toHaveBeenCalledWith({
+    appearance: { sshConfigHosts: { hidden: ['old', 'mail'] } },
+  });
+
+  fireEvent.contextMenu(within(section).getByRole('button', { name: /^old/ }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Ne plus masquer' }));
+  expect(update).toHaveBeenLastCalledWith({ appearance: { sshConfigHosts: { hidden: [] } } });
 });

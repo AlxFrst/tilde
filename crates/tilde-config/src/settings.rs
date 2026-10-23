@@ -128,6 +128,8 @@ pub struct Appearance {
     #[schemars(range(min = 180, max = 480))]
     pub sidebar_width: u16,
     pub window: WindowAppearance,
+    /// Hosts of `~/.ssh/config` listed in the sidebar.
+    pub ssh_config_hosts: SshConfigHosts,
 }
 
 impl Default for Appearance {
@@ -142,8 +144,16 @@ impl Default for Appearance {
             sidebar_position: SidebarPosition::Left,
             sidebar_width: 260,
             window: WindowAppearance::default(),
+            ssh_config_hosts: SshConfigHosts::default(),
         }
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SshConfigHosts {
+    /// Aliases tucked away in the section's collapsed "Masqués" group (still adoptable).
+    pub hidden: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -207,6 +217,8 @@ pub struct Ssh {
     pub keepalive_count_max: u32,
     pub auto_reconnect: bool,
     pub confirm_close_ssh: bool,
+    /// The strip under SSH terminals with the server's CPU, memory, disk and network.
+    pub status_bar: bool,
 }
 
 impl Default for Ssh {
@@ -216,6 +228,7 @@ impl Default for Ssh {
             keepalive_count_max: 3,
             auto_reconnect: true,
             confirm_close_ssh: true,
+            status_bar: true,
         }
     }
 }
@@ -346,6 +359,19 @@ mod tests {
         assert!(s.general.check_updates);
         let off: Settings = serde_json::from_str(r#"{"general":{"checkUpdates":false}}"#).unwrap();
         assert!(!off.general.check_updates);
+    }
+
+    #[test]
+    fn no_ssh_host_is_tucked_away_and_the_status_bar_shows_by_default() {
+        let s = Settings::default();
+        assert!(s.appearance.ssh_config_hosts.hidden.is_empty());
+        assert!(s.ssh.status_bar);
+        let custom: Settings = serde_json::from_str(
+            r#"{"appearance":{"sshConfigHosts":{"hidden":["old-box"]}},"ssh":{"statusBar":false}}"#,
+        )
+        .unwrap();
+        assert_eq!(custom.appearance.ssh_config_hosts.hidden, ["old-box"]);
+        assert!(!custom.ssh.status_bar);
     }
 
     #[test]

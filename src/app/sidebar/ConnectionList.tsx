@@ -20,6 +20,9 @@ import { Section, describeTarget } from './Section';
 import { adoptedAliases, SshConfigSection } from './SshConfigSection';
 
 const MAX_SHOWN_RECENTS = 5;
+// The ~/.ssh/config section remembers an explicit choice; otherwise its size decides.
+const SSH_OPEN = '~ssh-config:open';
+const SSH_FOLDED = '~ssh-config:folded';
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
 
 function loadCollapsed(): Set<string> {
@@ -214,6 +217,13 @@ export function ConnectionList() {
     saveCollapsed(next);
     setCollapsed(next);
   };
+  const setFolded = (openKey: string, foldedKey: string, open: boolean) => {
+    const next = new Set(collapsed);
+    next.delete(open ? foldedKey : openKey);
+    next.add(open ? openKey : foldedKey);
+    saveCollapsed(next);
+    setCollapsed(next);
+  };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     const id: unknown = active.data.current?.connectionId;
@@ -270,7 +280,15 @@ export function ConnectionList() {
             ))}
           </Section>
         )}
-        {freeHosts.length > 0 && <SshConfigSection hosts={freeHosts} />}
+        {freeHosts.length > 0 && (
+          <SshConfigSection
+            hosts={freeHosts}
+            open={collapsed.has(SSH_OPEN) ? true : collapsed.has(SSH_FOLDED) ? false : null}
+            onOpenChange={(open) => {
+              setFolded(SSH_OPEN, SSH_FOLDED, open);
+            }}
+          />
+        )}
         {file.connections.length === 0 && freeHosts.length === 0 && (
           <div className="flex flex-col items-center gap-3 px-4 pt-10 text-center">
             <div className="rounded-lg bg-surface-2 p-3 text-text-muted">
