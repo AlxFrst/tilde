@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
+    "check-version": "node scripts/check-version.ts",
     "gen:types": "cargo run -q -p tilde-config --bin gen-schema && node scripts/gen-types.mjs"
   },
   "dependencies": {

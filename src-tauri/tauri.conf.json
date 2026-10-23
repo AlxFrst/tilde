@@ -33,13 +33,44 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Tilde contributors",
+    "copyright": "© 2026 Tilde contributors — MIT OR Apache-2.0",
+    "category": "DeveloperTool",
+    "shortDescription": "An SSH-first terminal: jump hosts, SFTP and a polished UI, free and open source.",
+    "longDescription": "Tilde is a desktop terminal centred on SSH and SFTP. It reads your ~/.ssh/config as is, chains jump hosts, keeps secrets in the OS keyring, and adds files, an editor, previews and a system monitor next to your shells. No account, no telemetry.",
+    "homepage": "https://github.com/AlxFrst/tilde",
     "license": "MIT OR Apache-2.0",
+    "licenseFile": "../LICENSE-MIT",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English", "French"],
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": ["en-US", "fr-FR"]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0", "libayatana-appindicator3-1"]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
   }
 }
