@@ -37,8 +37,11 @@ fn load_with_syntax_error_keeps_defaults_and_is_read_only() {
     let original = r#"{"terminal": {"#;
     let (_dir, paths) = setup(Some(original));
     let (mut store, err) = SettingsStore::load(paths.clone());
-    let Some(ConfigError::Parse { line, .. }) = err else { panic!("expected Parse, got {err:?}") };
+    let Some(ConfigError::Parse { line, message, .. }) = err else {
+        panic!("expected Parse, got {err:?}")
+    };
     assert_eq!(line, 1);
+    assert!(!message.contains(" at line "), "position must not be repeated: {message}");
     assert_eq!(store.settings(), &Settings::default());
     assert!(store.read_only());
     assert!(store.update(&json!({"terminal": {"fontSize": 20}})).is_err());

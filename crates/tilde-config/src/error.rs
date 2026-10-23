@@ -66,6 +66,24 @@ impl From<&ConfigError> for ConfigErrorDto {
             ConfigError::FutureVersion { .. } => ("futureVersion", None, None, None),
             ConfigError::ReadOnly => ("readOnly", None, None, None),
         };
-        Self { kind, message: err.to_string(), line, column, path }
+        // For parse errors the UI formats the position itself from `line`/`column`.
+        let message = match err {
+            ConfigError::Parse { message, .. } => message.clone(),
+            other => other.to_string(),
+        };
+        Self { kind, message, line, column, path }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_dto_carries_bare_message_and_position() {
+        let err = ConfigError::Parse { message: "EOF".into(), line: 3, column: 5 };
+        let dto = ConfigErrorDto::from(&err);
+        assert_eq!((dto.kind, dto.message.as_str()), ("parse", "EOF"));
+        assert_eq!((dto.line, dto.column), (Some(3), Some(5)));
     }
 }

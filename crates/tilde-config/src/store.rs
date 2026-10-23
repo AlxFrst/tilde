@@ -189,10 +189,11 @@ impl SettingsStore {
 
 /// Parses, migrates, type-checks and validates a `settings.json` document.
 pub(crate) fn parse_document(text: &str) -> Result<Parsed, ConfigError> {
-    let raw: Value = serde_json::from_str(text).map_err(|e| ConfigError::Parse {
-        message: e.to_string(),
-        line: e.line(),
-        column: e.column(),
+    let raw: Value = serde_json::from_str(text).map_err(|e| {
+        // serde_json appends " at line L column C"; we report the position separately.
+        let full = e.to_string();
+        let message = full.split_once(" at line ").map_or(full.as_str(), |(m, _)| m).to_owned();
+        ConfigError::Parse { message, line: e.line(), column: e.column() }
     })?;
     let (raw, migrated_from) = migrate(raw)?;
     let settings = deserialize(&raw)?;
