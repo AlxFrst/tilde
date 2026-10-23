@@ -1,7 +1,10 @@
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
 import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
@@ -17,7 +20,9 @@ import { applyTheme } from '@/themes';
 import { useActiveTheme } from '@/themes/useActiveTheme';
 import { restoreWorkspace, startPersistence } from '@/workspace/persistence';
 
-export default function App() {
+/** `quake`: the drop-down window (no sidebar, nothing restored or saved). */
+export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
+  const quake = mode === 'quake';
   const settings = useSettings((s) => s.settings);
   const init = useSettings((s) => s.init);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
@@ -56,6 +61,11 @@ export default function App() {
         const loaded = useSettings.getState().settings;
         // In StrictMode the first run is cancelled before this point: restore only once.
         if (isCancelled() || !loaded) return;
+        if (quake) {
+          openDefaultTab();
+          setWorkspaceReady(true);
+          return;
+        }
         await restoreWorkspace(useProfiles.getState().profiles, loaded);
         if (isCancelled()) return;
         stopPersistence = startPersistence();
@@ -127,7 +137,7 @@ export default function App() {
       stopKeybindings?.();
       stopPersistence?.();
     };
-  }, [init]);
+  }, [init, quake]);
 
   useEffect(() => {
     applyTheme(theme);
@@ -151,6 +161,18 @@ export default function App() {
       },
     );
   }, [loaded, effect, dark]);
+  // Quake shortcut errors (taken by another app, invalid) are reported in the main window.
+  useEffect(() => {
+    if (quake) return;
+    const off = listen<string>('quake://error', (e) => {
+      toast.error(e.payload);
+    });
+    return () => {
+      void off.then((f) => {
+        f();
+      });
+    };
+  }, [quake]);
   useEffect(() => {
     windowSupportedEffects().then(
       (supported) => {
@@ -173,7 +195,8 @@ export default function App() {
   // The window starts hidden; show it once the shell (or the error screen) has rendered
   // so there is no flash. Not requestAnimationFrame: a hidden WebView2 never runs frames.
   useEffect(() => {
-    if (!canShow) return;
+    // Rust shows the Quake window when its shortcut is pressed.
+    if (!canShow || quake) return;
     const timer = setTimeout(() => {
       console.info(`startup: ${Math.round(performance.now())}ms`);
       void getCurrentWindow().show();
@@ -181,14 +204,14 @@ export default function App() {
     return () => {
       clearTimeout(timer);
     };
-  }, [canShow]);
+  }, [canShow, quake]);
 
   if (startupError !== null) return <StartupError message={startupError} />;
   if (!ready) return null;
 
   return (
     <TooltipProvider delayDuration={400}>
-      <AppShell settings={settings} appInfo={appInfo} />
+      <AppShell settings={settings} appInfo={appInfo} mode={mode} />
       <Toaster theme={theme.kind} position="bottom-right" />
     </TooltipProvider>
   );

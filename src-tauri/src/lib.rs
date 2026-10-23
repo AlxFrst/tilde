@@ -3,6 +3,7 @@
 mod commands;
 mod logging;
 mod prompter;
+mod quake;
 mod state;
 mod window_effects;
 
@@ -10,6 +11,7 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 
 use tauri::{Emitter, Manager};
+use tauri_plugin_global_shortcut::ShortcutState;
 use tauri_plugin_window_state::StateFlags;
 use tilde_config::{
     ConfigErrorDto, ConfigFile, ConfigPaths, ConnectionsStore, KeybindingsStore, SettingsStore,
@@ -39,6 +41,21 @@ fn show_window_if_frontend_stalls(app: tauri::AppHandle) {
     });
 }
 
+/// The Quake window hides instead of closing; closing the main window quits the app
+/// (a hidden Quake window must not keep it running).
+fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
+    match event {
+        tauri::WindowEvent::CloseRequested { api, .. } if window.label() == quake::QUAKE_LABEL => {
+            api.prevent_close();
+            let _ = window.hide();
+        }
+        tauri::WindowEvent::Destroyed if window.label() == "main" => {
+            window.app_handle().exit(0);
+        }
+        _ => {}
+    }
+}
+
 /// Wires what needs the app handle: SSH prompts, config hot reload, shell cache warm-up.
 fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     let handle = app.clone();
@@ -61,6 +78,8 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     );
     let _ = app.state::<AppState>().sftp.transfers.set(transfers);
     std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
+    let quake = app.state::<AppState>().settings.lock().settings().general.quake.clone();
+    quake::sync_quake(app, &quake, &app.state::<AppState>().quake);
     let handle = app.clone();
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
@@ -184,11 +203,23 @@ pub fn run() {
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_state_flags(StateFlags::all() & !StateFlags::VISIBLE)
+                .with_denylist(&[quake::QUAKE_LABEL])
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                // Only the Quake shortcut is ever registered.
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        quake::toggle_quake(app);
+                    }
+                })
+                .build(),
+        )
+        .on_window_event(on_window_event)
         .manage(AppState {
             settings: Mutex::new(store),
             settings_error: Mutex::new(load_error.as_ref().map(ConfigErrorDto::from)),
@@ -202,6 +233,7 @@ pub fn run() {
             shells: Mutex::new(None),
             ssh: state::SshState::default(),
             sftp: state::SftpState::default(),
+            quake: Mutex::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

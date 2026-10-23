@@ -16,6 +16,7 @@ import { ConnectionDialog } from './ConnectionDialog';
 import { FolderDialog } from './FolderDialog';
 import { PaneView } from './PaneView';
 import { PromptHost } from './PromptHost';
+import { useQuakeTabs } from './quake';
 import { QuickConnectDialog } from './QuickConnectDialog';
 import { QuickSettingsDialog } from './QuickSettingsDialog';
 import { Sidebar } from './Sidebar';
@@ -26,8 +27,9 @@ import { useShortcuts } from './useShortcuts';
 import { Welcome } from './Welcome';
 
 /** Asks before closing the window while a program runs in any terminal. */
-function useWindowCloseGuard() {
+function useWindowCloseGuard(enabled: boolean) {
   useEffect(() => {
+    if (!enabled) return;
     const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
       if (await confirmClose(allSessions())) flushWorkspace();
       else event.preventDefault();
@@ -37,10 +39,20 @@ function useWindowCloseGuard() {
         off();
       });
     };
-  }, []);
+  }, [enabled]);
 }
 
-export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: AppInfo }) {
+export function AppShell({
+  settings,
+  appInfo,
+  mode = 'main',
+}: {
+  settings: Settings;
+  appInfo: AppInfo;
+  /** `quake`: no titlebar nor sidebar; the window hides (Rust) instead of closing. */
+  mode?: 'main' | 'quake';
+}) {
+  const quake = mode === 'quake';
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const { sidebarPosition, sidebarWidth } = settings.appearance;
@@ -49,7 +61,8 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
   const quickConnectOpen = useSsh((s) => s.quickConnectOpen);
   useShortcuts();
   useEffect(() => registerBuiltins(), []);
-  useWindowCloseGuard();
+  useWindowCloseGuard(!quake);
+  useQuakeTabs(quake);
 
   const sidebar = (
     <Sidebar
@@ -63,9 +76,9 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
 
   return (
     <div className="flex h-full flex-col">
-      <Titlebar platform={appInfo.platform} />
+      {!quake && <Titlebar platform={appInfo.platform} />}
       <div className="flex min-h-0 flex-1">
-        {sidebarPosition === 'left' && sidebar}
+        {!quake && sidebarPosition === 'left' && sidebar}
         <main className="flex min-w-0 flex-1 flex-col">
           <TabBar />
           <div className="relative min-h-0 flex-1">
@@ -78,7 +91,7 @@ export function AppShell({ settings, appInfo }: { settings: Settings; appInfo: A
             )}
           </div>
         </main>
-        {sidebarPosition === 'right' && sidebar}
+        {!quake && sidebarPosition === 'right' && sidebar}
       </div>
       <QuickSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <CommandPalette />

@@ -12,7 +12,7 @@ use tilde_pty::ShellCandidate;
 use tilde_session::SessionManager;
 use tilde_ssh::{EditSession, KeyringStore, SshShell, TransferQueue};
 
-use crate::prompter::UiPrompter;
+use crate::{prompter::UiPrompter, quake::QuakeState};
 
 /// Application-wide state managed by Tauri.
 pub struct AppState {
@@ -34,6 +34,7 @@ pub struct AppState {
     pub shells: Mutex<Option<Vec<ShellCandidate>>>,
     pub ssh: SshState,
     pub sftp: SftpState,
+    pub quake: Mutex<QuakeState>,
 }
 
 #[derive(Default)]
