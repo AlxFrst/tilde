@@ -102,10 +102,12 @@ pub struct Recent {
     pub at: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ImportReport {
     pub imported: usize,
     pub skipped: usize,
+    /// Imported connections that use a key or a jump host: worth a look.
+    pub review: Vec<String>,
 }
 
 /// A fresh 16-hex-digit id.
@@ -223,6 +225,26 @@ fn validate_folder(f: &mut Folder) -> Result<(), ConfigError> {
     Ok(())
 }
 
+/// Why a connection cannot be used as written (first problem only), if it cannot.
+#[must_use]
+pub fn connection_problem(c: &Connection, folders: &[Folder]) -> Option<String> {
+    match validate_connection(&mut c.clone(), folders) {
+        Err(ConfigError::Invalid(fields)) => {
+            fields.first().map(|f| format!("{} : {}", f.path, f.message))
+        }
+        _ => None,
+    }
+}
+
+/// An imported file comes from someone else: a key on a network share (Windows would
+/// connect to it, leaking credentials) and agent forwarding are not taken from it.
+fn neutralise(c: &mut Connection) {
+    if c.identity_file.as_deref().is_some_and(|p| p.starts_with("\\\\") || p.starts_with("//")) {
+        c.identity_file = None;
+    }
+    c.forward_agent = None;
+}
+
 /// Repairs what can be repaired without losing data; logs each repair.
 fn repair(file: &mut ConnectionsFile) {
     let mut ids = HashSet::new();
@@ -277,19 +299,16 @@ pub struct ConnectionsStore {
     paths: ConfigPaths,
     file: ConnectionsFile,
     read_only: bool,
-    last_written_hash: Option<u64>,
+    /// Hash of the bytes last read from or written to disk.
+    disk_hash: Option<u64>,
 }
 
 impl ConnectionsStore {
     /// Always returns a usable store; an unusable file is reported and left untouched.
     #[must_use]
     pub fn load(paths: ConfigPaths) -> (Self, Option<ConfigError>) {
-        let mut store = Self {
-            paths,
-            file: ConnectionsFile::default(),
-            read_only: false,
-            last_written_hash: None,
-        };
+        let mut store =
+            Self { paths, file: ConnectionsFile::default(), read_only: false, disk_hash: None };
         store.write_schema();
         let err = store.reload_from_disk().err();
         (store, err)
@@ -318,18 +337,23 @@ impl ConnectionsStore {
     /// The file cannot be read, parsed, or comes from a newer version.
     pub fn reload_from_disk(&mut self) -> Result<bool, ConfigError> {
         let path = self.paths.connections_file();
+        let was_read_only = self.read_only;
         let text = match fs::read_to_string(&path) {
             Ok(text) => text,
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
                 self.read_only = false;
-                return Ok(false);
+                self.disk_hash = None;
+                return Ok(was_read_only);
             }
             Err(e) => {
                 self.read_only = true;
                 return Err(io_err(&path, e));
             }
         };
-        if self.last_written_hash == Some(hash_bytes(text.as_bytes())) {
+        let hash = hash_bytes(text.as_bytes());
+        // While read-only, even bytes seen before must be parsed again: restoring the
+        // last good content (undo + save) is how a user fixes the file.
+        if !was_read_only && self.disk_hash == Some(hash) {
             return Ok(false);
         }
         let mut file = parse(&text).inspect_err(|_| self.read_only = true)?;
@@ -342,13 +366,19 @@ impl ConnectionsStore {
                 supported: CONNECTIONS_VERSION,
             });
         }
-        let changed = file != self.file;
+        let changed = was_read_only || file != self.file;
         self.file = file;
         self.read_only = false;
+        self.disk_hash = Some(hash);
         Ok(changed)
     }
 
-    fn check_writable(&self) -> Result<(), ConfigError> {
+    /// Picks up hand edits the watcher has not delivered yet — so a write never drops
+    /// them — then checks the file may be written.
+    fn check_writable(&mut self) -> Result<(), ConfigError> {
+        if let Err(e) = self.reload_from_disk() {
+            tracing::warn!(error = %e, "connections.json changed on disk and is now unusable");
+        }
         if self.read_only { Err(ConfigError::ReadOnlyFile(FILE_NAME)) } else { Ok(()) }
     }
 
@@ -437,7 +467,7 @@ impl ConnectionsStore {
 
     /// Puts `key` first in the recents. Best effort: ignored while read-only.
     pub fn record_recent(&mut self, key: &str, label: &str) {
-        if self.read_only {
+        if self.check_writable().is_err() {
             return;
         }
         let mut file = self.file.clone();
@@ -459,6 +489,12 @@ impl ConnectionsStore {
     pub fn import(&mut self, text: &str) -> Result<ImportReport, ConfigError> {
         self.check_writable()?;
         let incoming = parse(text)?;
+        if incoming.version > CONNECTIONS_VERSION {
+            return Err(ConfigError::FutureVersion {
+                found: incoming.version,
+                supported: CONNECTIONS_VERSION,
+            });
+        }
         let mut file = self.file.clone();
         let mut folder_map = std::collections::HashMap::new();
         for mut f in incoming.folders {
@@ -477,9 +513,13 @@ impl ConnectionsStore {
             };
             folder_map.insert(old, id);
         }
-        let mut report = ImportReport { imported: 0, skipped: 0 };
+        let mut report = ImportReport { imported: 0, skipped: 0, review: Vec::new() };
         for mut c in incoming.connections {
             c.folder_id = c.folder_id.and_then(|f| folder_map.get(&f).cloned());
+            let risky = c.identity_file.is_some()
+                || c.proxy_jump.is_some()
+                || c.forward_agent == Some(true);
+            neutralise(&mut c);
             if validate_connection(&mut c, &file.folders).is_err()
                 || file.connections.iter().any(|x| {
                     x.host.eq_ignore_ascii_case(&c.host) && x.user == c.user && x.port == c.port
@@ -489,6 +529,9 @@ impl ConnectionsStore {
                 continue;
             }
             c.id = new_id();
+            if risky {
+                report.review.push(c.name.clone());
+            }
             file.connections.push(c);
             report.imported += 1;
         }
@@ -501,8 +544,36 @@ impl ConnectionsStore {
     /// # Panics
     ///
     /// Never: the model always serializes.
+    /// Hand-written values that do not pass validation, one sentence each.
     #[must_use]
-    pub fn export(&self) -> String {
+    pub fn warnings(&self) -> Vec<String> {
+        self.file
+            .connections
+            .iter()
+            .filter_map(|c| {
+                connection_problem(c, &self.file.folders).map(|p| format!("« {} » : {p}", c.name))
+            })
+            .collect()
+    }
+
+    /// Why connection `id` cannot be used as written, if it cannot.
+    #[must_use]
+    pub fn problem(&self, id: &str) -> Option<String> {
+        let c = self.file.connections.iter().find(|c| c.id == id)?;
+        connection_problem(c, &self.file.folders)
+    }
+
+    /// # Errors
+    ///
+    /// The file on disk is unreadable: an export would be empty or stale.
+    pub fn export(&self) -> Result<String, ConfigError> {
+        if self.read_only {
+            return Err(ConfigError::ReadOnlyFile(FILE_NAME));
+        }
+        Ok(self.export_text())
+    }
+
+    fn export_text(&self) -> String {
         let out = ConnectionsFile { recents: Vec::new(), ..self.file.clone() };
         let mut value = serde_json::to_value(out).expect("the model serializes");
         if let Some(obj) = value.as_object_mut() {
@@ -525,7 +596,7 @@ impl ConnectionsStore {
         let tmp = path.with_extension("json.tmp");
         fs::write(&tmp, &text).map_err(|e| io_err(&tmp, e))?;
         fs::rename(&tmp, &path).map_err(|e| io_err(&path, e))?;
-        self.last_written_hash = Some(hash_bytes(text.as_bytes()));
+        self.disk_hash = Some(hash_bytes(text.as_bytes()));
         self.file = file;
         Ok(())
     }

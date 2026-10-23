@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tilde_config::{
     ConfigError, ConfigErrorDto, Connection, ConnectionsFile, ConnectionsStore, Folder,
-    ImportReport,
+    ImportReport, connection_problem,
 };
 use tilde_ssh::SshTarget;
 
@@ -27,12 +27,19 @@ pub struct ConnectionsView {
     pub file: ConnectionsFile,
     pub read_only: bool,
     pub error: Option<ConfigErrorDto>,
+    /// Hand-written values that will be refused when opening (one line each).
+    pub warnings: Vec<String>,
 }
 
 fn view(state: &AppState) -> ConnectionsView {
     let store = state.connections.lock();
     let error = if store.read_only() { state.connections_error.lock().clone() } else { None };
-    ConnectionsView { file: store.file().clone(), read_only: store.read_only(), error }
+    ConnectionsView {
+        file: store.file().clone(),
+        read_only: store.read_only(),
+        error,
+        warnings: store.warnings(),
+    }
 }
 
 pub(crate) fn emit_changed(app: &AppHandle) {
@@ -123,7 +130,12 @@ pub async fn connections_import(app: AppHandle) -> Result<Option<ImportReport>, 
 /// Asks where to save (native dialog) and writes the export. `false` when cancelled.
 #[tauri::command]
 pub async fn connections_export(app: AppHandle) -> Result<bool, ConfigErrorDto> {
-    let text = app.state::<AppState>().connections.lock().export();
+    let text = app
+        .state::<AppState>()
+        .connections
+        .lock()
+        .export()
+        .map_err(|e| ConfigErrorDto::from(&e))?;
     let dialog = app
         .dialog()
         .file()
@@ -172,6 +184,12 @@ pub fn ssh_target_for(
     connection_id: Option<&str>,
 ) -> Result<(SshTarget, (String, String)), String> {
     if let Some(c) = connection_id.and_then(|id| file.connections.iter().find(|c| c.id == id)) {
+        if let Some(problem) = connection_problem(c, &file.folders) {
+            return Err(format!(
+                "« {} » ne peut pas être ouverte ({problem}) : corrigez-la dans la sidebar",
+                c.name
+            ));
+        }
         let custom = SshTarget::Custom {
             host: c.host.clone(),
             user: c.user.clone(),
@@ -211,5 +229,20 @@ mod tests {
         assert_eq!(recent, ("ssh:root@db:22".to_owned(), "root@db:22".to_owned()));
 
         assert!(ssh_target_for(&file, "  ", None).is_err());
+    }
+
+    /// A `ProxyJump` typo must not silently connect without the bastion.
+    #[test]
+    fn an_invalid_saved_connection_is_not_opened() {
+        let mut file = ConnectionsFile::default();
+        file.connections.push(Connection {
+            id: "c1".into(),
+            name: "Prod".into(),
+            host: "prod".into(),
+            proxy_jump: Some("b1,,b2".into()),
+            ..Connection::default()
+        });
+        let err = ssh_target_for(&file, "prod", Some("c1")).unwrap_err();
+        assert!(err.contains("Prod") && err.contains("proxyJump"), "{err}");
     }
 }

@@ -175,3 +175,13 @@ test('read-only file shows the error and disables editing', () => {
   expect(screen.getByRole('button', { name: 'Ouvrir le fichier' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Ajouter' })).toBeDisabled();
 });
+
+test('connections that cannot be opened as written are listed', () => {
+  setFile(
+    { connections: [conn('a', 'Alpha')] },
+    { warnings: ['« Alpha » : port : entre 1 et 65535'] },
+  );
+  show();
+  expect(screen.getByText('« Alpha » : port : entre 1 et 65535')).toBeInTheDocument();
+  expect(screen.getByText(/À corriger avant de pouvoir s’y connecter/)).toBeInTheDocument();
+});

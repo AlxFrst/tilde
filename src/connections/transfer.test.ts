@@ -11,13 +11,13 @@ beforeEach(() => {
 });
 
 test('import reports what was imported and skipped', async () => {
-  vi.mocked(importConnections).mockResolvedValueOnce({ imported: 3, skipped: 1 });
+  vi.mocked(importConnections).mockResolvedValueOnce({ imported: 3, skipped: 1, review: [] });
   await importWithReport();
   expect(toast.success).toHaveBeenCalledWith(
     '3 connexions importées, 1 ignorée (déjà présentes ou invalides)',
   );
 
-  vi.mocked(importConnections).mockResolvedValueOnce({ imported: 1, skipped: 0 });
+  vi.mocked(importConnections).mockResolvedValueOnce({ imported: 1, skipped: 0, review: [] });
   await importWithReport();
   expect(toast.success).toHaveBeenLastCalledWith('1 connexion importée');
 });
@@ -37,4 +37,17 @@ test('cancelling says nothing; failures are shown', async () => {
   });
   await importWithReport();
   expect(toast.error).toHaveBeenCalledWith('Fichier importé ligne 2, colonne 1 : EOF');
+});
+
+test('imported keys and jump hosts are named for review', async () => {
+  vi.mocked(importConnections).mockResolvedValueOnce({
+    imported: 2,
+    skipped: 0,
+    review: ['unc', 'jump'],
+  });
+  await importWithReport();
+  expect(toast.success).toHaveBeenLastCalledWith('2 connexions importées', {
+    description:
+      'À vérifier : unc, jump (clé ou bastion importés). Le transfert d’agent n’est jamais importé.',
+  });
 });

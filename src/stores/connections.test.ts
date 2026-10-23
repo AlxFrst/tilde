@@ -12,6 +12,7 @@ const empty: ConnectionsView = {
   file: { version: 1, folders: [], connections: [], recents: [] },
   readOnly: false,
   error: null,
+  warnings: [],
 };
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn((cmd: string) => Promise.resolve(cmd === 'ssh_hosts' ? [] : empty)),
@@ -44,6 +45,7 @@ test('store applies connections://changed and exposes read-only errors', async (
     },
     readOnly: true,
     error: { kind: 'parse', message: 'EOF', line: 3, column: 1 },
+    warnings: [],
   };
   handlers.get('connections://changed')?.({ payload: next });
   const s = useConnections.getState();

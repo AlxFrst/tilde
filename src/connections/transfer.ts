@@ -17,9 +17,14 @@ export async function importWithReport(): Promise<void> {
     const skipped = report.skipped
       ? `, ${plural(report.skipped, 'ignorée', 'ignorées')} (déjà présentes ou invalides)`
       : '';
-    toast.success(
-      `${plural(report.imported, 'connexion importée', 'connexions importées')}${skipped}`,
-    );
+    const title = `${plural(report.imported, 'connexion importée', 'connexions importées')}${skipped}`;
+    if (report.review.length > 0) {
+      toast.success(title, {
+        description: `À vérifier : ${report.review.join(', ')} (clé ou bastion importés). Le transfert d’agent n’est jamais importé.`,
+      });
+    } else {
+      toast.success(title);
+    }
   } catch (err) {
     fail(err, 'Fichier importé');
   }

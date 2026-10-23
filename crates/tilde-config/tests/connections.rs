@@ -2,9 +2,7 @@
 
 use std::fs;
 
-use tilde_config::{
-    ConfigError, ConfigPaths, Connection, ConnectionsStore, Folder, ImportReport, MAX_RECENTS,
-};
+use tilde_config::{ConfigError, ConfigPaths, Connection, ConnectionsStore, Folder, MAX_RECENTS};
 
 fn setup(contents: Option<&str>) -> (tempfile::TempDir, ConfigPaths) {
     let dir = tempfile::TempDir::new().unwrap();
@@ -190,7 +188,7 @@ fn import_drops_unknown_fields_and_skips_duplicates() {
         id = existing.id
     );
     let report = store.import(&import).unwrap();
-    assert_eq!(report, ImportReport { imported: 2, skipped: 2 });
+    assert_eq!((report.imported, report.skipped), (2, 2));
 
     let file = store.file();
     assert_eq!(file.folders.len(), 2, "« prod » merged with « Prod »");
@@ -220,7 +218,7 @@ fn export_contains_no_recents_and_no_unknown_fields() {
         "recents": [ { "key": "conn:a", "label": "A", "at": 5 } ] }"#;
     let (_d, paths) = setup(Some(text));
     let (store, _) = ConnectionsStore::load(paths);
-    let out = store.export();
+    let out = store.export().unwrap();
     assert!(!out.contains("hunter2"));
     assert!(!out.contains("recents"));
     assert!(!out.contains("$schema"));
@@ -245,4 +243,85 @@ fn reload_sees_external_edits_but_not_its_own_writes() {
     assert!(store.reload_from_disk().is_err());
     assert!(store.read_only());
     assert_eq!(store.file().connections[0].name, "renamed", "last good content stays shown");
+}
+
+#[test]
+fn restoring_the_exact_last_bytes_after_a_broken_edit_unlocks() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    store.upsert_connection(conn("a", "h")).unwrap();
+    let good = read(&paths);
+    fs::write(paths.connections_file(), "{").unwrap();
+    assert!(store.reload_from_disk().is_err());
+    assert!(store.read_only());
+
+    fs::write(paths.connections_file(), &good).unwrap(); // Ctrl+Z, save
+    assert!(store.reload_from_disk().unwrap(), "the UI must hear that editing is back");
+    assert!(!store.read_only());
+    store.upsert_connection(conn("b", "h2")).unwrap();
+}
+
+#[test]
+fn invalid_values_written_by_hand_are_reported() {
+    let text = r#"{ "version": 1, "connections": [
+        { "id": "a", "name": "A", "host": "h", "port": 0 },
+        { "id": "b", "name": "B", "host": "h", "proxyJump": "x,,y" },
+        { "id": "c", "name": "C", "host": "h" } ] }"#;
+    let (_d, paths) = setup(Some(text));
+    let (store, err) = ConnectionsStore::load(paths);
+    assert!(err.is_none());
+    let warnings = store.warnings();
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    assert!(warnings[0].contains("« A »") && warnings[0].contains("port"), "{warnings:?}");
+    assert!(store.problem("b").is_some());
+    assert!(store.problem("c").is_none());
+}
+
+#[test]
+fn app_writes_keep_hand_edits_not_yet_reloaded() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    store.upsert_connection(conn("a", "h")).unwrap();
+    // The user adds an entry by hand; the watcher has not fired yet.
+    let edited = read(&paths).replace(
+        "\"connections\": [",
+        "\"connections\": [ { \"id\": \"hand\", \"name\": \"Hand\", \"host\": \"x\" },",
+    );
+    fs::write(paths.connections_file(), edited).unwrap();
+    store.record_recent("ssh:h", "h");
+    assert!(read(&paths).contains("\"Hand\""), "the hand edit survived");
+    assert!(store.file().connections.iter().any(|c| c.id == "hand"));
+}
+
+#[test]
+fn import_neutralises_risky_fields_and_names_entries_to_review() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    let report = store
+        .import(
+            r#"{ "version": 1, "connections": [
+            { "id": "1", "name": "unc", "host": "a", "identityFile": "//evil.example/share/k",
+              "forwardAgent": true },
+            { "id": "2", "name": "unc2", "host": "b", "identityFile": "\\\\evil\\k" },
+            { "id": "3", "name": "jump", "host": "c", "proxyJump": "x@bastion" },
+            { "id": "4", "name": "plain", "host": "d" } ] }"#,
+        )
+        .unwrap();
+    assert_eq!((report.imported, report.skipped), (4, 0));
+    assert_eq!(report.review, vec!["unc", "unc2", "jump"]);
+    let by = |n: &str| store.file().connections.iter().find(|c| c.name == n).unwrap().clone();
+    assert_eq!(by("unc").identity_file, None, "network key paths are dropped");
+    assert_eq!(by("unc2").identity_file, None);
+    assert_eq!(by("unc").forward_agent, None, "agent forwarding is never imported");
+    assert_eq!(by("jump").proxy_jump.as_deref(), Some("x@bastion"));
+
+    let newer = store.import(r#"{ "version": 9, "connections": [] }"#);
+    assert!(matches!(newer, Err(ConfigError::FutureVersion { .. })));
+}
+
+#[test]
+fn export_is_refused_while_the_file_is_unreadable() {
+    let (_d, paths) = setup(Some("{ broken"));
+    let (store, _) = ConnectionsStore::load(paths);
+    assert!(matches!(store.export(), Err(ConfigError::ReadOnlyFile(_))));
 }

@@ -14,7 +14,7 @@ mod workspace;
 
 pub use connections::{
     CONNECTIONS_VERSION, Connection, ConnectionsFile, ConnectionsStore, Folder, ICONS,
-    ImportReport, MAX_RECENTS, Recent, connections_schema, new_id,
+    ImportReport, MAX_RECENTS, Recent, connection_problem, connections_schema, new_id,
 };
 pub use error::{ConfigError, ConfigErrorDto, FieldError};
 pub use merge_patch::merge_patch;

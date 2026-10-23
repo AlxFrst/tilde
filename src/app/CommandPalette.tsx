@@ -1,9 +1,11 @@
 import { Command } from 'cmdk';
+import { single } from 'fuzzysort';
 import { FileCode2, History, Search } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { listCommands, runCommand, type Command as AppCommand } from '@/commands/registry';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { connectionIcon } from '@/connections/icons';
+import { fold } from '@/connections/search';
 import type { Connection } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
 import { useUi } from '@/stores/ui';
@@ -99,6 +101,18 @@ function Shortcut({ command }: { command: AppCommand }) {
   );
 }
 
+/** Item values end with an id (cmdk needs them unique); it is never searched. */
+const ID_SEPARATOR = '\u0000';
+
+/** Same matching as the sidebar: case and accents ignored, best matches first. */
+function paletteFilter(value: string, query: string, keywords?: string[]): number {
+  const label = value.split(ID_SEPARATOR)[0] ?? '';
+  const q = fold(query.trim());
+  if (!q) return 1;
+  const result = single(q, fold([label, ...(keywords ?? [])].join(' ')));
+  return result ? Math.max(result.score, 0.001) : 0;
+}
+
 const itemClass =
   'flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm data-[selected=true]:bg-surface-2';
 
@@ -110,9 +124,16 @@ export function CommandPalette() {
   // Read when the palette opens: commands registered later still show next time.
   const commands = useMemo(() => (open ? listCommands().filter((c) => !c.hidden) : []), [open]);
 
+  // However the palette closes (Escape, Ctrl+Shift+P, a choice), typing goes back to the
+  // terminal of the active pane.
+  const wasOpen = useRef(open);
+  useEffect(() => {
+    if (wasOpen.current && !open) activeTerminal()?.focus();
+    wasOpen.current = open;
+  }, [open]);
+
   const close = () => {
     setOpen(false);
-    activeTerminal()?.focus();
   };
   const choose = (run: () => void) => {
     close();
@@ -134,7 +155,7 @@ export function CommandPalette() {
         }}
       >
         <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
-        <Command label="Palette de commandes" loop>
+        <Command label="Palette de commandes" loop filter={paletteFilter}>
           <div className="flex items-center gap-2 border-b px-3">
             <Search className="size-4 text-text-muted" strokeWidth={1.5} />
             <Command.Input
@@ -162,7 +183,7 @@ export function CommandPalette() {
                   return (
                     <Command.Item
                       key={t.key}
-                      value={`${t.label} ${t.key}`}
+                      value={`${t.label}${ID_SEPARATOR}${t.key}`}
                       keywords={t.keywords}
                       className={itemClass}
                       onSelect={() => {
@@ -188,7 +209,7 @@ export function CommandPalette() {
               {commands.map((c) => (
                 <Command.Item
                   key={c.id}
-                  value={`${c.title} ${c.id}`}
+                  value={`${c.title}${ID_SEPARATOR}${c.id}`}
                   keywords={[c.group]}
                   className={itemClass}
                   onSelect={() => {

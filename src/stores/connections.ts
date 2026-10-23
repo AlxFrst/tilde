@@ -20,6 +20,8 @@ interface ConnectionsState {
   /** connections.json is broken on disk: shown, but not editable until fixed. */
   readOnly: boolean;
   error: ConfigErrorDto | null;
+  /** Saved connections that cannot be opened as written. */
+  warnings: string[];
   /** Concrete hosts of ~/.ssh/config. */
   sshHosts: SshHostEntry[];
   /** Loads everything and follows backend changes; resolves to an unsubscribe function. */
@@ -65,14 +67,21 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
   file: EMPTY,
   readOnly: false,
   error: null,
+  warnings: [],
   sshHosts: [],
 
   init: async () => {
     const off = await onConnectionsChanged((v) => {
-      set({ file: v.file, readOnly: v.readOnly, error: v.error });
+      set({ file: v.file, readOnly: v.readOnly, error: v.error, warnings: v.warnings });
     });
     const view = await getConnections();
-    set({ file: view.file, readOnly: view.readOnly, error: view.error, loaded: true });
+    set({
+      file: view.file,
+      readOnly: view.readOnly,
+      error: view.error,
+      warnings: view.warnings,
+      loaded: true,
+    });
     void get().refreshSshHosts();
     // ~/.ssh/config may be edited while Tilde runs: re-read it when the window is back.
     const onFocus = () => void get().refreshSshHosts();

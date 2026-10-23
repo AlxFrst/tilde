@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { registerCommands } from '@/commands/registry';
 import { useConnections } from '@/stores/connections';
@@ -84,6 +84,43 @@ test('escape closes the palette and focuses the active terminal', async () => {
   render(<CommandPalette />);
   await userEvent.keyboard('{Escape}');
   expect(useUi.getState().paletteOpen).toBe(false);
+  expect(focus).toHaveBeenCalled();
+  off();
+});
+
+test('palette search folds accents and never matches internal ids', async () => {
+  useConnections.setState({
+    file: {
+      version: 1,
+      folders: [],
+      connections: [{ ...conn('beef42', 'Préprod'), host: 'pp.example' }],
+      recents: [],
+    },
+    sshHosts: [],
+  });
+  render(<CommandPalette />);
+  const box = screen.getByRole('combobox');
+  await userEvent.type(box, 'prepro');
+  expect(screen.getByRole('option', { name: /Préprod/ })).toBeInTheDocument();
+  await userEvent.clear(box);
+  await userEvent.type(box, 'beef42');
+  expect(screen.queryAllByRole('option')).toEqual([]);
+});
+
+test('closing the palette with its shortcut gives the focus back to the terminal', () => {
+  useWorkspace.getState().openTab('cmd');
+  const active = useWorkspace.getState().tabs[0]?.activeLeafId ?? '';
+  const focus = vi.fn();
+  const off = registerTerminalActions(active, {
+    focus,
+    copy: vi.fn(),
+    paste: vi.fn(),
+    search: vi.fn(),
+  });
+  render(<CommandPalette />);
+  act(() => {
+    useUi.setState({ paletteOpen: false }); // what palette.toggle does
+  });
   expect(focus).toHaveBeenCalled();
   off();
 });

@@ -10,11 +10,15 @@ export interface ConnectionsView {
   file: ConnectionsFile;
   readOnly: boolean;
   error: ConfigErrorDto | null;
+  /** Hand-written values that will be refused when opening (one line each). */
+  warnings: string[];
 }
 
 export interface ImportReport {
   imported: number;
   skipped: number;
+  /** Imported connections that use a key or a jump host: worth a look. */
+  review: string[];
 }
 
 /** Icons a connection may use (mirrors `ICONS` in crates/tilde-config/src/connections.rs). */

@@ -107,7 +107,7 @@ function Results({ query }: { query: string }) {
 }
 
 export function Sidebar({ side, width, onOpenSettings }: SidebarProps) {
-  const { readOnly, error, setEditing, setEditingFolder } = useConnections();
+  const { readOnly, error, warnings, setEditing, setEditingFolder } = useConnections();
   const [query, setQuery] = useState('');
   const searchBox = useRef<HTMLInputElement>(null);
 
@@ -212,6 +212,20 @@ export function Sidebar({ side, width, onOpenSettings }: SidebarProps) {
           >
             Ouvrir le fichier
           </button>
+        </div>
+      )}
+
+      {!readOnly && warnings.length > 0 && (
+        <div
+          role="status"
+          className="mx-3 my-1 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs"
+        >
+          <p className="font-medium">À corriger avant de pouvoir s’y connecter :</p>
+          <ul className="mt-1 list-disc pl-4">
+            {warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
         </div>
       )}
 
