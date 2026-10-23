@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src-tauri/icons/128x128@2x.png" alt="Tilde logo" width="96" height="96" />
+<img src="docs/logo.svg" alt="Tilde logo" width="96" height="96" />
 
 # Tilde
 

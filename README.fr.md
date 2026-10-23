@@ -1,4 +1,10 @@
-# ~ Tilde
+<div align="center">
+
+<img src="docs/logo.svg" alt="Logo de Tilde" width="96" height="96" />
+
+# Tilde
+
+</div>
 
 *[English](README.md) · Français*
 
