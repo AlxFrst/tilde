@@ -6,8 +6,8 @@ Tilde veut une chose avant tout : que la connexion SSH marche du premier coup, y
 derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans abonnement.
 Le tout dans une interface soignée, rapide et entièrement personnalisable.
 
-> 🚧 **En développement.** Les phases 1 (fondations) et 2 (terminal local) sont terminées,
-> la phase 3 (SSH) est en validation. Voir la [feuille de route](#feuille-de-route).
+> 🚧 **En développement.** Les phases 1 (fondations), 2 (terminal local) et 3 (SSH) sont
+> terminées. Voir la [feuille de route](#feuille-de-route).
 
 ## Fonctionnalités (aujourd'hui)
 
@@ -165,7 +165,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 
 1. ✅ Fondations : coquille, thèmes, réglages
 2. ✅ Terminal local : PTY, onglets, splits, profils de shells
-3. 🧪 SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand, tunnels (en validation)
+3. ✅ SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand, tunnels
 4. Sidebar de connexions et palette de commandes
 5. SFTP
 6. Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence
