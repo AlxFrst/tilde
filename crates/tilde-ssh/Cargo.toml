@@ -21,7 +21,7 @@ sha1 = "0.10"
 thiserror = "2"
 tilde-session = { path = "../tilde-session" }
 tilde-ssh-config = { path = "../tilde-ssh-config" }
-tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "process"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "process", "fs"] }
 tracing = "0.1"
 
 [features]

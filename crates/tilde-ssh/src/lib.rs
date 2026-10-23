@@ -13,6 +13,7 @@ mod proxy_command;
 mod secrets;
 mod sftp;
 mod shell;
+mod transfer;
 
 pub use agent::{
     AgentSource, DynAgent, WINDOWS_AGENT_PIPE, agent_candidates, connect_agent,
@@ -37,3 +38,6 @@ pub use sftp::{
     EntryKind, MAX_REMOVE, RemoteEntry, SftpClient, SftpError, join_remote, safe_local_name,
 };
 pub use shell::{HOLD_CAP, STALL_MAX, SshShell};
+pub use transfer::{
+    CHUNK, Direction, PROGRESS_EVERY, Speed, Throttle, TransferInfo, TransferQueue, TransferState,
+};
