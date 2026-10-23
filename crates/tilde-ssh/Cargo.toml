@@ -13,6 +13,8 @@ base64 = "0.22"
 dirs = "7"
 hmac = "0.12"
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
+notify = "8"
+notify-debouncer-full = "0.7"
 parking_lot = "0.12"
 serde = { version = "1", features = ["derive"] }
 russh-sftp = "3"

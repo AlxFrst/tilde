@@ -5654,6 +5654,8 @@ dependencies = [
  "dirs",
  "hmac 0.12.1",
  "keyring",
+ "notify",
+ "notify-debouncer-full",
  "parking_lot",
  "russh",
  "russh-sftp",

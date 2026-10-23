@@ -5,6 +5,7 @@ mod auth;
 mod chain;
 mod connect;
 mod connection;
+mod edit;
 mod error;
 mod forward;
 mod interact;
@@ -25,6 +26,9 @@ pub use connect::{AsyncStream, ClientHandler, Connector, SshDefaults};
 pub use connection::{
     ConnState, RECONNECTED_LINE, SshSessionSpec, SshTarget, StateCallback, backoff,
     open_ssh_session,
+};
+pub use edit::{
+    EDIT_DEBOUNCE, EditSession, RemoteFile, Stamp, clean_stale_edit_dirs, session_temp_dir,
 };
 pub use error::{ConnectError, HopLabel};
 pub use forward::{ForwardInfo, ForwardKind, ForwardSpec};
