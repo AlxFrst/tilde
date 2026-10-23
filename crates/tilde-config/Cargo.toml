@@ -1,0 +1,23 @@
+[package]
+name = "tilde-config"
+description = "Tilde settings model, persistence, migrations and hot reload"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+dirs = "7"
+schemars = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_path_to_error = "0.1"
+thiserror = "2"
+tracing = "0.1"
+
+[dev-dependencies]
+insta = { version = "1", features = ["json"] }
+tempfile = "3"
+
+[lints]
+workspace = true

@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Settings",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0,
+      "default": 1
+    },
+    "appearance": {
+      "$ref": "#/$defs/Appearance",
+      "default": {
+        "colorScheme": "system",
+        "themeDark": "tilde-dark",
+        "themeLight": "tilde-light",
+        "uiFontFamily": "Geist Variable",
+        "uiFontSize": 13,
+        "density": "comfortable",
+        "sidebarPosition": "left",
+        "sidebarWidth": 260,
+        "window": {
+          "effect": "none",
+          "opacity": 1.0
+        }
+      }
+    },
+    "terminal": {
+      "$ref": "#/$defs/Terminal",
+      "default": {
+        "fontFamily": "JetBrains Mono Variable",
+        "fontSize": 14,
+        "lineHeight": 1.2,
+        "ligatures": true,
+        "cursorStyle": "block",
+        "cursorBlink": true,
+        "scrollback": 10000,
+        "defaultProfile": null,
+        "copyOnSelect": false,
+        "rightClick": "menu",
+        "confirmClose": true
+      }
+    },
+    "ssh": {
+      "$ref": "#/$defs/Ssh",
+      "default": {
+        "keepaliveIntervalSecs": 15,
+        "keepaliveCountMax": 3,
+        "autoReconnect": true,
+        "confirmCloseSsh": true
+      }
+    },
+    "sftp": {
+      "$ref": "#/$defs/Sftp",
+      "default": {
+        "concurrency": 3,
+        "editorMode": "external",
+        "externalEditor": null
+      }
+    },
+    "general": {
+      "$ref": "#/$defs/General",
+      "default": {
+        "restoreSession": true,
+        "quake": {
+          "enabled": false,
+          "shortcut": "Ctrl+`"
+        }
+      }
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "Appearance": {
+      "type": "object",
+      "properties": {
+        "colorScheme": {
+          "$ref": "#/$defs/ColorScheme",
+          "default": "system"
+        },
+        "themeDark": {
+          "type": "string",
+          "default": "tilde-dark"
+        },
+        "themeLight": {
+          "type": "string",
+          "default": "tilde-light"
+        },
+        "uiFontFamily": {
+          "type": "string",
+          "default": "Geist Variable"
+        },
+        "uiFontSize": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 10,
+          "maximum": 20,
+          "default": 13
+        },
+        "density": {
+          "$ref": "#/$defs/Density",
+          "default": "comfortable"
+        },
+        "sidebarPosition": {
+          "$ref": "#/$defs/SidebarPosition",
+          "default": "left"
+        },
+        "sidebarWidth": {
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 180,
+          "maximum": 480,
+          "default": 260
+        },
+        "window": {
+          "$ref": "#/$defs/WindowAppearance",
+          "default": {
+            "effect": "none",
+            "opacity": 1.0
+          }
+        }
+      }
+    },
+    "ColorScheme": {
+      "type": "string",
+      "enum": [
+        "system",
+        "dark",
+        "light"
+      ]
+    },
+    "Density": {
+      "type": "string",
+      "enum": [
+        "compact",
+        "comfortable",
+        "spacious"
+      ]
+    },
+    "SidebarPosition": {
+      "type": "string",
+      "enum": [
+        "left",
+        "right"
+      ]
+    },
+    "WindowAppearance": {
+      "type": "object",
+      "properties": {
+        "effect": {
+          "$ref": "#/$defs/WindowEffect",
+          "default": "none"
+        },
+        "opacity": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0.3,
+          "maximum": 1.0,
+          "default": 1.0
+        }
+      }
+    },
+    "WindowEffect": {
+      "type": "string",
+      "enum": [
+        "none",
+        "mica",
+        "acrylic",
+        "vibrancy"
+      ]
+    },
+    "Terminal": {
+      "type": "object",
+      "properties": {
+        "fontFamily": {
+          "type": "string",
+          "default": "JetBrains Mono Variable"
+        },
+        "fontSize": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 6,
+          "maximum": 72,
+          "default": 14
+        },
+        "lineHeight": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0.8,
+          "maximum": 3.0,
+          "default": 1.2
+        },
+        "ligatures": {
+          "type": "boolean",
+          "default": true
+        },
+        "cursorStyle": {
+          "$ref": "#/$defs/CursorStyle",
+          "default": "block"
+        },
+        "cursorBlink": {
+          "type": "boolean",
+          "default": true
+        },
+        "scrollback": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "maximum": 1000000,
+          "default": 10000
+        },
+        "defaultProfile": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "copyOnSelect": {
+          "type": "boolean",
+          "default": false
+        },
+        "rightClick": {
+          "$ref": "#/$defs/RightClick",
+          "default": "menu"
+        },
+        "confirmClose": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "CursorStyle": {
+      "type": "string",
+      "enum": [
+        "block",
+        "bar",
+        "underline"
+      ]
+    },
+    "RightClick": {
+      "type": "string",
+      "enum": [
+        "menu",
+        "paste",
+        "copyPaste"
+      ]
+    },
+    "Ssh": {
+      "type": "object",
+      "properties": {
+        "keepaliveIntervalSecs": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "maximum": 3600,
+          "default": 15
+        },
+        "keepaliveCountMax": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 3
+        },
+        "autoReconnect": {
+          "type": "boolean",
+          "default": true
+        },
+        "confirmCloseSsh": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "Sftp": {
+      "type": "object",
+      "properties": {
+        "concurrency": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 3
+        },
+        "editorMode": {
+          "$ref": "#/$defs/EditorMode",
+          "default": "external"
+        },
+        "externalEditor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
+    "EditorMode": {
+      "type": "string",
+      "enum": [
+        "external",
+        "builtin"
+      ]
+    },
+    "General": {
+      "type": "object",
+      "properties": {
+        "restoreSession": {
+          "type": "boolean",
+          "default": true
+        },
+        "quake": {
+          "$ref": "#/$defs/Quake",
+          "default": {
+            "enabled": false,
+            "shortcut": "Ctrl+`"
+          }
+        }
+      }
+    },
+    "Quake": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "shortcut": {
+          "type": "string",
+          "default": "Ctrl+`"
+        }
+      }
+    }
+  },
+  "$id": "https://tilde.dev/schemas/settings.schema.json"
+}
