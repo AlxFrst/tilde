@@ -7,4 +7,5 @@ pub mod app;
 pub mod profiles;
 pub mod session;
 pub mod settings;
+pub mod ssh;
 pub mod workspace;

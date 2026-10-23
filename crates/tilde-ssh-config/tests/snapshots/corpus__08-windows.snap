@@ -1,0 +1,40 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+devbox:
+  hostname: devbox.lan
+  port: 22
+  user: Alex
+  identity_files: [C:\Users\Alex\.ssh\id_ed25519, C:\Users\Alex Smith\.ssh\work key, C:/Users/Alex/.ssh/id_rsa]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: C:\Windows\System32\OpenSSH\ssh.exe -W devbox.lan:22 jump.lan
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [C:\Users\Alex\.ssh\known_hosts_devbox]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+wsl:
+  hostname: localhost
+  port: 2222
+  user: alice
+  identity_files: [/home/alice/.ssh/wsl_key, C:/Users/Alex/.ssh/id_rsa]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: no

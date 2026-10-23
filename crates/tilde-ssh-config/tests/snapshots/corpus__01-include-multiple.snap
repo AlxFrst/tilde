@@ -1,0 +1,91 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+gitlab.corp.example:
+  hostname: gitlab.corp.example
+  port: 22
+  user: git
+  identity_files: [/home/alice/.ssh/work_ed25519, /home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 15
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+api-1:
+  hostname: api-1.corp.example
+  port: 2222
+  user: alice
+  identity_files: [/home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 30
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+api-2:
+  hostname: api-2.corp.example
+  port: 2222
+  user: alice
+  identity_files: [/home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 30
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+nas:
+  hostname: 192.168.1.20
+  port: 2200
+  user: admin
+  identity_files: [/home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 30
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+pi:
+  hostname: raspberrypi.local
+  port: 22
+  user: pi
+  identity_files: [/home/alice/.ssh/id_ed25519]
+  identities_only: true
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: true
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 30
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -

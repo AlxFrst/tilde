@@ -94,6 +94,40 @@ src/workspace         arbre de splits (fonctions pures) ; src/stores/workspace :
   sauvegardé 500 ms après chaque changement et à la fermeture. Au démarrage, les panneaux
   dont le profil n'existe plus sont relancés avec le profil par défaut.
 
+## SSH
+
+```
+crates/tilde-ssh-config  parser pur de ssh_config (sémantique `ssh -G`), sans réseau
+crates/tilde-ssh         client russh : known_hosts, auth, agent, chaîne de sauts, shell,
+                         keepalive, reconnexion, tunnels ; questions via le trait Prompter
+crates/tilde-session     trait Backend (PTY ou SSH) + pompe de sortie commune
+src-tauri/prompter.rs    Prompter → événement ssh://prompt, réponse ssh_prompt_reply (5 min max)
+src-tauri commands/ssh   ssh_hosts, ssh_forwards / _add / _remove, secrets_available
+```
+
+- **Un panneau SSH** (`{ kind: 'ssh', target }`) passe par le même `session_open`, avec
+  `target: { kind: 'ssh', target }`. La session SSH est un `Backend` comme le PTY : même
+  pompe, mêmes acquittements, même `SessionId` pendant les reconnexions. Les états de
+  connexion (`resolving`, `connecting { hop }`, `ready`, `lost`, `reconnecting`, `failed`)
+  arrivent sur le canal d'événements de la session (`{ type: 'state' }`).
+- **Chaîne** : chaque `ProxyJump` est un canal `direct-tcpip` du saut précédent, qui sert de
+  flux à la connexion suivante ; chaque saut vérifie sa clé d'hôte et s'authentifie. Comme
+  OpenSSH, seul le premier saut suit son propre `ProxyJump`.
+- **Contrôle de flux** : russh réajuste seul la fenêtre de chaque canal, on ne peut donc pas
+  ralentir le serveur canal par canal. Le lecteur vide le canal en continu, ce qui évite
+  qu'un `cat` géant ne bloque toute la connexion (tunnels, keepalive). Pendant que l'UI est
+  en pause, il garde jusqu'à 4 Mio, attend au plus 100 ms, puis ignore la sortie jusqu'à la
+  reprise et l'écrit dans le terminal (« N Kio de sortie ignorés »). La mémoire reste bornée.
+- **Perte et reconnexion** : le keepalive de russh coupe après `countMax + 1` intervalles
+  muets ; la session repasse alors par la chaîne complète avec un backoff de 1, 2, 4, 8, 16,
+  puis 30 s, rouvre un shell et rétablit les tunnels distants. Les listeners des tunnels
+  locaux restent ouverts pendant la reconnexion. Une erreur d'authentification ou de clé
+  d'hôte arrête les tentatives. La poignée de main est bornée par le délai de connexion,
+  sauf pendant une question sur l'empreinte.
+- **Secrets** : trousseau du système uniquement (crate `keyring`, service `dev.tilde.app`),
+  jamais dans un fichier ni dans les logs ; les réponses aux questions n'implémentent pas
+  `Debug`.
+
 ## Fenêtre
 
 La fenêtre démarre **cachée** et le front l'affiche une fois la coquille rendue, ce qui évite

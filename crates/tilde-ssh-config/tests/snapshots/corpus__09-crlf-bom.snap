@@ -1,0 +1,23 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+notepad:
+  hostname: notepad.example.com
+  port: 2022
+  user: win
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -

@@ -1,8 +1,9 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
+import type { ConnState } from './ssh';
 
 /** Mirrors `SessionErrorDto` in src-tauri/src/commands/session.rs. */
 export interface SessionErrorDto {
-  kind: 'profileNotFound' | 'spawn' | 'notFound' | 'io';
+  kind: 'profileNotFound' | 'spawn' | 'notFound' | 'io' | 'ssh' | 'cancelled';
   message: string;
 }
 
@@ -15,15 +16,20 @@ export function isSessionError(value: unknown): value is SessionErrorDto {
   );
 }
 
-type SessionEvent = { type: 'exit'; code: number | null };
+type SessionEvent = { type: 'exit'; code: number | null } | { type: 'state'; state: ConnState };
+
+/** What a pane runs. Mirrors `OpenTarget` in src-tauri/src/commands/session.rs. */
+export type SessionTarget = { kind: 'local'; profileId: string } | { kind: 'ssh'; target: string };
 
 export interface OpenSessionOptions {
-  profileId: string;
+  target: SessionTarget;
   cwd?: string | null;
   cols: number;
   rows: number;
   onData: (data: Uint8Array) => void;
   onExit: (code: number | null) => void;
+  /** SSH connection progress, loss and reconnection. */
+  onState?: (state: ConnState) => void;
 }
 
 /** Raw channel payloads arrive as an ArrayBuffer (or a plain array on older runtimes). */
@@ -38,18 +44,18 @@ function toBytes(message: unknown): Uint8Array {
 /** Starts a shell. Output is streamed as bytes; acknowledge it with `ackSession`. */
 export async function openSession(
   o: OpenSessionOptions,
-): Promise<{ id: number; profileId: string }> {
+): Promise<{ id: number; profileId: string | null }> {
   const output = new Channel<unknown>();
   output.onmessage = (m) => {
     o.onData(toBytes(m));
   };
   const events = new Channel<SessionEvent>();
-  // `exit` is the only event today; dispatch on `e.type` once there are more.
   events.onmessage = (e) => {
-    o.onExit(e.code);
+    if (e.type === 'exit') o.onExit(e.code);
+    else o.onState?.(e.state);
   };
   return invoke('session_open', {
-    profileId: o.profileId,
+    target: o.target,
     cwd: o.cwd ?? null,
     cols: o.cols,
     rows: o.rows,

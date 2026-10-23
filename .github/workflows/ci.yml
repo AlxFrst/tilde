@@ -45,7 +45,7 @@ jobs:
         run: |
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev \
-            libayatana-appindicator3-dev patchelf
+            libayatana-appindicator3-dev patchelf libdbus-1-dev pkg-config
       # rust-toolchain.toml pins the version; rustup installs it on first cargo call.
       - run: rustup show active-toolchain
       - uses: Swatinem/rust-cache@v2
@@ -84,3 +84,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
+
+  ssh-integration:
+    name: SSH integration (Docker bench)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      TILDE_REQUIRE_SSH_BENCH: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux system dependencies
+        timeout-minutes: 10
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y libdbus-1-dev pkg-config
+      - uses: Swatinem/rust-cache@v2
+      - name: Start the SSH test bench
+        timeout-minutes: 10
+        run: scripts/ssh-test-env.sh up
+      - run: cargo test -p tilde-ssh --features integration -- --test-threads=4
+      - name: Bench logs on failure
+        if: failure()
+        run: docker compose -f tests/docker/compose.yml logs --tail 200
+      - if: always()
+        run: scripts/ssh-test-env.sh down

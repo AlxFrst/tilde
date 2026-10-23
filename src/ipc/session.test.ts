@@ -31,11 +31,19 @@ async function open() {
   vi.mocked(invoke).mockResolvedValue({ id: 1, profileId: 'cmd' });
   const onData = vi.fn();
   const onExit = vi.fn();
-  await openSession({ profileId: 'cmd', cols: 80, rows: 24, onData, onExit });
+  const onState = vi.fn();
+  await openSession({
+    target: { kind: 'local', profileId: 'cmd' },
+    cols: 80,
+    rows: 24,
+    onData,
+    onExit,
+    onState,
+  });
   expect(Channel).toHaveBeenCalledTimes(2);
   const [output, events] = channels;
   if (!output || !events) throw new Error('channels not created');
-  return { onData, onExit, output, events };
+  return { onData, onExit, onState, output, events };
 }
 
 test('openSession forwards channel data as Uint8Array', async () => {
@@ -56,12 +64,24 @@ test('openSession forwards exit events', async () => {
   expect(onExit).toHaveBeenCalledWith(3);
 });
 
-test('openSession passes profile, size and channels to the backend', async () => {
+test('openSession passes the target, size and channels to the backend', async () => {
   await open();
   expect(invoke).toHaveBeenCalledWith(
     'session_open',
-    expect.objectContaining({ profileId: 'cmd', cwd: null, cols: 80, rows: 24 }),
+    expect.objectContaining({
+      target: { kind: 'local', profileId: 'cmd' },
+      cwd: null,
+      cols: 80,
+      rows: 24,
+    }),
   );
+});
+
+test('openSession forwards ssh connection states, not as exits', async () => {
+  const { onExit, onState, events } = await open();
+  events.onmessage({ type: 'state', state: { kind: 'reconnecting', attempt: 2, inSecs: 4 } });
+  expect(onState).toHaveBeenCalledWith({ kind: 'reconnecting', attempt: 2, inSecs: 4 });
+  expect(onExit).not.toHaveBeenCalled();
 });
 
 test('pickDefaultProfile falls back to the first profile', () => {

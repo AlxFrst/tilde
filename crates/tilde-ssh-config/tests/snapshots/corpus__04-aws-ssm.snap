@@ -1,0 +1,57 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+i-0123456789abcdef0:
+  hostname: i-0123456789abcdef0
+  port: 22
+  user: ec2-user
+  identity_files: [/home/alice/.ssh/aws-prod.pem]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: sh -c "aws ssm start-session --target i-0123456789abcdef0 --document-name AWS-StartSSHSession --parameters 'portNumber=22'"
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/dev/null]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: no
+
+app-prod:
+  hostname: i-0fedcba9876543210
+  port: 22
+  user: ubuntu
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -
+
+app-staging:
+  hostname: i-0aaaabbbbccccdddd
+  port: 22
+  user: ubuntu
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: aws ssm start-session --region eu-west-3 --profile staging --target i-0aaaabbbbccccdddd --document-name AWS-StartSSHSession --parameters portNumber=22
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: -
+  server_alive_count_max: -
+  connect_timeout: -
+  strict_host_key_checking: -

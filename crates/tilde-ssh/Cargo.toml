@@ -1,0 +1,37 @@
+[package]
+name = "tilde-ssh"
+description = "SSH client for Tilde: connection chain, authentication, known_hosts, forwarding"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+async-trait = "0.1"
+base64 = "0.22"
+dirs = "7"
+hmac = "0.12"
+keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
+parking_lot = "0.12"
+serde = { version = "1", features = ["derive"] }
+russh = { version = "0.64", default-features = false, features = ["ring", "rsa", "flate2"] }
+sha1 = "0.10"
+thiserror = "2"
+tilde-session = { path = "../tilde-session" }
+tilde-ssh-config = { path = "../tilde-ssh-config" }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "process"] }
+tracing = "0.1"
+
+[features]
+# Integration tests against the Docker SSH bench (tests/docker).
+integration = []
+
+[dev-dependencies]
+serde_json = "1"
+tempfile = "3"
+# stdin/stdout for the tcp-pipe example (a test ProxyCommand).
+tokio = { version = "1", features = ["io-std"] }
+
+[lints]
+workspace = true

@@ -1,9 +1,16 @@
-use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, OnceLock},
+};
 
 use parking_lot::Mutex;
 use tilde_config::{ConfigErrorDto, SettingsStore, SettingsWatcher};
 use tilde_pty::ShellCandidate;
 use tilde_session::SessionManager;
+use tilde_ssh::{KeyringStore, SshShell};
+
+use crate::prompter::UiPrompter;
 
 /// Application-wide state managed by Tauri.
 pub struct AppState {
@@ -17,4 +24,14 @@ pub struct AppState {
     pub sessions: SessionManager,
     /// Detected shells; filled in the background at startup, cleared by `profiles_refresh`.
     pub shells: Mutex<Option<Vec<ShellCandidate>>>,
+    pub ssh: SshState,
+}
+
+#[derive(Default)]
+pub struct SshState {
+    /// Set at startup, once the app handle (to emit events) exists.
+    pub prompter: OnceLock<Arc<UiPrompter>>,
+    pub secrets: Arc<KeyringStore>,
+    /// Live SSH sessions by session id (tunnels, close confirmation).
+    pub shells: Arc<Mutex<HashMap<u32, Arc<SshShell>>>>,
 }

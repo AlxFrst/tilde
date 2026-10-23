@@ -1,7 +1,7 @@
 // workspace.json is a user-reachable file: treat it as untrusted input. Whatever is
 // malformed is repaired or dropped; nothing in it may crash startup or rendering.
 
-import type { Direction, LayoutNode, Tab, TerminalPanel, WorkspaceSnapshot } from './types';
+import type { Direction, LayoutNode, Panel, Tab, WorkspaceSnapshot } from './types';
 
 type Obj = Record<string, unknown>;
 
@@ -15,11 +15,17 @@ function uniqueId(raw: unknown, seen: Set<string>): string {
   return unique;
 }
 
-function sanitizePanel(raw: unknown): TerminalPanel | null {
-  if (!isObj(raw) || raw.kind !== 'terminal') return null;
+function sanitizePanel(raw: unknown): Panel | null {
+  if (!isObj(raw)) return null;
+  const common = { cwd: str(raw.cwd), title: str(raw.title) };
+  if (raw.kind === 'ssh') {
+    const target = str(raw.target)?.trim();
+    return target ? { kind: 'ssh', target, ...common } : null;
+  }
+  if (raw.kind !== 'terminal') return null;
   const profileId = str(raw.profileId);
   if (!profileId) return null;
-  return { kind: 'terminal', profileId, cwd: str(raw.cwd), title: str(raw.title) };
+  return { kind: 'terminal', profileId, ...common };
 }
 
 function sanitizeSizes(raw: unknown, count: number): number[] {

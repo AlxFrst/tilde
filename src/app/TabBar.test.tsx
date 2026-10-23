@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ResolvedProfile } from '@/ipc/profiles';
 import { useProfiles } from '@/stores/profiles';
@@ -90,7 +90,7 @@ test('+ opens default profile', async () => {
   await user.click(screen.getByRole('button', { name: 'Nouvel onglet' }));
   const t = ws().tabs[0];
   if (!t) throw new Error('no tab opened');
-  expect(leaves(t.root)[0]?.panel.profileId).toBe('wsl:Ubuntu');
+  expect(leaves(t.root)[0]?.panel).toMatchObject({ profileId: 'wsl:Ubuntu' });
 });
 
 test('new tab menu lists profiles', async () => {
@@ -98,13 +98,23 @@ test('new tab menu lists profiles', async () => {
   render(<TabBar />);
   await user.click(screen.getByRole('button', { name: 'Choisir un profil' }));
   await user.click(await screen.findByRole('menuitem', { name: /Ubuntu \(WSL\)/ }));
-  expect(
-    leaves(
-      ws().tabs[0]?.root ?? {
-        type: 'leaf',
-        id: '',
-        panel: { kind: 'terminal', profileId: '', cwd: null, title: null },
-      },
-    )[0]?.panel.profileId,
-  ).toBe('wsl:Ubuntu');
+  const tab = ws().tabs[0];
+  if (!tab) throw new Error('no tab opened');
+  expect(leaves(tab.root)[0]?.panel).toMatchObject({ profileId: 'wsl:Ubuntu' });
+});
+
+test('ssh state events update the tab status', async () => {
+  const { useSsh } = await import('@/stores/ssh');
+  ws().openSshTab('prod');
+  const leafId = ws().tabs[0]?.activeLeafId ?? '';
+  render(<TabBar />);
+  expect(screen.getByRole('tab').textContent).toBe('prod');
+  act(() => {
+    useSsh.getState().setState(leafId, { kind: 'reconnecting', attempt: 1, inSecs: 2 });
+  });
+  expect(screen.getByRole('status', { name: 'Connexion en cours' })).toBeInTheDocument();
+  act(() => {
+    useSsh.getState().setState(leafId, { kind: 'ready' });
+  });
+  expect(screen.getByRole('status', { name: 'Connecté' })).toBeInTheDocument();
 });

@@ -1,6 +1,8 @@
+import { Server } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useProfiles } from '@/stores/profiles';
+import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { bindingKeys, resolveKeyLabels } from '@/terminal/keyLabels';
 import type { CommandId } from '@/terminal/keys';
@@ -9,6 +11,7 @@ import { profileIcon } from './profileIcon';
 
 const SHORTCUTS: [CommandId, string][] = [
   ['tab.new', 'Nouvel onglet'],
+  ['ssh.quickConnect', 'Connexion SSH'],
   ['pane.splitRight', 'Diviser à droite'],
   ['pane.splitDown', 'Diviser en bas'],
   ['pane.focusLeft', 'Changer de panneau'],
@@ -62,6 +65,16 @@ export function Welcome({ version }: { version: string }) {
           );
         })}
         {loaded && profiles.length === 0 && <p className="text-text-muted">Aucun shell détecté</p>}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            useSsh.getState().setQuickConnectOpen(true);
+          }}
+        >
+          <Server strokeWidth={1.5} />
+          Connexion SSH
+        </Button>
       </div>
       <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-2 text-text-muted">
         {SHORTCUTS.map(([id, label]) => (

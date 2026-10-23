@@ -13,7 +13,7 @@ function activeLeaf() {
 }
 
 beforeEach(() => {
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
 });
 
 test('openTab activates the new tab', () => {
@@ -56,7 +56,7 @@ test('splitActive inherits profile and cwd', () => {
 test('splitActive can use another profile', () => {
   ws().openTab('pwsh');
   ws().splitActive('column', 'wsl:Ubuntu');
-  expect(activeLeaf().leaf.panel.profileId).toBe('wsl:Ubuntu');
+  expect(activeLeaf().leaf.panel).toMatchObject({ profileId: 'wsl:Ubuntu' });
 });
 
 test('closing one of two panes keeps the tab', () => {
@@ -106,7 +106,7 @@ test('snapshot and hydrate roundtrip', () => {
   ws().openTab('cmd');
   ws().splitActive('column');
   const snap = ws().snapshot();
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
   const { replaced } = ws().hydrate(snap, ['cmd'], 'cmd');
   expect(replaced).toBe(0);
   expect(ws().snapshot()).toEqual(snap);
@@ -115,10 +115,10 @@ test('snapshot and hydrate roundtrip', () => {
 test('hydrate replaces unknown profiles', () => {
   ws().openTab('wsl:Gone');
   const snap = ws().snapshot();
-  useWorkspace.setState({ tabs: [], activeTabId: null });
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
   const { replaced } = ws().hydrate(snap, ['pwsh'], 'pwsh');
   expect(replaced).toBe(1);
-  expect(activeLeaf().leaf.panel.profileId).toBe('pwsh');
+  expect(activeLeaf().leaf.panel).toMatchObject({ profileId: 'pwsh' });
 });
 
 test('hydrate ignores an invalid snapshot', () => {
@@ -220,4 +220,50 @@ test('duplicate leaf ids are made unique', () => {
   });
   const ids = leaves(ws().tabs[0]?.root ?? (term('z') as never)).map((l) => l.id);
   expect(new Set(ids).size).toBe(2);
+});
+
+test('openSshTab opens an ssh panel and splitting it reconnects to the same target', () => {
+  ws().openSshTab('prod');
+  expect(activeLeaf().leaf.panel).toEqual({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  ws().splitActive('row');
+  expect(activeLeaf().leaf.panel).toEqual({ kind: 'ssh', target: 'prod', cwd: null, title: null });
+  ws().splitActive('row', 'cmd');
+  expect(activeLeaf().leaf.panel).toMatchObject({ kind: 'terminal', profileId: 'cmd' });
+});
+
+test('hydrate keeps ssh panels and never replaces them with a local profile', () => {
+  ws().openSshTab('root@db:2222');
+  ws().openTab('wsl:Gone');
+  const snap = ws().snapshot();
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
+  const { replaced } = ws().hydrate(snap, ['pwsh'], 'pwsh');
+  expect(replaced).toBe(1);
+  const panels = ws().tabs.map((t) => leaves(t.root)[0]?.panel);
+  expect(panels[0]).toEqual({ kind: 'ssh', target: 'root@db:2222', cwd: null, title: null });
+  expect(panels[1]).toMatchObject({ kind: 'terminal', profileId: 'pwsh' });
+});
+
+test('an ssh panel without a target is dropped from a snapshot', () => {
+  hydrateRaw({
+    version: 1,
+    tabs: [
+      { id: 'a', root: { type: 'leaf', id: 'x', panel: { kind: 'ssh', target: '' } } },
+      { id: 'b', root: { type: 'leaf', id: 'y', panel: { kind: 'ssh', target: 'srv' } } },
+    ],
+    activeTabId: 'a',
+  });
+  expect(ws().tabs.map((t) => t.id)).toEqual(['b']);
+});
+
+test('restored ssh panels stay disconnected until woken; new ones connect at once', () => {
+  ws().openSshTab('prod');
+  const live = activeLeaf().leaf.id;
+  expect(ws().dormant).toEqual([]);
+  const snap = ws().snapshot();
+  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
+  ws().hydrate(snap, ['cmd'], 'cmd');
+  expect(ws().dormant).toEqual([live]);
+  expect(ws().snapshot()).toEqual(snap);
+  ws().wake(live);
+  expect(ws().dormant).toEqual([]);
 });

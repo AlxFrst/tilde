@@ -1,0 +1,14 @@
+Port 22
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+PermitRootLogin no
+PasswordAuthentication yes
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+AllowTcpForwarding yes
+AllowAgentForwarding yes
+GatewayPorts clientspecified
+AcceptEnv TERM_PROGRAM TERM_PROGRAM_VERSION COLORTERM
+ClientAliveInterval 0
+Subsystem sftp internal-sftp

@@ -29,7 +29,11 @@ import {
 } from '@/ipc/session';
 import { useSettings } from '@/stores/settings';
 import { toXtermTheme, useResolvedTheme } from '@/themes';
-import type { TerminalPanel } from '@/workspace/types';
+import { ConnectionBanner } from '@/app/ConnectionStatus';
+import type { ConnState } from '@/ipc/ssh';
+import { useSsh } from '@/stores/ssh';
+import { useWorkspace } from '@/stores/workspace';
+import type { Panel } from '@/workspace/types';
 import { createTerminal, terminalOptions, type TerminalHandle } from './createTerminal';
 import { ExitOverlay } from './ExitOverlay';
 import { matchShortcut } from './keys';
@@ -42,7 +46,7 @@ import { registerSession, unregisterSession } from './sessionRegistry';
 export interface TerminalViewProps {
   tabId: string;
   leafId: string;
-  panel: TerminalPanel;
+  panel: Panel;
   active: boolean;
   onExit: (code: number | null) => void;
   onTitle: (title: string) => void;
@@ -110,8 +114,17 @@ export function TerminalView(props: TerminalViewProps) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchAddon, setSearchAddon] = useState<SearchAddon | null>(null);
   const [pasteText, setPasteText] = useState<string | null>(null);
+  const [connection, setConnection] = useState<ConnState | null>(null);
+  const dormant = useWorkspace((s) => s.dormant.includes(props.leafId));
+  const wake = () => {
+    useWorkspace.getState().wake(latest.current.props.leafId);
+  };
 
   const send = (data: string | Uint8Array) => {
+    if (useWorkspace.getState().dormant.includes(latest.current.props.leafId)) {
+      if (data === '\r') wake();
+      return;
+    }
     const s = session.current;
     if (!s || s.ended) return;
     if (s.id === null) s.pendingInput.push(data);
@@ -197,10 +210,10 @@ export function TerminalView(props: TerminalViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- created once; reads latest values via refs
   }, []);
 
-  // Start (or restart) the shell.
+  // Start (or restart) the shell; a restored SSH pane waits until it is woken.
   useEffect(() => {
     const h = handle.current;
-    if (!h) return;
+    if (!h || dormant) return;
     const s: SessionState = {
       id: null,
       pendingInput: [],
@@ -217,11 +230,21 @@ export function TerminalView(props: TerminalViewProps) {
       if (s.id === null) s.pendingAck += bytes;
       else ackSession(s.id, bytes).catch(noop);
     };
-    const { panel } = latest.current.props;
+    const { panel, leafId } = latest.current.props;
+    const showState = (state: ConnState) => {
+      if (s.disposed) return;
+      setConnection(state);
+      useSsh.getState().setState(leafId, state);
+    };
+    if (panel.kind === 'ssh') showState({ kind: 'resolving' });
 
     openSession({
-      profileId: panel.profileId,
-      cwd: panel.cwd,
+      target:
+        panel.kind === 'ssh'
+          ? { kind: 'ssh', target: panel.target }
+          : { kind: 'local', profileId: panel.profileId },
+      cwd: panel.kind === 'terminal' ? panel.cwd : null,
+      onState: showState,
       cols: opened.cols,
       rows: opened.rows,
       onData: (data) => {
@@ -255,6 +278,12 @@ export function TerminalView(props: TerminalViewProps) {
       (err: unknown) => {
         if (s.disposed) return;
         s.ended = true;
+        if (panel.kind === 'ssh') {
+          // The banner says why and offers to retry.
+          const cancelled = isSessionError(err) && err.kind === 'cancelled';
+          showState({ kind: 'failed', message: cancelled ? 'Connexion annulée' : errorText(err) });
+          return;
+        }
         h.term.write(`\r\n\u001b[31m${errorText(err)}\u001b[0m\r\n`);
         if (isSessionError(err)) latest.current.props.onSessionError(err);
       },
@@ -262,10 +291,11 @@ export function TerminalView(props: TerminalViewProps) {
 
     return () => {
       s.disposed = true;
+      useSsh.getState().clear(leafId);
       unregisterSession(latest.current.props.leafId);
       if (s.id !== null && !s.ended) closeSession(s.id).catch(noop);
     };
-  }, [generation]);
+  }, [generation, dormant]);
 
   // Live settings and theme updates: no new session, just new options.
   useEffect(() => {
@@ -295,6 +325,7 @@ export function TerminalView(props: TerminalViewProps) {
   const restart = () => {
     handle.current?.term.reset();
     setExitCode(undefined);
+    setConnection(null);
     setGeneration((g) => g + 1);
   };
 
@@ -338,6 +369,17 @@ export function TerminalView(props: TerminalViewProps) {
           }}
         />
       )}
+
+      {props.panel.kind === 'ssh' &&
+        (dormant ? (
+          <ConnectionBanner
+            state={{ kind: 'failed', message: 'Déconnecté — Entrée pour reconnecter' }}
+            retryLabel="Se connecter"
+            onRetry={wake}
+          />
+        ) : (
+          <ConnectionBanner state={connection} onRetry={restart} />
+        ))}
 
       {exitCode !== undefined && (
         <ExitOverlay code={exitCode} onRestart={restart} onClose={props.onClose} />

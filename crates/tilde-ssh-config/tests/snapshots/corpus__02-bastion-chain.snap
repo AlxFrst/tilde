@@ -1,0 +1,91 @@
+---
+source: crates/tilde-ssh-config/tests/corpus.rs
+expression: "render(&cfg, &ctx)"
+---
+diagnostics:
+  (none)
+
+bastion-eu:
+  hostname: bastion.eu.example.net
+  port: 2222
+  user: ops
+  identity_files: [/home/alice/.ssh/ops_ed25519]
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 20
+  server_alive_count_max: 4
+  connect_timeout: 10
+  strict_host_key_checking: -
+
+bastion-db:
+  hostname: 10.20.0.4
+  port: 22
+  user: ops
+  identity_files: []
+  identities_only: false
+  proxy_jump: [bastion-eu]
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 20
+  server_alive_count_max: 4
+  connect_timeout: 10
+  strict_host_key_checking: -
+
+db-primary:
+  hostname: 10.30.0.10
+  port: 22
+  user: postgres
+  identity_files: []
+  identities_only: false
+  proxy_jump: [bastion-eu, ops@bastion-db:22]
+  proxy_command: -
+  forward_agent: false
+  local_forwards: [5432 -> localhost:5432]
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 20
+  server_alive_count_max: 4
+  connect_timeout: 10
+  strict_host_key_checking: -
+
+db-replica:
+  hostname: 10.30.0.11
+  port: 22
+  user: postgres
+  identity_files: []
+  identities_only: false
+  proxy_jump: [bastion-eu, ops@bastion-db:22]
+  proxy_command: -
+  forward_agent: false
+  local_forwards: [5432 -> localhost:5432, 5433 -> localhost:5432]
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 20
+  server_alive_count_max: 4
+  connect_timeout: 10
+  strict_host_key_checking: -
+
+legacy:
+  hostname: legacy.internal
+  port: 22
+  user: alice
+  identity_files: []
+  identities_only: false
+  proxy_jump: []
+  proxy_command: -
+  forward_agent: false
+  local_forwards: []
+  remote_forwards: []
+  user_known_hosts_files: [/home/alice/.ssh/known_hosts, /home/alice/.ssh/known_hosts2]
+  server_alive_interval: 20
+  server_alive_count_max: 4
+  connect_timeout: 10
+  strict_host_key_checking: -
