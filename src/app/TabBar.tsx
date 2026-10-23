@@ -1,36 +1,225 @@
-import { House, Plus } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
+import { useProfiles } from '@/stores/profiles';
+import { useWorkspace } from '@/stores/workspace';
+import { cn } from '@/lib/utils';
+import { findLeaf, leaves } from '@/workspace/tree';
+import type { Tab } from '@/workspace/types';
+import { closeTab, openDefaultTab } from './actions';
+import { NewTabMenu } from './NewTabMenu';
+import { profileIcon } from './profileIcon';
 
-export function TabBar() {
+const TAB_COLORS = [
+  ['Pervenche', 'var(--tilde-accent)'],
+  ['Turquoise', 'var(--tilde-accent-2)'],
+  ['Vert', 'var(--tilde-success)'],
+  ['Ambre', 'var(--tilde-warning)'],
+  ['Rouge', 'var(--tilde-error)'],
+] as const;
+
+function useTabLabel(tab: Tab) {
+  const profiles = useProfiles((s) => s.profiles);
+  const leaf = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
+  const profile = profiles.find((p) => p.id === leaf?.panel.profileId);
+  const title =
+    tab.customTitle ?? leaf?.panel.title ?? profile?.name ?? leaf?.panel.profileId ?? '';
+  return { title, Icon: profileIcon(profile?.icon), profileColor: profile?.color ?? null };
+}
+
+function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
+  const ws = useWorkspace.getState;
+  const { title, Icon, profileColor } = useTabLabel(tab);
+  const [editing, setEditing] = useState(false);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: tab.id,
+  });
+
+  const commit = (value: string) => {
+    ws().renameTab(tab.id, value);
+    setEditing(false);
+  };
+
   return (
-    <div className="flex h-9 shrink-0 items-end gap-1 border-b bg-surface-1 px-2">
-      <div role="tablist" aria-label="Onglets" className="flex h-full items-end gap-1">
-        <button
-          type="button"
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={setNodeRef}
+          {...attributes}
           role="tab"
-          aria-selected
-          className="flex h-[calc(100%-4px)] items-center gap-2 rounded-t-md border border-b-0 bg-background px-3 text-sm"
+          aria-selected={active}
+          tabIndex={active ? 0 : -1}
+          style={{ transform: CSS.Translate.toString(transform), transition }}
+          className={cn(
+            'group relative flex h-[calc(100%-4px)] max-w-52 min-w-28 items-center gap-2 rounded-t-md border border-b-0 px-3 text-sm select-none',
+            active
+              ? 'bg-background text-text'
+              : 'border-transparent text-text-muted hover:bg-surface-2',
+            isDragging && 'z-10 opacity-80',
+          )}
+          onMouseDown={(e) => {
+            if (e.button === 0) ws().activateTab(tab.id);
+          }}
+          onAuxClick={(e) => {
+            if (e.button === 1) void closeTab(tab.id);
+          }}
+          onDoubleClick={() => {
+            setEditing(true);
+          }}
+          {...listeners}
         >
-          <House className="size-3.5 text-primary" strokeWidth={1.5} />
-          Accueil
-        </button>
-      </div>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {/* A disabled <button> swallows hover events, so the tooltip wraps a span. */}
-          <span className="mb-1 self-center">
+          <Icon
+            className="size-3.5 shrink-0"
+            strokeWidth={1.5}
+            style={{ color: profileColor ?? (active ? 'var(--tilde-accent)' : undefined) }}
+          />
+          {editing ? (
+            <input
+              aria-label="Nom de l’onglet"
+              autoFocus
+              defaultValue={title}
+              className="w-full min-w-0 rounded bg-surface-2 px-1 outline-none"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') commit(e.currentTarget.value);
+                else if (e.key === 'Escape') setEditing(false);
+              }}
+              onBlur={(e) => {
+                commit(e.currentTarget.value);
+              }}
+            />
+          ) : (
+            <span className="truncate">{title}</span>
+          )}
+          {!editing && (
             <button
               type="button"
-              disabled
-              aria-label="Nouvel onglet"
-              className="flex size-6 items-center justify-center rounded-md text-text-muted opacity-50"
+              aria-label="Fermer l’onglet"
+              className="ml-auto rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-2"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={() => void closeTab(tab.id)}
             >
-              <Plus className="size-4" strokeWidth={1.5} />
+              <X className="size-3" strokeWidth={1.5} />
             </button>
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>Disponible en phase 2</TooltipContent>
-      </Tooltip>
+          )}
+          {tab.color && (
+            <span
+              className="absolute inset-x-2 bottom-0 h-0.5 rounded-full"
+              style={{ background: tab.color }}
+            />
+          )}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem
+          onSelect={() => {
+            setEditing(true);
+          }}
+        >
+          Renommer
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuLabel>Couleur</ContextMenuLabel>
+        <div className="flex gap-1.5 px-2 pb-1.5">
+          {TAB_COLORS.map(([name, color]) => (
+            <button
+              key={name}
+              type="button"
+              aria-label={name}
+              className={cn(
+                'size-4 rounded-full ring-offset-2 ring-offset-popover',
+                tab.color === color && 'ring-2 ring-ring',
+              )}
+              style={{ background: color }}
+              onClick={() => {
+                ws().setTabColor(tab.id, color);
+              }}
+            />
+          ))}
+          <button
+            type="button"
+            aria-label="Aucune couleur"
+            className="size-4 rounded-full border"
+            onClick={() => {
+              ws().setTabColor(tab.id, null);
+            }}
+          />
+        </div>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          onSelect={() => {
+            const leaf = findLeaf(tab.root, tab.activeLeafId);
+            if (leaf) ws().openTab(leaf.panel.profileId, leaf.panel.cwd);
+          }}
+        >
+          Dupliquer
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => void closeTab(tab.id)}>Fermer</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+export function TabBar() {
+  const tabs = useWorkspace((s) => s.tabs);
+  const activeTabId = useWorkspace((s) => s.activeTabId);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const ids = useWorkspace.getState().tabs.map((t) => t.id);
+    useWorkspace.getState().moveTab(ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
+  };
+
+  return (
+    <div className="flex h-9 shrink-0 items-end gap-1 border-b bg-surface-1 px-2">
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+          <div
+            role="tablist"
+            aria-label="Onglets"
+            className="flex h-full min-w-0 items-end gap-1 overflow-x-auto"
+          >
+            {tabs.map((t) => (
+              <TabItem key={t.id} tab={t} active={t.id === activeTabId} />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+      <div className="mb-1 flex items-center self-center">
+        <button
+          type="button"
+          aria-label="Nouvel onglet"
+          title="Nouvel onglet (Ctrl+Maj+T)"
+          className="flex size-6 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
+          onClick={openDefaultTab}
+        >
+          <Plus className="size-4" strokeWidth={1.5} />
+        </button>
+        <NewTabMenu />
+      </div>
     </div>
   );
 }

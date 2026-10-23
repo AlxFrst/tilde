@@ -27,4 +27,9 @@ impl ConfigPaths {
     pub fn schema_file(&self) -> PathBuf {
         self.root.join("settings.schema.json")
     }
+
+    #[must_use]
+    pub fn workspace_file(&self) -> PathBuf {
+        self.root.join("workspace.json")
+    }
 }

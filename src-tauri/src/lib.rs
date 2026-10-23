@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 use tauri::Manager;
 use tauri_plugin_window_state::StateFlags;
 use tilde_config::{ConfigErrorDto, ConfigPaths, SettingsStore, watch_settings};
+use tilde_session::SessionManager;
 
 use crate::{commands::settings::on_settings_file_changed, state::AppState};
 
@@ -61,11 +62,14 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(AppState {
             settings: Mutex::new(store),
             settings_error: Mutex::new(load_error.as_ref().map(ConfigErrorDto::from)),
             log_dir,
             watcher: Mutex::new(None),
+            sessions: SessionManager::new(),
+            shells: Mutex::new(None),
         })
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -73,6 +77,11 @@ pub fn run() {
                 Ok(w) => *app.state::<AppState>().watcher.lock() = Some(w),
                 Err(e) => tracing::error!(error = %e, "settings hot reload disabled"),
             }
+            // Warm the shell cache so the first new tab doesn't wait for `wsl.exe`.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                commands::profiles::detected_shells(&handle.state::<AppState>());
+            });
             show_window_if_frontend_stalls(app.handle().clone());
             Ok(())
         })
@@ -82,7 +91,23 @@ pub fn run() {
             commands::app::app_info,
             commands::app::open_logs_dir,
             commands::app::open_settings_file,
+            commands::app::open_url,
+            commands::profiles::profiles_list,
+            commands::profiles::profiles_refresh,
+            commands::session::session_open,
+            commands::session::session_write,
+            commands::session::session_resize,
+            commands::session::session_ack,
+            commands::session::session_close,
+            commands::session::session_busy,
+            commands::workspace::workspace_load,
+            commands::workspace::workspace_save,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::Exit = event {
+                app.state::<AppState>().sessions.close_all();
+            }
+        });
 }

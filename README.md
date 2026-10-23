@@ -6,19 +6,64 @@ Tilde veut une chose avant tout : que la connexion SSH marche du premier coup, y
 derrière des bastions en chaîne, avec votre `~/.ssh/config` tel quel, et sans abonnement.
 Le tout dans une interface soignée, rapide et entièrement personnalisable.
 
-> 🚧 **En développement.** La phase 1 (fondations) est terminée : coquille de l'application,
-> moteur de thèmes et réglages. Le terminal local arrive en phase 2, SSH en phase 3.
-> Voir la [feuille de route](#feuille-de-route).
+> 🚧 **En développement.** Les phases 1 (fondations) et 2 (terminal local) sont terminées.
+> SSH arrive en phase 3. Voir la [feuille de route](#feuille-de-route).
 
 ## Fonctionnalités (aujourd'hui)
 
-- Fenêtre sans bordure avec titlebar intégrée, sidebar, barre d'onglets
+- **Terminal local** : PowerShell 7, Windows PowerShell, cmd, Git Bash et chaque
+  distribution WSL détectés automatiquement (bash/zsh/fish sous Linux et macOS)
+- Onglets (glisser-déposer, renommage, couleur) et **splits** redimensionnables
+- Rendu WebGL (xterm.js), Unicode/emoji, recherche dans le scrollback, liens cliquables,
+  copie à la sélection, confirmation avant de coller plusieurs lignes
+- Confirmation avant de fermer un terminal où un programme tourne
+- Onglets et splits **restaurés** au redémarrage (dans le dernier dossier connu)
+- Profils personnalisés dans `settings.json` (commande, arguments, dossier, variables,
+  couleur), ou masquage d'un shell détecté
+- Fenêtre sans bordure avec titlebar intégrée
 - Thèmes par design tokens : **Tilde** (sombre/clair), **Catppuccin** (Mocha/Latte), suivi
   automatique du thème de l'OS
 - `settings.json` versionné, validé et **rechargé à chaud**, avec autocomplétion dans VS Code
   grâce au JSON Schema fourni
 - Logs structurés, accessibles depuis l'interface
 - Aucune télémétrie, aucune requête réseau
+
+## Raccourcis
+
+| Raccourci | Action |
+|---|---|
+| Ctrl+Maj+T | Nouvel onglet (profil par défaut) |
+| Ctrl+Maj+W | Fermer l'onglet |
+| Ctrl+Tab / Ctrl+Maj+Tab | Onglet suivant / précédent |
+| Alt+Maj+= | Diviser à droite |
+| Alt+Maj+- | Diviser en bas |
+| Ctrl+Maj+X | Fermer le panneau |
+| Alt+← ↑ → ↓ | Changer de panneau |
+| Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller |
+| Ctrl+Maj+F | Rechercher |
+
+Les raccourcis suivent la **position physique** des touches (disposition US). Sur un clavier
+AZERTY, « Alt+Maj+- » se fait avec la touche `)` ; l'écran d'accueil affiche les touches de
+votre clavier. Le `+` et le `-` du pavé numérique fonctionnent aussi. Ils deviendront
+configurables en phase 6.
+
+### Profils personnalisés
+
+```jsonc
+// settings.json
+"terminal": { "defaultProfile": "wsl:Ubuntu" },
+"profiles": [
+  // Masquer un shell détecté
+  { "id": "cmd", "hidden": true },
+  // Surcharger un shell détecté (même id)
+  { "id": "pwsh", "color": "#7AA2F7", "env": { "EDITOR": "code --wait" } },
+  // Ajouter un profil
+  { "id": "htop", "name": "htop (WSL)", "command": "wsl.exe", "args": ["-e", "htop"] }
+]
+```
+
+Pour que Tilde restaure le dossier courant d'un onglet, le shell doit émettre la séquence
+OSC 7 (c'est le cas par défaut de nombreuses configurations bash/zsh/fish sous Linux et macOS).
 
 ## Prérequis
 
@@ -77,7 +122,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 ## Feuille de route
 
 1. ✅ Fondations : coquille, thèmes, réglages
-2. Terminal local : PTY, onglets, splits, profils de shells
+2. ✅ Terminal local : PTY, onglets, splits, profils de shells
 3. SSH : `ssh_config`, known_hosts, agent, ProxyJump, ProxyCommand
 4. Sidebar de connexions et palette de commandes
 5. SFTP

@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use parking_lot::Mutex;
 use tilde_config::{ConfigErrorDto, SettingsStore, SettingsWatcher};
+use tilde_pty::ShellCandidate;
+use tilde_session::SessionManager;
 
 /// Application-wide state managed by Tauri.
 pub struct AppState {
@@ -12,4 +14,7 @@ pub struct AppState {
     pub log_dir: Option<PathBuf>,
     /// Kept alive for hot reload; `None` if the watcher could not start.
     pub watcher: Mutex<Option<SettingsWatcher>>,
+    pub sessions: SessionManager,
+    /// Detected shells; filled in the background at startup, cleared by `profiles_refresh`.
+    pub shells: Mutex<Option<Vec<ShellCandidate>>>,
 }

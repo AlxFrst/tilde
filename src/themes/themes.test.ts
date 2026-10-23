@@ -19,10 +19,7 @@ test('every builtin theme has all tokens as valid hex', () => {
   const ids = builtinThemes.map((t) => t.id);
   expect(new Set(ids).size).toBe(ids.length);
   for (const theme of builtinThemes) {
-    for (const [key, value] of [
-      ...Object.entries(theme.ui),
-      ...Object.entries(theme.terminal),
-    ]) {
+    for (const [key, value] of [...Object.entries(theme.ui), ...Object.entries(theme.terminal)]) {
       expect(value, `${theme.id}.${key}`).toMatch(HEX);
     }
   }

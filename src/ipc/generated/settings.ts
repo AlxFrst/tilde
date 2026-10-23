@@ -7,6 +7,10 @@ export interface Settings {
   ssh: Ssh;
   sftp: Sftp;
   general: General;
+  /**
+   * User profiles. One whose `id` matches a detected shell overrides it.
+   */
+  profiles: Profile[];
 }
 export interface Appearance {
   colorScheme: 'system' | 'dark' | 'light';
@@ -54,4 +58,23 @@ export interface General {
 export interface Quake {
   enabled: boolean;
   shortcut: string;
+}
+/**
+ * A user-defined shell profile, or overrides for a detected one (same `id`).
+ */
+export interface Profile {
+  id: string;
+  name: string;
+  command: string;
+  args: string[];
+  cwd: string | null;
+  env: {
+    [k: string]: string | undefined;
+  };
+  icon: string | null;
+  color: string | null;
+  /**
+   * Hides a detected shell from the profile list.
+   */
+  hidden: boolean;
 }
