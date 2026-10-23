@@ -106,3 +106,15 @@ test('opens the details, and can be hidden', async () => {
   expect(update).toHaveBeenCalledWith({ ssh: { statusBar: false } });
   unregisterSession(sshLeaf);
 });
+
+// jsdom has no layout: this pins the CSS that keeps the buttons and the host visible in a
+// narrow pane, the figures being the part that gets cut.
+test('in a narrow pane the figures give way, not the host or the buttons', async () => {
+  vi.mocked(monitorRemote).mockResolvedValue(sample);
+  registerSession('s', 7);
+  render(<ServerStatusBar leafId="s" visible />);
+  await flush();
+  expect(screen.getByText('web-01')).toHaveClass('shrink-0');
+  expect(screen.getByRole('button', { name: 'Détails' }).parentElement).toHaveClass('shrink-0');
+  expect(screen.getByTitle('Processeur').parentElement).toHaveClass('min-w-0', 'overflow-hidden');
+});

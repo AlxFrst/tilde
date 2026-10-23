@@ -35,7 +35,7 @@ function Item({
   children: ReactNode;
 }) {
   return (
-    <span title={label} className={cn('flex items-center gap-1', busy && 'text-warning')}>
+    <span title={label} className={cn('flex shrink-0 items-center gap-1', busy && 'text-warning')}>
       <Icon className="size-3 shrink-0" strokeWidth={1.5} aria-label={label} />
       <span className="tabular-nums">{children}</span>
     </span>
@@ -70,37 +70,41 @@ export function ServerStatusBar({ leafId, visible }: { leafId: string; visible: 
       aria-label="État du serveur"
       className="flex h-6 shrink-0 items-center gap-3 overflow-hidden border-t bg-surface-1 px-2 text-[11px] whitespace-nowrap text-text-muted"
     >
-      {latest ? (
-        <>
-          <span className="truncate font-medium text-text">{latest.host}</span>
-          <Item Icon={Cpu} label="Processeur" busy={(latest.cpuPercent ?? 0) >= BUSY_PERCENT}>
-            {latest.cpuPercent === null ? '—' : `${String(Math.round(latest.cpuPercent))} %`}
-          </Item>
-          <Item Icon={MemoryStick} label="Mémoire" busy={mem >= BUSY_PERCENT}>
-            {formatBytes(latest.memUsed)} / {formatBytes(latest.memTotal)}
-          </Item>
-          {root && (
-            <Item Icon={HardDrive} label={`Disque ${root.mount}`} busy={disk >= BUSY_PERCENT}>
-              {root.mount} {Math.round(disk)} %
+      <span className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+        {latest ? (
+          <>
+            <span className="max-w-[40%] shrink-0 truncate font-medium text-text">
+              {latest.host}
+            </span>
+            <Item Icon={Cpu} label="Processeur" busy={(latest.cpuPercent ?? 0) >= BUSY_PERCENT}>
+              {latest.cpuPercent === null ? '—' : `${String(Math.round(latest.cpuPercent))} %`}
             </Item>
-          )}
-          {latest.netRxPerSec !== null && (
-            <Item Icon={ArrowDown} label="Réseau, reçu">
-              {formatRate(latest.netRxPerSec)}
+            <Item Icon={MemoryStick} label="Mémoire" busy={mem >= BUSY_PERCENT}>
+              {formatBytes(latest.memUsed)} / {formatBytes(latest.memTotal)}
             </Item>
-          )}
-          {latest.netTxPerSec !== null && (
-            <Item Icon={ArrowUp} label="Réseau, envoyé">
-              {formatRate(latest.netTxPerSec)}
-            </Item>
-          )}
-        </>
-      ) : (
-        <span title={error?.message}>
-          {error ? 'Statistiques du serveur indisponibles' : 'Statistiques du serveur…'}
-        </span>
-      )}
-      <span className="ml-auto flex items-center gap-0.5">
+            {root && (
+              <Item Icon={HardDrive} label={`Disque ${root.mount}`} busy={disk >= BUSY_PERCENT}>
+                {root.mount} {Math.round(disk)} %
+              </Item>
+            )}
+            {latest.netRxPerSec !== null && (
+              <Item Icon={ArrowDown} label="Réseau, reçu">
+                {formatRate(latest.netRxPerSec)}
+              </Item>
+            )}
+            {latest.netTxPerSec !== null && (
+              <Item Icon={ArrowUp} label="Réseau, envoyé">
+                {formatRate(latest.netTxPerSec)}
+              </Item>
+            )}
+          </>
+        ) : (
+          <span title={error?.message}>
+            {error ? 'Statistiques du serveur indisponibles' : 'Statistiques du serveur…'}
+          </span>
+        )}
+      </span>
+      <span className="flex shrink-0 items-center gap-0.5">
         <button
           type="button"
           aria-label="Détails"
