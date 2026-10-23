@@ -171,5 +171,9 @@ fn keybindings_change_is_reported() {
 
     fs::write(paths.keybindings_file(), r#"{"version":1,"bindings":{}}"#).unwrap();
     thread::sleep(Duration::from_millis(600));
-    assert_eq!(*seen.lock(), vec![ConfigFile::Keybindings]);
+    // A plain write may come as two batches (create, then modify) on Linux; reloading
+    // twice is harmless (the second finds the same bytes).
+    let seen = seen.lock();
+    assert!((1..=2).contains(&seen.len()), "{seen:?}");
+    assert!(seen.iter().all(|f| *f == ConfigFile::Keybindings), "{seen:?}");
 }
