@@ -89,6 +89,17 @@ jobs:
       - run: pnpm gen:types
       - run: git diff --exit-code schemas src/ipc/generated
 
+  workflows:
+    name: Workflows (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint (with shellcheck on run scripts)
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7
+          ./actionlint -color
+
   deny:
     name: cargo-deny (licenses, advisories)
     runs-on: ubuntu-latest
