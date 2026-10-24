@@ -155,6 +155,19 @@ test('a pinned row is asleep until its session opens, then shows its state', () 
   expect(within(live).getByRole('status', { name: 'Connecté' })).toBeInTheDocument();
 });
 
+test('a session’s status dot gives way to the close button instead of sitting under it', () => {
+  setFile({ connections: [conn('a', 'alpha')] });
+  show();
+  act(() => {
+    ws().openPinned('a', 'a.example', 'main');
+  });
+  act(() => {
+    useSsh.getState().setState(firstLeaf().id, { kind: 'ready' });
+  });
+  const dot = within(group('Épinglés')).getByRole('status', { name: 'Connecté' });
+  expect(dot.parentElement).toHaveClass('group-hover:opacity-0', 'group-focus-within:opacity-0');
+});
+
 test('clicking a pinned row opens then re-activates its session', async () => {
   setFile({ connections: [conn('a', 'alpha')] });
   show();
