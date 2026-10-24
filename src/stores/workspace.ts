@@ -23,6 +23,8 @@ import type {
   WorkspaceSnapshot,
 } from '@/workspace/types';
 import { sanitizeSnapshot } from '@/workspace/sanitize';
+import { isPinnedTab, spaceOfTab } from '@/workspace/spaces';
+import { MAIN_SPACE } from '@/connections/spaces';
 
 interface WorkspaceState {
   tabs: Tab[];
@@ -43,7 +45,29 @@ interface WorkspaceState {
   /** Shows the server monitor of an SSH pane, or closes it if it is open. */
   toggleRemoteMonitor: (sshLeafId: string) => void;
   closeTab: (tabId: string) => void;
+  /** Shows a session, switching to its space. */
   activateTab: (tabId: string) => void;
+  /** The space shown in the Rail; new sessions open in it. */
+  activeSpaceId: string;
+  /** The session last shown in each space (restored when switching back). */
+  activeTabBySpace: Record<string, string>;
+  switchSpace: (spaceId: string) => void;
+  /** The sessions of a space, in order. */
+  spaceTabs: (spaceId: string) => Tab[];
+  /** Shows the session pinned to a saved connection, or opens it (in `spaceId`). */
+  openPinned: (connectionId: string, target: string, spaceId: string) => string;
+  /** Makes a session the pinned one of a connection (unpinning any other). */
+  pinTab: (tabId: string, connectionId: string) => void;
+  /** Sends a pinned session to « Aujourd'hui », in the space it is in. */
+  unpinTab: (tabId: string) => void;
+  /** Moves a session (unpinned) to another space; the current space stays shown. */
+  moveTabToSpace: (tabId: string, spaceId: string) => void;
+  /** The other sessions of the same space. */
+  otherTabs: (tabId: string) => string[];
+  /** The sessions after this one in « Aujourd'hui » (none for a pinned session). */
+  tabsAfter: (tabId: string) => string[];
+  /** After spaces change: an unknown active space falls back to the first. */
+  reconcileSpaces: (known: string[]) => void;
   activateRelative: (delta: 1 | -1) => void;
   moveTab: (fromIndex: number, toIndex: number) => void;
   renameTab: (tabId: string, title: string | null) => void;
@@ -77,6 +101,10 @@ const newSshLeaf = (target: string, connectionId: string | null = null): LeafNod
   panel: { kind: 'ssh', target, connectionId, cwd: null, title: null },
 });
 
+/** `record` without `key`. */
+const without = (record: Record<string, string>, key: string) =>
+  Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
+
 /** Index of the tab to activate after removing the one at `index`. */
 const neighborIndex = (index: number, remaining: number) => Math.min(index, remaining - 1);
 
@@ -105,35 +133,65 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     set((s) => ({ tabs: s.tabs.map((t) => (t.id === tabId ? f(t) : t)) }));
   };
   const activeTab = () => get().tabs.find((t) => t.id === get().activeTabId);
+  const spaceTabsOf = (spaceId: string) => get().tabs.filter((t) => spaceOfTab(t) === spaceId);
+  /** Shows a session and its space, remembering it as that space's last one. */
+  const activate = (tabId: string) => {
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    const space = spaceOfTab(tab);
+    set((s) => ({
+      activeTabId: tab.id,
+      activeSpaceId: space,
+      activeTabBySpace: { ...s.activeTabBySpace, [space]: tab.id },
+    }));
+  };
+  /** The neighbour to show when `tabId` leaves its space's list. */
+  const neighbourOf = (tabId: string, spaceId: string): Tab | null => {
+    const siblings = spaceTabsOf(spaceId);
+    const index = siblings.findIndex((t) => t.id === tabId);
+    const rest = siblings.filter((t) => t.id !== tabId);
+    return rest[neighborIndex(Math.max(0, index), rest.length)] ?? null;
+  };
   /** Puts the focus back on a pane after closing something attached to it. */
   const refocus = (leafId: string) => {
     const tab = get().tabs.find((t) => findLeaf(t.root, leafId));
     if (!tab) return;
-    set({ activeTabId: tab.id });
+    activate(tab.id);
     get().focusLeaf(tab.id, leafId);
   };
-  const addTab = (leaf: LeafNode) => {
+  const addTab = (
+    leaf: LeafNode,
+    place: { spaceId?: string; pinnedConnectionId?: string } = {},
+  ) => {
     const tab: Tab = {
       id: crypto.randomUUID(),
       customTitle: null,
       color: null,
       root: leaf,
       activeLeafId: leaf.id,
+      spaceId: place.spaceId ?? get().activeSpaceId,
+      pinnedConnectionId: place.pinnedConnectionId ?? null,
     };
-    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.id }));
+    set((s) => ({ tabs: [...s.tabs, tab] }));
+    activate(tab.id);
     return tab.id;
   };
 
   const removeTab = (tabId: string) => {
+    const tab = get().tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    const space = spaceOfTab(tab);
+    const next = get().activeTabId === tabId ? neighbourOf(tabId, space) : undefined;
     set((s) => {
-      const index = s.tabs.findIndex((t) => t.id === tabId);
-      if (index < 0) return s;
-      const tabs = s.tabs.filter((t) => t.id !== tabId);
-      const activeTabId =
-        s.activeTabId !== tabId
-          ? s.activeTabId
-          : (tabs[neighborIndex(index, tabs.length)]?.id ?? null);
-      return { tabs, activeTabId };
+      const bySpace =
+        s.activeTabBySpace[space] === tabId
+          ? without(s.activeTabBySpace, space)
+          : s.activeTabBySpace;
+      return {
+        tabs: s.tabs.filter((t) => t.id !== tabId),
+        activeTabId: next === undefined ? s.activeTabId : (next?.id ?? null),
+        activeTabBySpace: next ? { ...bySpace, [space]: next.id } : bySpace,
+      };
     });
   };
 
@@ -205,7 +263,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
           (l) => l.panel.kind === 'editor' && sameSource(l.panel.source, source),
         );
         if (open) {
-          set({ activeTabId: t.id });
+          activate(t.id);
           get().focusLeaf(t.id, open.id);
           return;
         }
@@ -225,7 +283,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         root: splitLeaf(t.root, besideLeafId, 'row', leaf),
         activeLeafId: leaf.id,
       }));
-      set({ activeTabId: tab.id });
+      activate(tab.id);
     },
 
     openPreview: (besideLeafId, source) => {
@@ -235,7 +293,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
           (l) => l.panel.kind === 'preview' && samePreviewSource(l.panel.source, source),
         );
         if (open) {
-          set({ activeTabId: t.id });
+          activate(t.id);
           get().focusLeaf(t.id, open.id);
           return;
         }
@@ -255,7 +313,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         root: splitLeaf(t.root, besideLeafId, 'row', leaf),
         activeLeafId: leaf.id,
       }));
-      set({ activeTabId: tab.id });
+      activate(tab.id);
     },
 
     openMonitor: (besideLeafId, source) => {
@@ -270,7 +328,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
                 l.panel.source.linkedLeafId === source.linkedLeafId)),
         );
         if (open) {
-          set({ activeTabId: t.id });
+          activate(t.id);
           get().focusLeaf(t.id, open.id);
           return;
         }
@@ -290,7 +348,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         root: splitLeaf(t.root, besideLeafId, 'row', leaf),
         activeLeafId: leaf.id,
       }));
-      set({ activeTabId: tab.id });
+      activate(tab.id);
     },
 
     openSftpBeside: (sshLeafId) => {
@@ -300,7 +358,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         (l) => l.panel.kind === 'sftp' && l.panel.linkedLeafId === sshLeafId,
       );
       if (existing) {
-        set({ activeTabId: tab.id });
+        activate(tab.id);
         get().focusLeaf(tab.id, existing.id);
         return;
       }
@@ -321,7 +379,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         root: splitLeaf(t.root, sshLeafId, 'row', leaf),
         activeLeafId: leaf.id,
       }));
-      set({ activeTabId: tab.id });
+      activate(tab.id);
     },
 
     toggleSftp: (sshLeafId) => {
@@ -350,15 +408,103 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
 
     activateTab: (tabId) => {
-      if (get().tabs.some((t) => t.id === tabId)) set({ activeTabId: tabId });
+      activate(tabId);
     },
 
     activateRelative: (delta) => {
-      const { tabs, activeTabId } = get();
+      const { activeTabId, activeSpaceId } = get();
+      const tabs = spaceTabsOf(activeSpaceId);
       if (tabs.length === 0) return;
       const index = tabs.findIndex((t) => t.id === activeTabId);
       const next = tabs[(index + delta + tabs.length) % tabs.length];
-      if (next) set({ activeTabId: next.id });
+      if (next) activate(next.id);
+    },
+
+    activeSpaceId: MAIN_SPACE.id,
+    activeTabBySpace: {},
+
+    switchSpace: (spaceId) => {
+      const tabs = spaceTabsOf(spaceId);
+      const remembered = get().activeTabBySpace[spaceId];
+      const next = tabs.find((t) => t.id === remembered) ?? tabs[0] ?? null;
+      set((s) => ({
+        activeSpaceId: spaceId,
+        activeTabId: next?.id ?? null,
+        activeTabBySpace: next ? { ...s.activeTabBySpace, [spaceId]: next.id } : s.activeTabBySpace,
+      }));
+    },
+
+    spaceTabs: (spaceId) => spaceTabsOf(spaceId),
+
+    openPinned: (connectionId, target, spaceId) => {
+      const existing = get().tabs.find((t) => t.pinnedConnectionId === connectionId);
+      if (existing) {
+        activate(existing.id);
+        return existing.id;
+      }
+      return addTab(newSshLeaf(target, connectionId), {
+        spaceId,
+        pinnedConnectionId: connectionId,
+      });
+    },
+
+    pinTab: (tabId, connectionId) => {
+      set((s) => ({
+        tabs: s.tabs.map((t) => {
+          if (t.id === tabId) return { ...t, pinnedConnectionId: connectionId };
+          if (t.pinnedConnectionId === connectionId) {
+            return { ...t, spaceId: spaceOfTab(t), pinnedConnectionId: null };
+          }
+          return t;
+        }),
+      }));
+    },
+
+    unpinTab: (tabId) => {
+      mapTab(tabId, (t) => ({ ...t, spaceId: spaceOfTab(t), pinnedConnectionId: null }));
+    },
+
+    moveTabToSpace: (tabId, spaceId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      const from = spaceOfTab(tab);
+      const leaving = get().activeTabId === tabId && spaceId !== get().activeSpaceId;
+      const next = leaving ? neighbourOf(tabId, from) : null;
+      mapTab(tabId, (t) => ({ ...t, spaceId, pinnedConnectionId: null }));
+      if (!leaving) return;
+      set((s) => {
+        const bySpace = { ...s.activeTabBySpace, [spaceId]: tabId };
+        return {
+          activeTabId: next?.id ?? null,
+          activeTabBySpace: next ? { ...bySpace, [from]: next.id } : without(bySpace, from),
+        };
+      });
+    },
+
+    otherTabs: (tabId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab) return [];
+      return spaceTabsOf(spaceOfTab(tab))
+        .filter((t) => t.id !== tabId)
+        .map((t) => t.id);
+    },
+
+    tabsAfter: (tabId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab || isPinnedTab(tab)) return [];
+      const today = spaceTabsOf(spaceOfTab(tab)).filter((t) => !isPinnedTab(t));
+      return today.slice(today.findIndex((t) => t.id === tabId) + 1).map((t) => t.id);
+    },
+
+    reconcileSpaces: (known) => {
+      const { activeSpaceId } = get();
+      if (!known.includes(activeSpaceId)) {
+        get().switchSpace(known[0] ?? MAIN_SPACE.id);
+        return;
+      }
+      // The shown session moved (its connection changed space): follow it.
+      const shown = activeTab();
+      if (shown && spaceOfTab(shown) !== activeSpaceId) activate(shown.id);
     },
 
     moveTab: (from, to) => {
@@ -437,7 +583,8 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       set((s) => ({ dormant: s.dormant.filter((id) => id !== leafId) }));
     },
 
-    snapshot: () => serializeSnapshot(get().tabs, get().activeTabId),
+    snapshot: () =>
+      serializeSnapshot(get().tabs, get().activeTabId, get().activeSpaceId, get().activeTabBySpace),
 
     hydrate: (raw, available, fallback) => {
       // The snapshot comes from a user-reachable file: sanitize, never trust.
@@ -450,14 +597,32 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         replaced += 1;
         return { ...n, panel: { ...n.panel, profileId: fallback } };
       };
-      const tabs = snap.tabs.map((t) => ({ ...t, root: fix(t.root) }));
+      let tabs = snap.tabs.map((t) => ({ ...t, root: fix(t.root) }));
+      // Written before spaces: each saved connection's first session becomes its pinned one.
+      const legacy = !('activeSpaceId' in raw);
+      if (legacy) {
+        const seen = new Set<string>();
+        tabs = tabs.map((t) => {
+          const ssh = leaves(t.root).find((l) => l.panel.kind === 'ssh')?.panel;
+          const id = ssh?.kind === 'ssh' ? ssh.connectionId : null;
+          if (!id || seen.has(id)) return t;
+          seen.add(id);
+          return { ...t, pinnedConnectionId: id };
+        });
+      }
       // SSH tabs come back disconnected: no surprise connections or prompts at launch.
       const dormant = tabs.flatMap((t) =>
         leaves(t.root)
           .filter((l) => l.panel.kind === 'ssh')
           .map((l) => l.id),
       );
-      set({ tabs, activeTabId: snap.activeTabId, dormant });
+      set({
+        tabs,
+        activeTabId: snap.activeTabId,
+        dormant,
+        activeSpaceId: snap.activeSpaceId ?? MAIN_SPACE.id,
+        activeTabBySpace: snap.activeTabBySpace ?? {},
+      });
       return { replaced };
     },
   };

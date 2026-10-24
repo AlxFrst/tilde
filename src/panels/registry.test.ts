@@ -77,6 +77,8 @@ test('a module can refuse to be saved', () => {
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'a',
         root: {
           type: 'split',
@@ -90,6 +92,8 @@ test('a module can refuse to be saved', () => {
         id: 't2',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'c',
         root: leaf('c', { kind: 'thing' }) as never,
       },

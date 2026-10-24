@@ -107,10 +107,18 @@ export interface Tab {
   color: string | null;
   root: LayoutNode;
   activeLeafId: string;
+  /** The space of a session that is not pinned (`null`: the first space). */
+  spaceId: string | null;
+  /** The saved connection whose row in the Rail this session belongs to. */
+  pinnedConnectionId: string | null;
 }
 
 export interface WorkspaceSnapshot {
   version: 1;
   tabs: Tab[];
   activeTabId: string | null;
+  /** Absent in files written before spaces. */
+  activeSpaceId?: string | null;
+  /** The session last shown in each space. */
+  activeTabBySpace?: Record<string, string>;
 }

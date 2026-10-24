@@ -19,7 +19,12 @@ function serializeTree(root: LayoutNode): LayoutNode | null {
   return kept && mapLeaves(kept);
 }
 
-export function serializeSnapshot(tabs: Tab[], activeTabId: string | null): WorkspaceSnapshot {
+export function serializeSnapshot(
+  tabs: Tab[],
+  activeTabId: string | null,
+  activeSpaceId: string | null = null,
+  activeTabBySpace: Record<string, string> = {},
+): WorkspaceSnapshot {
   const kept: Tab[] = [];
   for (const tab of tabs) {
     const root = serializeTree(tab.root);
@@ -29,5 +34,14 @@ export function serializeSnapshot(tabs: Tab[], activeTabId: string | null): Work
     kept.push({ ...tab, root, activeLeafId });
   }
   const active = kept.some((t) => t.id === activeTabId) ? activeTabId : (kept[0]?.id ?? null);
-  return { version: 1, tabs: kept, activeTabId: active };
+  const bySpace = Object.fromEntries(
+    Object.entries(activeTabBySpace).filter(([, id]) => kept.some((t) => t.id === id)),
+  );
+  return {
+    version: 1,
+    tabs: kept,
+    activeTabId: active,
+    activeSpaceId,
+    activeTabBySpace: bySpace,
+  };
 }

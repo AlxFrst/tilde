@@ -154,6 +154,8 @@ test('renders a pane through its module', () => {
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'x',
         root: { type: 'leaf', id: 'x', panel: { kind: 'thing', label: 'ok' } } as never,
       },
@@ -182,6 +184,8 @@ test('a pane that crashes is contained; the others keep running', () => {
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'a',
         root: {
           type: 'split',
@@ -216,6 +220,8 @@ test('a clean exit keeps an SSH pane open while an editor linked to it has unsav
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'a',
         root: {
           type: 'split',
