@@ -24,6 +24,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'palette.toggle': 'Ctrl+Shift+P',
   'sftp.open': 'Ctrl+Shift+E',
   'library.open': 'Ctrl+Shift+L',
+  'sidebar.toggle': 'Ctrl+Shift+B',
   'space.next': 'Ctrl+Shift+PageDown',
   'space.prev': 'Ctrl+Shift+PageUp',
   ...Object.fromEntries(

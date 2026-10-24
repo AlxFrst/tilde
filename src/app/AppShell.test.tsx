@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '@/App';
 import { AppShell } from '@/app/AppShell';
@@ -189,4 +189,19 @@ test('read-only banner disables controls', async () => {
   const dialog = await screen.findByRole('dialog');
   expect(within(dialog).getByRole('alert')).toHaveTextContent('ligne 3, colonne 5');
   expect(within(dialog).getByRole('radio', { name: 'Clair' })).toBeDisabled();
+});
+
+test('a hidden rail comes back over the content when the mouse reaches the edge', async () => {
+  mockBackend();
+  render(<App />);
+  const rail = await screen.findByRole('complementary', { name: 'Barre latérale' });
+  await userEvent.click(within(rail).getByRole('button', { name: 'Masquer la barre latérale' }));
+  expect(screen.queryByRole('complementary')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Afficher la barre latérale' })).toBeInTheDocument();
+  const edge = document.querySelector('[data-rail-edge]') as HTMLElement;
+  fireEvent.mouseEnter(edge);
+  expect(screen.getByRole('complementary', { name: 'Barre latérale' })).toBeInTheDocument();
+  act(() => {
+    useUi.getState().setRailHidden(false);
+  });
 });

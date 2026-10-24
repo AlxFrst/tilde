@@ -1,4 +1,4 @@
-import { Library, Search } from 'lucide-react';
+import { Library, PanelLeftClose, Search } from 'lucide-react';
 import { openConnectionsFile } from '@/ipc/connections';
 import { formatConfigError } from '@/ipc/errors';
 import type { Appearance } from '@/ipc/generated/settings';
@@ -110,7 +110,20 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
         style={macInset ? { paddingLeft: 78 } : undefined}
       >
         <Logo className="size-[18px]" />
-        <span data-tauri-drag-region>Tilde</span>
+        <span data-tauri-drag-region className="flex-1">
+          Tilde
+        </span>
+        <button
+          type="button"
+          aria-label="Masquer la barre latérale"
+          title="Masquer la barre latérale (Ctrl+Maj+B)"
+          className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
+          onClick={() => {
+            useUi.getState().setRailHidden(true);
+          }}
+        >
+          <PanelLeftClose className="size-4" strokeWidth={1.5} />
+        </button>
       </div>
       <div className="flex shrink-0 flex-col px-2">
         <SearchButton />

@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { monitorRemote } from '@/ipc/monitor';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/stores/settings';
-import { useWorkspace } from '@/stores/workspace';
+import { useUi } from '@/stores/ui';
 import { useSessionId } from '@/terminal/sessionRegistry';
 import { formatBytes, formatRate } from './format';
 import { useSampler } from './useSampler';
@@ -111,7 +111,7 @@ export function ServerStatusBar({ leafId, visible }: { leafId: string; visible: 
           title="Moniteur détaillé du serveur"
           className="flex h-5 items-center gap-1 rounded px-1 hover:bg-surface-2 hover:text-text"
           onClick={() => {
-            useWorkspace.getState().toggleRemoteMonitor(leafId);
+            useUi.getState().setPeek({ sshLeafId: leafId });
           }}
         >
           <Activity className="size-3" strokeWidth={1.5} />

@@ -7,6 +7,7 @@ import { registerCorePanels } from '@/panels/core';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
+import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { defaultSettings } from '@/test/fixtures';
 import { defaultSpaceResolver, makeSpaceResolver, setSpaceResolver } from '@/workspace/spaces';
@@ -112,8 +113,10 @@ test("ssh actions toggle the files and the monitor of the active pane's session"
     'aria-pressed',
     'true',
   );
+  // The monitor shows over the session (Peek), for the session of the active pane.
   await userEvent.click(within(header()).getByRole('button', { name: 'Moniteur' }));
-  expect(kinds()).toContain('monitor');
+  expect(useUi.getState().peek).toEqual({ sshLeafId: leaves(activeTab().root)[0]?.id });
+  expect(kinds()).toEqual(['ssh', 'sftp']);
 });
 
 test('plus shell opens a shell on the same host', async () => {

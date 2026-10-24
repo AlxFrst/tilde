@@ -2,6 +2,7 @@ import {
   Activity,
   Columns2,
   FolderTree,
+  PanelLeftOpen,
   Plus,
   Rows2,
   Waypoints,
@@ -11,6 +12,7 @@ import type { Platform } from '@/ipc/app';
 import { cn } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
+import { useUi } from '@/stores/ui';
 import { findLinked, useWorkspace } from '@/stores/workspace';
 import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf } from '@/workspace/tree';
@@ -93,7 +95,9 @@ export function SessionHeader({ platform }: { platform: Platform }) {
       : undefined;
   const env = tab ? sessionEnv(tab, file) : null;
   const filesOpen = sshLeafId !== null && findLinked(tabs, sshLeafId, 'sftp') !== null;
-  const monitorOpen = sshLeafId !== null && findLinked(tabs, sshLeafId, 'monitor') !== null;
+  const monitorDocked = sshLeafId !== null && findLinked(tabs, sshLeafId, 'monitor') !== null;
+  const peeking = useUi((s) => s.peek !== null && s.peek.sshLeafId === sshLeafId);
+  const railHidden = useUi((s) => s.railHidden);
   const where = saved ? describeTarget(saved) : ssh?.kind === 'ssh' ? ssh.target : null;
   const jumps = saved?.proxyJump
     ?.split(',')
@@ -111,6 +115,15 @@ export function SessionHeader({ platform }: { platform: Platform }) {
       className="flex h-11 shrink-0 items-center gap-2 pr-0 pl-3"
       style={{ paddingRight: isMac ? 12 : 0 }}
     >
+      {railHidden && (
+        <IconButton
+          label="Afficher la barre latérale"
+          Icon={PanelLeftOpen}
+          onClick={() => {
+            useUi.getState().setRailHidden(false);
+          }}
+        />
+      )}
       {env && (
         <span
           className="shrink-0 rounded px-1.5 py-0.5 text-[0.65rem] font-semibold tracking-wider"
@@ -151,10 +164,12 @@ export function SessionHeader({ platform }: { platform: Platform }) {
           <HeaderButton
             label="Moniteur"
             Icon={Activity}
-            pressed={monitorOpen}
+            pressed={monitorDocked || peeking}
             title="Processeur, mémoire, disque et réseau du serveur"
             onClick={() => {
-              useWorkspace.getState().toggleRemoteMonitor(sshLeafId);
+              // A docked monitor closes; otherwise the monitor shows over the session.
+              if (monitorDocked) useWorkspace.getState().toggleRemoteMonitor(sshLeafId);
+              else useUi.getState().setPeek(peeking ? null : { sshLeafId });
             }}
           />
           <HeaderButton

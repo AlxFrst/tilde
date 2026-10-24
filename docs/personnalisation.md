@@ -165,6 +165,7 @@ fait avec la touche `)`.
 | `space.next` / `space.prev`          | Espace suivant / précédent | Ctrl+Shift+PageDown / PageUp |
 | `space.new`                          | Nouvel espace              | —                           |
 | `library.open`                       | Bibliothèque               | Ctrl+Shift+L                |
+| `sidebar.toggle`                     | Masquer / afficher la barre latérale | Ctrl+Shift+B      |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 

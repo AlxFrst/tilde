@@ -58,6 +58,15 @@ export function registerBuiltins(): () => void {
       },
     },
     {
+      id: 'sidebar.toggle',
+      title: 'Masquer / afficher la barre latérale',
+      group: 'Application',
+      run: () => {
+        const { railHidden, setRailHidden } = useUi.getState();
+        setRailHidden(!railHidden);
+      },
+    },
+    {
       id: 'library.open',
       title: 'Bibliothèque',
       group: 'Connexions',

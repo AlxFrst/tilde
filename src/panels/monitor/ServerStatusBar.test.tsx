@@ -2,6 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { monitorRemote, type Snapshot } from '@/ipc/monitor';
 import { useSettings } from '@/stores/settings';
+import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { registerSession, unregisterSession } from '@/terminal/sessionRegistry';
 import { defaultSettings } from '@/test/fixtures';
@@ -90,7 +91,7 @@ test('is not polled when turned off or when the pane is hidden', async () => {
   expect(screen.queryByRole('status')).toBeNull();
 });
 
-test('opens the details, and can be hidden', async () => {
+test('opens the details over the session, and can be hidden', async () => {
   vi.mocked(monitorRemote).mockResolvedValue(sample);
   const tab = useWorkspace.getState().openSshTab('prod');
   const sshLeaf = useWorkspace.getState().tabs[0]?.activeLeafId ?? '';
@@ -99,8 +100,10 @@ test('opens the details, and can be hidden', async () => {
   await flush();
 
   await userEvent.click(screen.getByRole('button', { name: 'Détails' }));
+  // The details show over the session (Peek), the layout is unchanged.
+  expect(useUi.getState().peek).toEqual({ sshLeafId: sshLeaf });
   const root = useWorkspace.getState().tabs.find((t) => t.id === tab)?.root;
-  expect(root && leaves(root).map((l) => l.panel.kind)).toEqual(['ssh', 'monitor']);
+  expect(root && leaves(root).map((l) => l.panel.kind)).toEqual(['ssh']);
 
   await userEvent.click(screen.getByRole('button', { name: 'Masquer le bandeau' }));
   expect(update).toHaveBeenCalledWith({ ssh: { statusBar: false } });
