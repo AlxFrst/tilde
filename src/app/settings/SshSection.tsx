@@ -62,6 +62,20 @@ export function SshSection() {
             }}
           />
         </Row>
+        <Row
+          label="Bandeau d’état du serveur"
+          hint="Sous chaque terminal SSH : processeur, mémoire, disque et réseau de la machine."
+        >
+          <SwitchField
+            setting="ssh.statusBar"
+            label="Bandeau d’état du serveur"
+            checked={s.statusBar}
+            disabled={readOnly}
+            onChange={(statusBar) => {
+              set({ statusBar });
+            }}
+          />
+        </Row>
       </Section>
     </div>
   );

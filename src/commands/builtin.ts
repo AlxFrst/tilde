@@ -1,6 +1,8 @@
 // Tilde's own commands. Titles are what the palette shows.
 
-import { closeActivePane, closeTab, openDefaultTab } from '@/app/actions';
+import { closeActivePane, closeTab, openDefaultTab, splitActivePane } from '@/app/actions';
+import { switchSpaceAt, switchSpaceRelative } from '@/app/spaces/spaceActions';
+import { checkForUpdates } from '@/app/updates';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
@@ -16,24 +18,31 @@ import { registerCommands, type Command } from './registry';
 
 const ws = () => useWorkspace.getState();
 
-/** Opens (or focuses) the files of the active SSH pane. */
-function openFilesOfActivePane(): void {
+/** Shows or hides the files of the active SSH pane. */
+function toggleFilesOfActivePane(): void {
   const { tabs, activeTabId } = ws();
   const tab = tabs.find((t) => t.id === activeTabId);
   const leaf = tab ? findLeaf(tab.root, tab.activeLeafId) : null;
-  if (leaf?.panel.kind === 'ssh') ws().openSftpBeside(leaf.id);
-  else if (leaf?.panel.kind === 'sftp') ws().openSftpBeside(leaf.panel.linkedLeafId);
+  if (leaf?.panel.kind === 'ssh') ws().toggleSftp(leaf.id);
+  else if (leaf?.panel.kind === 'sftp') ws().toggleSftp(leaf.panel.linkedLeafId);
   else toast.info('Les fichiers s’ouvrent depuis un onglet SSH (Ctrl+Maj+K pour se connecter).');
 }
 const noop = () => undefined;
 
 export function registerBuiltins(): () => void {
   const commands: Command[] = [
-    { id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run: openDefaultTab },
+    {
+      id: 'tab.new',
+      title: 'Nouvelle session',
+      group: 'Sessions',
+      keywords: ['new tab', 'onglet', 'terminal', 'shell'],
+      run: openDefaultTab,
+    },
     {
       id: 'tab.close',
-      title: 'Fermer l’onglet',
-      group: 'Onglets',
+      keywords: ['close tab', 'onglet'],
+      title: 'Fermer la session',
+      group: 'Sessions',
       run: () => {
         const id = ws().activeTabId;
         if (id) void closeTab(id);
@@ -41,38 +50,98 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'tab.next',
-      title: 'Onglet suivant',
-      group: 'Onglets',
+      keywords: ['next tab', 'onglet'],
+      title: 'Session suivante',
+      group: 'Sessions',
       run: () => {
         ws().activateRelative(1);
       },
     },
     {
       id: 'tab.prev',
-      title: 'Onglet précédent',
-      group: 'Onglets',
+      keywords: ['previous tab', 'onglet'],
+      title: 'Session précédente',
+      group: 'Sessions',
       run: () => {
         ws().activateRelative(-1);
       },
     },
     {
+      id: 'sidebar.toggle',
+      keywords: ['sidebar', 'rail', 'hide', 'zen', 'focus'],
+      title: 'Masquer / afficher la barre latérale',
+      group: 'Application',
+      run: () => {
+        const { railHidden, setRailHidden } = useUi.getState();
+        setRailHidden(!railHidden);
+      },
+    },
+    {
+      id: 'library.open',
+      keywords: ['library', 'hosts', 'ssh config', 'connexions'],
+      title: 'Bibliothèque',
+      group: 'Connexions',
+      run: () => {
+        useUi.getState().setLibraryOpen(true);
+      },
+    },
+    {
+      id: 'space.next',
+      keywords: ['next space', 'profile'],
+      title: 'Espace suivant',
+      group: 'Espaces',
+      run: () => {
+        switchSpaceRelative(1);
+      },
+    },
+    {
+      id: 'space.prev',
+      keywords: ['previous space', 'profile'],
+      title: 'Espace précédent',
+      group: 'Espaces',
+      run: () => {
+        switchSpaceRelative(-1);
+      },
+    },
+    {
+      id: 'space.new',
+      keywords: ['new space', 'profile', 'profil'],
+      title: 'Nouvel espace…',
+      group: 'Espaces',
+      run: () => {
+        useUi.getState().setSpaceDialog('new');
+      },
+    },
+    ...Array.from({ length: 9 }, (_, i): Command => ({
+      id: `space.${String(i + 1)}`,
+      title: `Aller à l’espace ${String(i + 1)}`,
+      group: 'Espaces',
+      hidden: true,
+      run: () => {
+        switchSpaceAt(i);
+      },
+    })),
+    {
       id: 'pane.splitRight',
+      keywords: ['split', 'right', 'côte à côte', 'vertical'],
       title: 'Diviser à droite',
       group: 'Panneaux',
       run: () => {
-        ws().splitActive('row');
+        splitActivePane('row');
       },
     },
     {
       id: 'pane.splitDown',
+      keywords: ['split', 'down', 'horizontal'],
       title: 'Diviser en bas',
       group: 'Panneaux',
       run: () => {
-        ws().splitActive('column');
+        splitActivePane('column');
       },
     },
     {
       id: 'pane.close',
+      keywords: ['close pane'],
       title: 'Fermer le panneau',
       group: 'Panneaux',
       run: () => void closeActivePane(),
@@ -135,6 +204,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'ssh.quickConnect',
+      keywords: ['connect', 'ssh', 'host'],
       title: 'Connexion SSH rapide…',
       group: 'Connexions',
       run: () => {
@@ -143,12 +213,14 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'sftp.open',
-      title: 'Fichiers (SFTP)',
+      keywords: ['files', 'sftp', 'explorer', 'transfer'],
+      title: 'Afficher / masquer les fichiers (SFTP)',
       group: 'Connexions',
-      run: openFilesOfActivePane,
+      run: toggleFilesOfActivePane,
     },
     {
       id: 'connections.new',
+      keywords: ['new connection', 'host', 'server'],
       title: 'Nouvelle connexion…',
       group: 'Connexions',
       run: () => {
@@ -165,12 +237,14 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'connections.import',
+      keywords: ['import'],
       title: 'Importer des connexions…',
       group: 'Connexions',
       run: () => void importWithReport(),
     },
     {
       id: 'connections.export',
+      keywords: ['export'],
       title: 'Exporter les connexions…',
       group: 'Connexions',
       run: () => void exportWithToast(),
@@ -187,6 +261,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'app.settings',
+      keywords: ['settings', 'preferences', 'options', 'paramètres'],
       title: 'Réglages…',
       group: 'Application',
       run: () => {
@@ -210,6 +285,13 @@ export function registerBuiltins(): () => void {
       title: 'Ouvrir le dossier des thèmes',
       group: 'Application',
       run: () => void openThemesDir().catch(noop),
+    },
+    {
+      id: 'app.checkUpdates',
+      keywords: ['update', 'version'],
+      title: 'Rechercher des mises à jour',
+      group: 'Application',
+      run: () => void checkForUpdates({ manual: true }),
     },
     {
       id: 'app.openLogs',

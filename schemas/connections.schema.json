@@ -9,6 +9,14 @@
       "minimum": 0,
       "default": 1
     },
+    "spaces": {
+      "description": "Empty: one implicit space, [`MAIN_SPACE_ID`].",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Space"
+      },
+      "default": []
+    },
     "folders": {
       "type": "array",
       "items": {
@@ -35,6 +43,36 @@
     }
   },
   "$defs": {
+    "Space": {
+      "description": "A space (« Pro », « Perso »…): its own folders, connections and sessions.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "default": ""
+        },
+        "name": {
+          "type": "string",
+          "default": ""
+        },
+        "color": {
+          "description": "`#RRGGBB`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "icon": {
+          "description": "One of [`SPACE_ICONS`].",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      }
+    },
     "Folder": {
       "description": "A folder of connections (one level).",
       "type": "object",
@@ -49,6 +87,14 @@
         },
         "color": {
           "description": "`#RRGGBB`.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "spaceId": {
+          "description": "`None`: the first space.",
           "type": [
             "string",
             "null"
@@ -147,6 +193,14 @@
         "favorite": {
           "type": "boolean",
           "default": false
+        },
+        "spaceId": {
+          "description": "`None`: the first space. Always its folder's space when it is in a folder.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       }
     },

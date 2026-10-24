@@ -124,6 +124,7 @@ test('an ssh tab opened from a saved connection shows its name', async () => {
   useConnections.setState({
     file: {
       version: 1,
+      spaces: [],
       folders: [],
       recents: [],
       connections: [
@@ -141,6 +142,7 @@ test('an ssh tab opened from a saved connection shows its name', async () => {
           icon: null,
           tags: [],
           favorite: false,
+          spaceId: null,
         },
       ],
     },
@@ -152,4 +154,17 @@ test('an ssh tab opened from a saved connection shows its name', async () => {
     'Base de prod',
     'db.example',
   ]);
+});
+
+test('a tab showing the files or the monitor of a connection is named after it', () => {
+  act(() => {
+    ws().openSshTab('prod.example');
+  });
+  const sshLeaf = ws().tabs[0]?.activeLeafId ?? '';
+  render(<TabBar />);
+  act(() => {
+    ws().toggleRemoteMonitor(sshLeaf);
+  });
+  expect(screen.getByRole('tab', { name: /prod\.example/ })).toBeInTheDocument();
+  expect(screen.queryByRole('tab', { name: /Moniteur/ })).toBeNull();
 });

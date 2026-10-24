@@ -40,8 +40,8 @@ beforeEach(() => {
   useUi.setState({ recordingShortcut: false });
   useSettings.setState({ settings: defaultSettings, readOnly: false, error: null });
   unregister = registerCommands([
-    { id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run: vi.fn() },
-    { id: 'tab.close', title: 'Fermer l’onglet', group: 'Onglets', run: vi.fn() },
+    { id: 'tab.new', title: 'Nouvel onglet', group: 'Sessions', run: vi.fn() },
+    { id: 'tab.close', title: 'Fermer l’onglet', group: 'Sessions', run: vi.fn() },
     { id: 'palette.toggle', title: 'Palette', group: 'Application', run: palette },
   ]);
 });

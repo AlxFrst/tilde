@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tilde_config::{
     ConfigError, ConfigErrorDto, Connection, ConnectionsFile, ConnectionsStore, Folder,
-    ImportReport, connection_problem,
+    ImportReport, Space, connection_problem,
 };
 use tilde_ssh::SshTarget;
 
@@ -102,6 +102,16 @@ pub fn folders_remove(app: AppHandle, id: String) -> Result<(), ConfigErrorDto> 
     edit(&app, |s| s.remove_folder(&id))
 }
 
+#[tauri::command]
+pub fn spaces_upsert(app: AppHandle, space: Space) -> Result<Space, ConfigErrorDto> {
+    edit(&app, |s| s.upsert_space(space))
+}
+
+#[tauri::command]
+pub fn spaces_remove(app: AppHandle, id: String) -> Result<(), ConfigErrorDto> {
+    edit(&app, |s| s.remove_space(&id))
+}
+
 fn io_dto(path: PathBuf, source: std::io::Error) -> ConfigErrorDto {
     ConfigErrorDto::from(&ConfigError::Io { path, source })
 }
@@ -184,7 +194,7 @@ pub fn ssh_target_for(
     connection_id: Option<&str>,
 ) -> Result<(SshTarget, (String, String)), String> {
     if let Some(c) = connection_id.and_then(|id| file.connections.iter().find(|c| c.id == id)) {
-        if let Some(problem) = connection_problem(c, &file.folders) {
+        if let Some(problem) = connection_problem(c, file) {
             return Err(format!(
                 "« {} » ne peut pas être ouverte ({problem}) : corrigez-la dans la sidebar",
                 c.name

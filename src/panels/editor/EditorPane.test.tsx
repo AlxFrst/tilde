@@ -152,6 +152,8 @@ test('closing a dirty editor asks first', async () => {
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'ed-1',
         root: { type: 'leaf', id: 'ed-1', panel: state },
       },
@@ -219,6 +221,8 @@ test('closing the SSH pane an unsaved editor depends on asks first', async () =>
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'ssh-1',
         root: {
           type: 'split',

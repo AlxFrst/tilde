@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { connectionIcon } from '@/connections/icons';
 import {
   parseTags,
   validateConnection,
@@ -17,11 +16,14 @@ import {
   type FormErrors,
 } from '@/connections/validate';
 import { CONNECTION_ICONS, type Connection } from '@/ipc/connections';
+import { connectionSpace, listSpaces, spaceIdOf } from '@/connections/spaces';
 import { isConfigError } from '@/ipc/errors';
 import { cn } from '@/lib/utils';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { openConnection } from './actions';
 import { ColorPicker } from './ColorPicker';
+import { IconPicker } from './IconPicker';
+import { JumpHosts } from './JumpHosts';
 
 const AGENT = [
   ['', 'Selon ~/.ssh/config'],
@@ -74,6 +76,11 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
   });
   const [tags, setTags] = useState(initial.tags.join(', '));
   const [folderId, setFolderId] = useState(initial.folderId);
+  const spaces = listSpaces(file);
+  const [spaceId, setSpaceId] = useState(() =>
+    initial.id ? connectionSpace(initial, file) : spaceIdOf(initial, spaces),
+  );
+  const spaceFolders = file.folders.filter((f) => spaceIdOf(f, spaces) === spaceId);
   const [color, setColor] = useState(initial.color);
   const [icon, setIcon] = useState(initial.icon);
   const [agent, setAgent] = useState(
@@ -105,7 +112,9 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
       identityFile: opt(form.identityFile),
       proxyJump: opt(form.proxyJump),
       forwardAgent: agent === '' ? null : agent === 'yes',
-      folderId,
+      folderId: spaceFolders.some((f) => f.id === folderId) ? folderId : null,
+      // While no space is written, everything stays in the implicit one (null).
+      spaceId: file.spaces.length === 0 ? null : spaceId,
       color,
       icon,
       tags: parseTags(tags),
@@ -190,12 +199,57 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
         </Field>
         <Field
           id="conn-proxyJump"
-          label="ProxyJump"
+          label="Rebonds (ProxyJump)"
           error={errors.proxyJump}
-          className="col-span-4"
-          hint="Bastions : user@b1, b2:2222"
+          className="col-span-6"
+          hint="Tilde passe par chaque bastion dans l’ordre, puis se connecte à l’hôte ; les fichiers et le bandeau d’état suivent le même chemin."
         >
-          {input('proxyJump')}
+          <JumpHosts
+            value={form.proxyJump}
+            invalid={errors.proxyJump !== undefined}
+            connections={file.connections.filter((c) => c.id !== initial.id || !initial.id)}
+            sshHosts={sshHosts}
+            onChange={(proxyJump) => {
+              setForm((f) => ({ ...f, proxyJump }));
+              setErrors((er) => ({ ...er, proxyJump: undefined }));
+            }}
+          />
+        </Field>
+        {spaces.length > 1 && (
+          <Field id="conn-space" label="Espace" className="col-span-6">
+            <select
+              id="conn-space"
+              className={selectClass}
+              value={spaceId}
+              onChange={(e) => {
+                setSpaceId(e.currentTarget.value);
+                setFolderId(null);
+              }}
+            >
+              {spaces.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+        <Field id="conn-folder" label="Dossier" className="col-span-2">
+          <select
+            id="conn-folder"
+            className={selectClass}
+            value={folderId ?? ''}
+            onChange={(e) => {
+              setFolderId(e.currentTarget.value || null);
+            }}
+          >
+            <option value="">Sans dossier</option>
+            {spaceFolders.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field id="conn-agent" label="Transférer l’agent" className="col-span-2">
           <select
@@ -213,24 +267,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             ))}
           </select>
         </Field>
-        <Field id="conn-folder" label="Dossier" className="col-span-3">
-          <select
-            id="conn-folder"
-            className={selectClass}
-            value={folderId ?? ''}
-            onChange={(e) => {
-              setFolderId(e.currentTarget.value || null);
-            }}
-          >
-            <option value="">Sans dossier</option>
-            {file.folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field id="conn-tags" label="Tags" className="col-span-3" hint="Séparés par des virgules">
+        <Field id="conn-tags" label="Tags" className="col-span-2" hint="Séparés par des virgules">
           <Input
             id="conn-tags"
             value={tags}
@@ -245,34 +282,15 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
         </div>
         <div className="col-span-6 grid gap-1">
           <span className="text-sm">Icône</span>
-          <div role="radiogroup" aria-label="Icône" className="flex flex-wrap gap-1">
-            {CONNECTION_ICONS.map((name) => {
-              const Icon = connectionIcon(name);
-              const checked = (icon ?? 'server') === name;
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  role="radio"
-                  aria-checked={checked}
-                  aria-label={name}
-                  className={cn(
-                    'flex size-8 items-center justify-center rounded-md border',
-                    checked ? 'border-ring bg-surface-2' : 'border-transparent hover:bg-surface-2',
-                  )}
-                  onClick={() => {
-                    setIcon(name === 'server' ? null : name);
-                  }}
-                >
-                  <Icon
-                    className="size-4"
-                    strokeWidth={1.5}
-                    style={color ? { color } : undefined}
-                  />
-                </button>
-              );
-            })}
-          </div>
+          <IconPicker
+            label="Icône"
+            icons={CONNECTION_ICONS}
+            value={icon ?? 'server'}
+            color={color}
+            onChange={(name) => {
+              setIcon(name === 'server' ? null : name);
+            }}
+          />
         </div>
       </div>
 

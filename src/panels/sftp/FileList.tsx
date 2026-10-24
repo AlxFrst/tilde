@@ -100,7 +100,7 @@ export function FileList({
                   className={cn(
                     'grid cursor-default grid-cols-[1fr_6rem_9rem_7rem] items-center outline-none select-none',
                     'hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-ring',
-                    selected.has(e.path) && 'bg-surface-2',
+                    selected.has(e.path) && 'bg-primary/15 hover:bg-primary/20',
                   )}
                   onClick={(ev) => {
                     onSelect(

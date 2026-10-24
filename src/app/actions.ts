@@ -1,13 +1,16 @@
 // User-level actions shared by the tab bar, shortcuts and menus.
 
+import { connectionSpace } from '@/connections/spaces';
 import type { Connection } from '@/ipc/connections';
 import { pickDefaultProfile } from '@/ipc/profiles';
+import { useConnections } from '@/stores/connections';
 import { dirtyEditors } from '@/stores/editors';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { useWorkspace } from '@/stores/workspace';
 import { sessionsFor } from '@/terminal/sessionRegistry';
-import { leaves } from '@/workspace/tree';
+import { findLeaf, leaves } from '@/workspace/tree';
+import type { Direction } from '@/workspace/types';
 import { confirmClose } from './closeGuard';
 
 export function defaultProfileId(): string | null {
@@ -20,9 +23,13 @@ export function openDefaultTab(): void {
   if (id) useWorkspace.getState().openTab(id);
 }
 
-/** Opens a saved connection in a new tab. */
+/**
+ * Opens a saved connection: shows its pinned session (switching to its space), or opens
+ * it there.
+ */
 export function openConnection(c: Connection): void {
-  useWorkspace.getState().openSshTab(c.host, c.id);
+  const { file } = useConnections.getState();
+  useWorkspace.getState().openPinned(c.id, c.host, connectionSpace(c, file));
 }
 
 /**
@@ -57,6 +64,51 @@ export async function closeTab(tabId: string): Promise<void> {
   if (await confirmClose(sessionsFor(leafIds), unsavedIn(leafIds))) {
     useWorkspace.getState().closeTab(tabId);
   }
+}
+
+/** Closes several sessions after one confirmation. */
+export async function closeTabs(tabIds: string[]): Promise<void> {
+  const tabs = useWorkspace.getState().tabs.filter((t) => tabIds.includes(t.id));
+  if (tabs.length === 0) return;
+  const leafIds = tabs.flatMap((t) => leaves(t.root).map((l) => l.id));
+  if (await confirmClose(sessionsFor(leafIds), unsavedIn(leafIds))) {
+    for (const t of tabs) useWorkspace.getState().closeTab(t.id);
+  }
+}
+
+/**
+ * Splits a pane: another shell like it (terminal, SSH), a shell on the same host (files,
+ * server monitor), or the default shell (anything else: an editor, a preview).
+ */
+export function splitPane(tabId: string, leafId: string, direction: Direction): void {
+  const ws = useWorkspace.getState();
+  const tab = ws.tabs.find((t) => t.id === tabId);
+  const panel = tab ? findLeaf(tab.root, leafId)?.panel : undefined;
+  if (!panel) return;
+  ws.focusLeaf(tabId, leafId);
+  if (panel.kind === 'terminal' || panel.kind === 'ssh') {
+    ws.splitActive(direction);
+    return;
+  }
+  const owner =
+    panel.kind === 'sftp'
+      ? panel.linkedLeafId
+      : panel.kind === 'monitor' && panel.source.kind === 'remote'
+        ? panel.source.linkedLeafId
+        : null;
+  if (owner) {
+    ws.addShellBeside(owner, direction);
+    return;
+  }
+  const profile = defaultProfileId();
+  if (profile) ws.splitActive(direction, profile);
+}
+
+/** Splits the active pane of the shown session. */
+export function splitActivePane(direction: Direction): void {
+  const { tabs, activeTabId } = useWorkspace.getState();
+  const tab = tabs.find((t) => t.id === activeTabId);
+  if (tab) splitPane(tab.id, tab.activeLeafId, direction);
 }
 
 export function closeActivePane(): Promise<void> {

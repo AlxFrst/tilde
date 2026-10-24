@@ -2,7 +2,10 @@
 
 use std::fs;
 
-use tilde_config::{ConfigError, ConfigPaths, Connection, ConnectionsStore, Folder, MAX_RECENTS};
+use tilde_config::{
+    ConfigError, ConfigPaths, Connection, ConnectionsStore, Folder, MAIN_SPACE_ID, MAX_RECENTS,
+    Space,
+};
 
 fn setup(contents: Option<&str>) -> (tempfile::TempDir, ConfigPaths) {
     let dir = tempfile::TempDir::new().unwrap();
@@ -324,4 +327,204 @@ fn export_is_refused_while_the_file_is_unreadable() {
     let (_d, paths) = setup(Some("{ broken"));
     let (store, _) = ConnectionsStore::load(paths);
     assert!(matches!(store.export(), Err(ConfigError::ReadOnlyFile(_))));
+}
+
+// ---- spaces ---------------------------------------------------------------------------
+
+fn space(name: &str) -> Space {
+    Space { name: name.into(), ..Space::default() }
+}
+
+fn invalid_path(err: Result<impl std::fmt::Debug, ConfigError>) -> String {
+    match err {
+        Err(ConfigError::Invalid(fields)) => fields[0].path.clone(),
+        other => panic!("expected an invalid field, got {other:?}"),
+    }
+}
+
+#[test]
+fn no_space_means_one_implicit_main_space() {
+    let text = r#"{ "version": 1, "connections": [ { "id": "a", "name": "A", "host": "h" } ] }"#;
+    let (_d, paths) = setup(Some(text));
+    let (store, err) = ConnectionsStore::load(paths.clone());
+    assert!(err.is_none());
+    assert_eq!(store.file().spaces, Vec::<Space>::new());
+    assert_eq!(store.file().connections[0].space_id, None);
+    assert_eq!(read(&paths), text, "loading writes nothing");
+}
+
+#[test]
+fn creating_a_space_writes_main_first() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    let names: Vec<_> =
+        store.file().spaces.iter().map(|s| (s.id.as_str(), s.name.as_str())).collect();
+    assert_eq!(names, [(MAIN_SPACE_ID, "Principal"), (pro.id.as_str(), "Pro")]);
+    assert_eq!(pro.id.len(), 16);
+    // A second space does not add another "Principal".
+    store.upsert_space(space("Perso")).unwrap();
+    assert_eq!(store.file().spaces.len(), 3);
+    let (again, _) = ConnectionsStore::load(paths);
+    assert_eq!(again.file().spaces.len(), 3);
+}
+
+#[test]
+fn a_connection_takes_its_folder_space_on_load() {
+    let text = r#"{ "version": 1,
+      "spaces": [ { "id": "main", "name": "Principal" }, { "id": "pro", "name": "Pro" } ],
+      "folders": [ { "id": "f", "name": "Prod", "spaceId": "pro" } ],
+      "connections": [ { "id": "a", "name": "A", "host": "h", "folderId": "f", "spaceId": "main" } ] }"#;
+    let (_d, paths) = setup(Some(text));
+    let (store, _) = ConnectionsStore::load(paths);
+    assert_eq!(store.file().connections[0].space_id.as_deref(), Some("pro"));
+}
+
+#[test]
+fn moving_a_connection_to_another_space_leaves_its_folder() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    let folder = store
+        .upsert_folder(Folder {
+            name: "Prod".into(),
+            space_id: Some(pro.id.clone()),
+            ..Folder::default()
+        })
+        .unwrap();
+    let mut c = conn("A", "h");
+    c.folder_id = Some(folder.id.clone());
+    c.space_id = Some(pro.id.clone());
+    let saved = store.upsert_connection(c).unwrap();
+    assert_eq!(saved.folder_id.as_deref(), Some(folder.id.as_str()));
+
+    let moved = store
+        .upsert_connection(Connection { space_id: Some(MAIN_SPACE_ID.into()), ..saved })
+        .unwrap();
+    assert_eq!(moved.space_id.as_deref(), Some(MAIN_SPACE_ID));
+    assert_eq!(moved.folder_id, None, "the folder belongs to the other space");
+}
+
+#[test]
+fn moving_a_folder_moves_its_connections() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    let folder = store.upsert_folder(Folder { name: "Prod".into(), ..Folder::default() }).unwrap();
+    let mut c = conn("A", "h");
+    c.folder_id = Some(folder.id.clone());
+    let saved = store.upsert_connection(c).unwrap();
+
+    store.upsert_folder(Folder { space_id: Some(pro.id.clone()), ..folder.clone() }).unwrap();
+    let in_memory = &store.file().connections[0];
+    assert_eq!(in_memory.space_id.as_deref(), Some(pro.id.as_str()));
+    assert_eq!(in_memory.folder_id.as_deref(), Some(folder.id.as_str()));
+    // Written too, not only repaired on the next load.
+    assert!(read(&paths).contains(&format!("\"spaceId\": \"{}\"", pro.id)));
+    // A copy of it (« Dupliquer » sends what it was given) stays in the folder.
+    let copy = store
+        .upsert_connection(Connection { id: String::new(), ..store.file().connections[0].clone() })
+        .unwrap();
+    assert_eq!(copy.folder_id.as_deref(), Some(folder.id.as_str()));
+    assert_ne!(copy.id, saved.id);
+}
+
+#[test]
+fn unknown_space_is_refused_on_write_and_repaired_on_load() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    let mut c = conn("A", "h");
+    c.space_id = Some("nowhere".into());
+    assert_eq!(invalid_path(store.upsert_connection(c)), "spaceId");
+    let f = Folder { name: "F".into(), space_id: Some("nowhere".into()), ..Folder::default() };
+    assert_eq!(invalid_path(store.upsert_folder(f)), "spaceId");
+
+    let text = r#"{ "version": 1, "folders": [ { "id": "f", "name": "F", "spaceId": "gone" } ],
+      "connections": [ { "id": "a", "name": "A", "host": "h", "spaceId": "gone" } ] }"#;
+    let (_d2, paths2) = setup(Some(text));
+    let (repaired, _) = ConnectionsStore::load(paths2);
+    assert_eq!(repaired.file().folders[0].space_id, None);
+    assert_eq!(repaired.file().connections[0].space_id, None);
+}
+
+#[test]
+fn removing_a_space_moves_its_folders_and_connections_to_the_first_one() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    let folder = store
+        .upsert_folder(Folder {
+            name: "Prod".into(),
+            space_id: Some(pro.id.clone()),
+            ..Folder::default()
+        })
+        .unwrap();
+    let mut c = conn("A", "h");
+    c.space_id = Some(pro.id.clone());
+    c.folder_id = Some(folder.id.clone());
+    store.upsert_connection(c).unwrap();
+
+    store.remove_space(&pro.id).unwrap();
+    assert_eq!(store.file().spaces.len(), 1);
+    assert_eq!(store.file().folders[0].space_id.as_deref(), Some(MAIN_SPACE_ID));
+    let moved = &store.file().connections[0];
+    assert_eq!(moved.space_id.as_deref(), Some(MAIN_SPACE_ID));
+    assert_eq!(moved.folder_id.as_deref(), Some(folder.id.as_str()), "folders move whole");
+}
+
+#[test]
+fn the_last_space_cannot_be_removed() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    assert!(matches!(store.remove_space(MAIN_SPACE_ID), Err(ConfigError::Invalid(_))));
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    store.remove_space(MAIN_SPACE_ID).unwrap();
+    assert!(matches!(store.remove_space(&pro.id), Err(ConfigError::Invalid(_))));
+}
+
+#[test]
+fn space_names_colors_and_icons_are_checked() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    assert_eq!(invalid_path(store.upsert_space(space("  "))), "name");
+    let bad_color = Space { color: Some("red".into()), ..space("X") };
+    assert_eq!(invalid_path(store.upsert_space(bad_color)), "color");
+    let bad_icon = Space { icon: Some("dragon".into()), ..space("X") };
+    assert_eq!(invalid_path(store.upsert_space(bad_icon)), "icon");
+    let ok =
+        Space { color: Some("#7AA2F7".into()), icon: Some("briefcase".into()), ..space(" Pro ") };
+    assert_eq!(store.upsert_space(ok).unwrap().name, "Pro");
+}
+
+#[test]
+fn import_matches_spaces_by_name() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    store
+        .import(
+            r#"{ "version": 1,
+          "spaces": [ { "id": "x1", "name": "pro" }, { "id": "x2", "name": "Cloud" } ],
+          "folders": [ { "id": "f1", "name": "Prod", "spaceId": "x1" } ],
+          "connections": [
+            { "id": "c1", "name": "web", "host": "web.example", "folderId": "f1", "spaceId": "x1" },
+            { "id": "c2", "name": "vm", "host": "vm.example", "spaceId": "x2" } ] }"#,
+        )
+        .unwrap();
+    let cloud = store.file().spaces.iter().find(|s| s.name == "Cloud").unwrap().id.clone();
+    let by = |n: &str| store.file().connections.iter().find(|c| c.name == n).unwrap().clone();
+    assert_eq!(by("web").space_id.as_deref(), Some(pro.id.as_str()));
+    assert_eq!(by("vm").space_id.as_deref(), Some(cloud.as_str()));
+    assert_eq!(store.file().folders[0].space_id.as_deref(), Some(pro.id.as_str()));
+    assert_eq!(store.file().spaces.len(), 3);
+}
+
+#[test]
+fn export_keeps_the_spaces() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths);
+    store.upsert_space(space("Pro")).unwrap();
+    let text = store.export().unwrap();
+    assert!(text.contains("\"spaces\""));
+    assert!(text.contains("\"Pro\""));
 }

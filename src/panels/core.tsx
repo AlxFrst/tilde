@@ -3,6 +3,7 @@
 import { FolderTree, Server, SquareTerminal } from 'lucide-react';
 import { toast } from 'sonner';
 import { unsavedIn } from '@/app/actions';
+import { ServerStatusBar } from '@/panels/monitor/ServerStatusBar';
 import { SftpPanelView } from '@/panels/sftp/SftpPanel';
 import { TerminalView } from '@/terminal/TerminalView';
 import type { SftpPanel, SshPanel, TerminalPanel } from '@/workspace/types';
@@ -18,10 +19,11 @@ function TerminalPane({
   leafId,
   state,
   active,
+  visible,
   update,
   close,
 }: PanelProps<TerminalPanel> | PanelProps<SshPanel>) {
-  return (
+  const view = (
     <TerminalView
       tabId={tabId}
       leafId={leafId}
@@ -43,6 +45,13 @@ function TerminalPane({
       }}
       onClose={close}
     />
+  );
+  if (state.kind !== 'ssh') return view;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="min-h-0 flex-1">{view}</div>
+      <ServerStatusBar leafId={leafId} visible={visible} />
+    </div>
   );
 }
 

@@ -150,9 +150,9 @@ fait avec la touche `)`.
 
 | Id                                   | Action                     | Défaut                      |
 | ------------------------------------ | -------------------------- | --------------------------- |
-| `tab.new`                            | Nouvel onglet              | Ctrl+Shift+T                |
-| `tab.close`                          | Fermer l'onglet            | Ctrl+Shift+W                |
-| `tab.next` / `tab.prev`              | Onglet suivant / précédent | Ctrl+Tab / Ctrl+Shift+Tab   |
+| `tab.new`                            | Nouvelle session           | Ctrl+Shift+T                |
+| `tab.close`                          | Fermer la session          | Ctrl+Shift+W                |
+| `tab.next` / `tab.prev`              | Session suivante / précédente | Ctrl+Tab / Ctrl+Shift+Tab |
 | `pane.splitRight` / `pane.splitDown` | Diviser                    | Alt+Shift+= / Alt+Shift+-   |
 | `pane.close`                         | Fermer le panneau          | Ctrl+Shift+X                |
 | `pane.focusLeft` … `pane.focusDown`  | Changer de panneau         | Alt+flèches                 |
@@ -160,9 +160,17 @@ fait avec la touche `)`.
 | `terminal.search`                    | Rechercher                 | Ctrl+Shift+F                |
 | `ssh.quickConnect`                   | Connexion SSH              | Ctrl+Shift+K                |
 | `palette.toggle`                     | Palette de commandes       | Ctrl+Shift+P                |
-| `sftp.open`                          | Fichiers (SFTP)            | Ctrl+Shift+E                |
+| `sftp.open`                          | Afficher / masquer les fichiers (SFTP) | Ctrl+Shift+E   |
+| `space.1` … `space.9`                | Aller à l'espace 1 … 9     | Ctrl+Shift+1 … 9            |
+| `space.next` / `space.prev`          | Espace suivant / précédent | Ctrl+Shift+PageDown / PageUp |
+| `space.new`                          | Nouvel espace              | —                           |
+| `library.open`                       | Bibliothèque               | Ctrl+Shift+L                |
+| `sidebar.toggle`                     | Masquer / afficher la barre latérale | Ctrl+Shift+B      |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
+
+Sous Windows et Linux, **Ctrl+C** copie aussi la sélection (sans sélection, il interrompt la
+commande comme d'habitude) et **Ctrl+V** colle, comme dans Windows Terminal.
 
 Les autres commandes de la palette (import et export des connexions, ouverture des fichiers
 de réglages…) peuvent aussi recevoir un raccourci : leur id figure dans **Réglages →

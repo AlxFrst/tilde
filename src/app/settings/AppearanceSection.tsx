@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import type { Appearance } from '@/ipc/generated/settings';
 import type { WindowEffect } from '@/ipc/window';
 import { useSettings } from '@/stores/settings';
@@ -220,6 +221,30 @@ export function AppearanceSection() {
               set({ sidebarWidth });
             }}
           />
+        </Row>
+        <Row
+          label="Hôtes de ~/.ssh/config masqués"
+          hint="Rangés dans « Masqués » en bas de leur section : toujours ouvrables et adoptables."
+        >
+          <div data-setting="appearance.sshConfigHosts.hidden" className="flex items-center gap-2">
+            <span className="text-sm text-text-muted">
+              {a.sshConfigHosts.hidden.length === 0
+                ? 'Aucun'
+                : `${String(a.sshConfigHosts.hidden.length)} masqué(s)`}
+            </span>
+            {a.sshConfigHosts.hidden.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={readOnly}
+                onClick={() => {
+                  set({ sshConfigHosts: { hidden: [] } });
+                }}
+              >
+                Tout réafficher
+              </Button>
+            )}
+          </div>
         </Row>
       </Section>
 

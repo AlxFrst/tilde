@@ -10,7 +10,8 @@ import { bindingKeys } from '@/terminal/keyLabels';
 import { ShortcutRecorder } from './ShortcutRecorder';
 
 const GROUP_ORDER: CommandGroup[] = [
-  'Onglets',
+  'Sessions',
+  'Espaces',
   'Panneaux',
   'Terminal',
   'Connexions',

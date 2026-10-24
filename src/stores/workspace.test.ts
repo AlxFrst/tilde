@@ -353,3 +353,49 @@ test('openSftpBeside splits the ssh pane and the panel survives sanitize', () =>
   });
   expect(ws().tabs).toEqual([]);
 });
+
+test('toggleSftp opens the files beside the ssh pane, then closes them', () => {
+  const tab = ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().toggleSftp(sshLeaf);
+  expect(activeLeaf().leaf.panel.kind).toBe('sftp');
+  ws().toggleSftp(sshLeaf);
+  const t = ws().tabs.find((x) => x.id === tab);
+  expect(t?.root.type).toBe('leaf');
+  expect(activeLeaf().leaf.id).toBe(sshLeaf);
+});
+
+test('toggleRemoteMonitor opens the server monitor, then closes it', () => {
+  ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().toggleRemoteMonitor(sshLeaf);
+  expect(activeLeaf().leaf.panel).toMatchObject({
+    kind: 'monitor',
+    source: { kind: 'remote', linkedLeafId: sshLeaf },
+  });
+  ws().toggleRemoteMonitor(sshLeaf);
+  const panels = ws().tabs.flatMap((t) => leaves(t.root).map((l) => l.panel.kind));
+  expect(panels).toEqual(['ssh']);
+});
+
+test('closing an ssh pane closes its files and its monitor, and a tab left with nothing else', () => {
+  const tab = ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().toggleSftp(sshLeaf);
+  ws().toggleRemoteMonitor(sshLeaf);
+  expect(activeLeaf().tab.root.type === 'split' && leaves(activeLeaf().tab.root)).toHaveLength(3);
+  ws().closeLeaf(tab, sshLeaf);
+  expect(ws().tabs).toEqual([]);
+});
+
+test('closing an ssh pane keeps the panes that do not depend on it', () => {
+  const tab = ws().openTab('cmd');
+  ws().splitActive('row');
+  const local = activeLeaf().leaf.id;
+  const sshTab = ws().openSshTab('prod');
+  const sshLeaf = activeLeaf().leaf.id;
+  ws().toggleSftp(sshLeaf);
+  ws().closeTab(sshTab);
+  expect(ws().tabs.map((t) => t.id)).toEqual([tab]);
+  expect(ws().tabs.flatMap((t) => leaves(t.root).map((l) => l.id))).toContain(local);
+});

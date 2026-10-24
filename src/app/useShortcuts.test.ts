@@ -19,7 +19,7 @@ test('app shortcuts are ignored while typing in a field, except the palette', ()
   const newTab = vi.fn();
   const palette = vi.fn();
   const off = registerCommands([
-    { id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run: newTab },
+    { id: 'tab.new', title: 'Nouvel onglet', group: 'Sessions', run: newTab },
     { id: 'palette.toggle', title: 'Palette', group: 'Application', run: palette },
   ]);
   renderHook(() => {
@@ -52,7 +52,7 @@ test('app shortcuts are ignored while typing in a field, except the palette', ()
 test('app shortcuts work inside the code editor, as in a terminal', () => {
   const newTab = vi.fn();
   const off = registerCommands([
-    { id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run: newTab },
+    { id: 'tab.new', title: 'Nouvel onglet', group: 'Sessions', run: newTab },
   ]);
   renderHook(() => {
     useShortcuts();

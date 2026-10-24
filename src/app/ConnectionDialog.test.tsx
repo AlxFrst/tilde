@@ -21,7 +21,8 @@ beforeEach(() => {
     sshHosts: [{ alias: 'prod', hostname: 'prod.internal', user: 'deploy', port: 22 }],
     file: {
       version: 1,
-      folders: [{ id: 'f1', name: 'Prod', color: null }],
+      spaces: [],
+      folders: [{ id: 'f1', name: 'Prod', color: null, spaceId: null }],
       connections: [],
       recents: [],
     },
@@ -56,7 +57,7 @@ test('shows a backend field error under that field', async () => {
   edit(blankConnection({ name: 'A', host: 'a.example', proxyJump: 'b1' }));
   await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
   expect(await screen.findByText(/saut vide/)).toBeInTheDocument();
-  expect(field('ProxyJump')).toHaveAttribute('aria-invalid', 'true');
+  expect(field('Rebond 1')).toHaveAttribute('aria-invalid', 'true');
   expect(useConnections.getState().editing).not.toBeNull();
 });
 
@@ -86,6 +87,7 @@ test('editing keeps the id and the fields the form does not show', async () => {
       name: 'Old',
       host: 'h',
       favorite: true,
+      spaceId: null,
       folderId: 'f1',
       forwardAgent: true,
     }),
@@ -98,6 +100,7 @@ test('editing keeps the id and the fields the form does not show', async () => {
       id: 'c9',
       name: 'New',
       favorite: true,
+      spaceId: null,
       folderId: 'f1',
       forwardAgent: true,
     }),
@@ -110,5 +113,47 @@ test('a new folder is created with its name and colour', async () => {
   await userEvent.type(screen.getByLabelText('Nom du dossier'), 'Staging');
   await userEvent.click(screen.getByRole('radio', { name: 'Vert' }));
   await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
-  expect(upsertFolder).toHaveBeenCalledWith({ id: '', name: 'Staging', color: '#9ECE6A' });
+  expect(upsertFolder).toHaveBeenCalledWith({
+    id: '',
+    name: 'Staging',
+    color: '#9ECE6A',
+    spaceId: null,
+  });
+});
+
+test('jump hosts are picked from saved connections and ~/.ssh/config, in order', async () => {
+  const bastion = blankConnection({
+    id: 'b',
+    name: 'bastion',
+    host: 'bastion.example',
+    user: 'ops',
+    port: 2222,
+  });
+  useConnections.setState((st) => ({ file: { ...st.file, connections: [bastion] } }));
+  edit(blankConnection({ name: 'A', host: 'a.internal' }));
+
+  await userEvent.click(screen.getByRole('button', { name: 'Ajouter un rebond' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: /bastion/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Ajouter un rebond' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: /prod/ }));
+  expect(field('Rebond 1')).toHaveValue('ops@bastion.example:2222');
+  expect(field('Rebond 2')).toHaveValue('prod');
+
+  await userEvent.click(screen.getByRole('button', { name: 'Ajouter un rebond' }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Saisir une adresse…' }));
+  await userEvent.type(field('Rebond 3'), 'me@last:22');
+  await userEvent.click(screen.getByRole('button', { name: 'Retirer le rebond 2' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  expect(upsertConnection).toHaveBeenCalledWith(
+    expect.objectContaining({ proxyJump: 'ops@bastion.example:2222,me@last:22' }),
+  );
+});
+
+test('a connection never offers itself as a jump host', async () => {
+  const self = blankConnection({ id: 'me', name: 'self-box', host: 'self.example' });
+  useConnections.setState((st) => ({ file: { ...st.file, connections: [self] } }));
+  edit(self);
+  await userEvent.click(screen.getByRole('button', { name: 'Ajouter un rebond' }));
+  await screen.findByRole('menuitem', { name: /prod/ });
+  expect(screen.queryByRole('menuitem', { name: /self-box/ })).toBeNull();
 });

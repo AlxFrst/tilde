@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
-import { render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '@/App';
+import { AppShell } from '@/app/AppShell';
 import type { ConfigErrorDto } from '@/ipc/errors';
 import type { Settings } from '@/ipc/generated/settings';
 import type { Platform } from '@/ipc/app';
@@ -72,15 +73,27 @@ beforeEach(() => {
   useUi.setState({ settingsOpen: false, paletteOpen: false });
 });
 
-test('renders titlebar, sidebar, tabbar and welcome', async () => {
+test('the main window has the rail, no tab bar, and the welcome screen', async () => {
   mockBackend();
   render(<App />);
   expect(await screen.findByRole('banner')).toHaveTextContent('Tilde');
-  expect(screen.getByRole('complementary', { name: 'Connexions' })).toBeInTheDocument();
-  expect(screen.getByRole('tablist')).toBeEmptyDOMElement();
-  expect(screen.getByRole('button', { name: 'Nouvel onglet' })).toBeInTheDocument();
-  expect(screen.getByText('Aucune connexion pour l’instant')).toBeInTheDocument();
+  const rail = screen.getByRole('complementary', { name: 'Barre latérale' });
+  expect(screen.queryByRole('tablist')).toBeNull();
+  expect(within(rail).getByRole('button', { name: 'Nouvelle session' })).toBeInTheDocument();
+  expect(within(rail).getByText('Aucune connexion dans cet espace.')).toBeInTheDocument();
   expect(screen.getByText(/v0\.1\.0/)).toBeInTheDocument();
+});
+
+test('the quake window keeps its tab bar and has no rail', () => {
+  render(
+    <AppShell
+      settings={defaultSettings}
+      appInfo={{ version: '0.1.0', platform: 'windows' }}
+      mode="quake"
+    />,
+  );
+  expect(screen.getByRole('tablist')).toBeInTheDocument();
+  expect(screen.queryByRole('complementary')).toBeNull();
 });
 
 test('shows the hidden window once the shell is ready, without animation frames', async () => {
@@ -119,7 +132,7 @@ test('sidebar moves to the right when sidebarPosition is right', async () => {
     },
   });
   render(<App />);
-  const sidebar = await screen.findByRole('complementary', { name: 'Connexions' });
+  const sidebar = await screen.findByRole('complementary', { name: 'Barre latérale' });
   expect(sidebar).toHaveAttribute('data-side', 'right');
   const main = screen.getByRole('main');
   // The sidebar comes after the main area in document order.
@@ -176,4 +189,19 @@ test('read-only banner disables controls', async () => {
   const dialog = await screen.findByRole('dialog');
   expect(within(dialog).getByRole('alert')).toHaveTextContent('ligne 3, colonne 5');
   expect(within(dialog).getByRole('radio', { name: 'Clair' })).toBeDisabled();
+});
+
+test('a hidden rail comes back over the content when the mouse reaches the edge', async () => {
+  mockBackend();
+  render(<App />);
+  const rail = await screen.findByRole('complementary', { name: 'Barre latérale' });
+  await userEvent.click(within(rail).getByRole('button', { name: 'Masquer la barre latérale' }));
+  expect(screen.queryByRole('complementary')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Afficher la barre latérale' })).toBeInTheDocument();
+  const edge = document.querySelector('[data-rail-edge]') as HTMLElement;
+  fireEvent.mouseEnter(edge);
+  expect(screen.getByRole('complementary', { name: 'Barre latérale' })).toBeInTheDocument();
+  act(() => {
+    useUi.getState().setRailHidden(false);
+  });
 });

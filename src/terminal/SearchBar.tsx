@@ -73,7 +73,7 @@ export function SearchBar({
         type="button"
         aria-label="Respecter la casse"
         aria-pressed={caseSensitive}
-        className={cn(iconButton, caseSensitive && 'bg-surface-2 text-primary')}
+        className={cn(iconButton, caseSensitive && 'bg-primary/15 text-primary')}
         onClick={() => {
           setCaseSensitive((v) => !v);
         }}

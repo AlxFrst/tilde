@@ -6,6 +6,9 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
+import { startLaunchHandling } from '@/app/launch';
+import { startSingleSpace, startSpaceSync } from '@/app/spaceSync';
+import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
@@ -121,6 +124,9 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
           console.warn('transfers unavailable', err);
         },
       );
+    // Sessions follow their connections' spaces (connections.json, live). The Quake console
+    // has no Rail to show spaces: all its sessions are one list.
+    const stopSpaceSync = quake ? startSingleSpace() : startSpaceSync();
     useConnections
       .getState()
       .init()
@@ -137,6 +143,7 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     return () => {
       run.cancelled = true;
       unsubscribe?.();
+      stopSpaceSync();
       stopConnections?.();
       stopTransfers?.();
       stopThemes?.();
@@ -167,6 +174,15 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
       },
     );
   }, [loaded, effect, dark]);
+  // Updates: checked once at startup by the main window (at most once a day).
+  const checkUpdates = settings?.general.checkUpdates;
+  useEffect(() => {
+    if (quake || checkUpdates === undefined) return;
+    autoCheckForUpdates(checkUpdates);
+    // Startup only: turning the setting on later waits for the next start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when settings arrive
+  }, [quake, checkUpdates === undefined]);
+
   // Quake shortcut errors (taken by another app, invalid) are reported in the main window,
   // including one from startup, before any page was listening.
   useEffect(() => {
@@ -219,6 +235,12 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
       clearTimeout(timer);
     };
   }, [canShow, quake]);
+
+  // "Ouvrir dans Tilde": a terminal in the folder this launch, or a later one, names.
+  useEffect(() => {
+    if (!ready || quake) return;
+    return startLaunchHandling();
+  }, [ready, quake]);
 
   if (startupError !== null) return <StartupError message={startupError} />;
   if (!ready) return null;

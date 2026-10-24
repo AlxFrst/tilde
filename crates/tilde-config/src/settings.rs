@@ -128,6 +128,8 @@ pub struct Appearance {
     #[schemars(range(min = 180, max = 480))]
     pub sidebar_width: u16,
     pub window: WindowAppearance,
+    /// Hosts of `~/.ssh/config` listed in the sidebar.
+    pub ssh_config_hosts: SshConfigHosts,
 }
 
 impl Default for Appearance {
@@ -142,8 +144,16 @@ impl Default for Appearance {
             sidebar_position: SidebarPosition::Left,
             sidebar_width: 260,
             window: WindowAppearance::default(),
+            ssh_config_hosts: SshConfigHosts::default(),
         }
     }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct SshConfigHosts {
+    /// Aliases tucked away in the section's collapsed "Masqués" group (still adoptable).
+    pub hidden: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -207,6 +217,8 @@ pub struct Ssh {
     pub keepalive_count_max: u32,
     pub auto_reconnect: bool,
     pub confirm_close_ssh: bool,
+    /// The strip under SSH terminals with the server's CPU, memory, disk and network.
+    pub status_bar: bool,
 }
 
 impl Default for Ssh {
@@ -216,6 +228,7 @@ impl Default for Ssh {
             keepalive_count_max: 3,
             auto_reconnect: true,
             confirm_close_ssh: true,
+            status_bar: true,
         }
     }
 }
@@ -240,11 +253,21 @@ impl Default for Sftp {
 pub struct General {
     pub restore_session: bool,
     pub quake: Quake,
+    /// Look for a new version on GitHub at startup (at most once a day).
+    pub check_updates: bool,
+    /// "Ouvrir dans Tilde" in Windows Explorer's context menu (folders, drives, the
+    /// background of an open folder). Ignored on other systems.
+    pub explorer_menu: bool,
 }
 
 impl Default for General {
     fn default() -> Self {
-        Self { restore_session: true, quake: Quake::default() }
+        Self {
+            restore_session: true,
+            quake: Quake::default(),
+            check_updates: true,
+            explorer_menu: true,
+        }
     }
 }
 
@@ -336,6 +359,34 @@ mod tests {
         let s = Settings::default();
         assert!(s.validate().is_ok());
         assert_eq!(s.version, SETTINGS_VERSION);
+    }
+
+    #[test]
+    fn update_checks_are_on_by_default_and_can_be_turned_off() {
+        let s: Settings = serde_json::from_str(r#"{"general":{"restoreSession":false}}"#).unwrap();
+        assert!(s.general.check_updates);
+        let off: Settings = serde_json::from_str(r#"{"general":{"checkUpdates":false}}"#).unwrap();
+        assert!(!off.general.check_updates);
+    }
+
+    #[test]
+    fn no_ssh_host_is_tucked_away_and_the_status_bar_shows_by_default() {
+        let s = Settings::default();
+        assert_eq!(s.appearance.ssh_config_hosts, SshConfigHosts::default());
+        assert!(s.ssh.status_bar);
+        let custom: Settings = serde_json::from_str(
+            r#"{"appearance":{"sshConfigHosts":{"hidden":["old-box"]}},"ssh":{"statusBar":false}}"#,
+        )
+        .unwrap();
+        assert_eq!(custom.appearance.ssh_config_hosts.hidden, ["old-box"]);
+        assert!(!custom.ssh.status_bar);
+    }
+
+    #[test]
+    fn open_in_tilde_is_offered_in_explorer_by_default() {
+        assert!(Settings::default().general.explorer_menu);
+        let off: Settings = serde_json::from_str(r#"{"general":{"explorerMenu":false}}"#).unwrap();
+        assert!(!off.general.explorer_menu);
     }
 
     #[test]

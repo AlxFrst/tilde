@@ -4,12 +4,15 @@ import {
   onConnectionsChanged,
   removeConnection,
   removeFolder,
+  removeSpace,
   setFavorite,
   upsertConnection,
   upsertFolder,
+  upsertSpace,
   type Connection,
   type ConnectionsFile,
   type Folder,
+  type Space,
 } from '@/ipc/connections';
 import type { ConfigErrorDto } from '@/ipc/errors';
 import { sshHosts, type SshHostEntry } from '@/ipc/ssh';
@@ -32,14 +35,16 @@ interface ConnectionsState {
   remove: (id: string) => Promise<void>;
   saveFolder: (f: Folder) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
+  saveSpace: (s: Space) => Promise<Space>;
+  removeSpace: (id: string) => Promise<void>;
   setFavorite: (id: string, favorite: boolean) => Promise<void>;
   /** The connection in the form: an existing one, or `'new'` (with optional presets). */
   editing: Connection | 'new' | null;
   setEditing: (c: Connection | 'new' | null) => void;
   editingFolder: Folder | 'new' | null;
   setEditingFolder: (f: Folder | 'new' | null) => void;
-  /** Turns an ~/.ssh/config host into a saved connection, then opens its form. */
-  adopt: (alias: string) => Promise<void>;
+  /** Turns an ~/.ssh/config host into a saved connection (in `spaceId`), then opens its form. */
+  adopt: (alias: string, spaceId?: string | null) => Promise<void>;
 }
 
 /** A connection with every optional field empty. */
@@ -57,10 +62,17 @@ export const blankConnection = (preset: Partial<Connection> = {}): Connection =>
   icon: null,
   tags: [],
   favorite: false,
+  spaceId: null,
   ...preset,
 });
 
-const EMPTY: ConnectionsFile = { version: 1, folders: [], connections: [], recents: [] };
+const EMPTY: ConnectionsFile = {
+  version: 1,
+  spaces: [],
+  folders: [],
+  connections: [],
+  recents: [],
+};
 
 export const useConnections = create<ConnectionsState>()((set, get) => ({
   loaded: false,
@@ -101,6 +113,8 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
   remove: (id) => removeConnection(id),
   saveFolder: (f) => upsertFolder(f),
   removeFolder: (id) => removeFolder(id),
+  saveSpace: (sp) => upsertSpace(sp),
+  removeSpace: (id) => removeSpace(id),
   setFavorite: (id, favorite) => setFavorite(id, favorite),
   editing: null,
   setEditing: (editing) => {
@@ -110,8 +124,8 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
   setEditingFolder: (editingFolder) => {
     set({ editingFolder });
   },
-  adopt: async (alias) => {
-    const saved = await get().save(blankConnection({ name: alias, host: alias }));
+  adopt: async (alias, spaceId = null) => {
+    const saved = await get().save(blankConnection({ name: alias, host: alias, spaceId }));
     set({ editing: saved });
   },
 }));

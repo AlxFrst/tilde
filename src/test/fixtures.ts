@@ -13,6 +13,7 @@ export const defaultSettings: Settings = {
     sidebarPosition: 'left',
     sidebarWidth: 260,
     window: { effect: 'none', opacity: 1 },
+    sshConfigHosts: { hidden: [] },
   },
   terminal: {
     fontFamily: 'JetBrains Mono Variable',
@@ -32,8 +33,14 @@ export const defaultSettings: Settings = {
     keepaliveCountMax: 3,
     autoReconnect: true,
     confirmCloseSsh: true,
+    statusBar: true,
   },
   sftp: { concurrency: 3, editorMode: 'external', externalEditor: null },
-  general: { restoreSession: true, quake: { enabled: false, shortcut: 'Alt+F12' } },
+  general: {
+    restoreSession: true,
+    quake: { enabled: false, shortcut: 'Alt+F12' },
+    checkUpdates: true,
+    explorerMenu: true,
+  },
   profiles: [],
 };

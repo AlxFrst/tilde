@@ -89,12 +89,22 @@ export function sanitizeSnapshot(raw: unknown): WorkspaceSnapshot | null {
       color: str(t.color),
       root,
       activeLeafId: wanted && hasLeaf(root, wanted) ? wanted : firstLeafId(root),
+      spaceId: str(t.spaceId),
+      pinnedConnectionId: str(t.pinnedConnectionId),
     });
   }
   const active = str(raw.activeTabId);
+  const activeTabBySpace: Record<string, string> = {};
+  if (isObj(raw.activeTabBySpace)) {
+    for (const [space, tab] of Object.entries(raw.activeTabBySpace)) {
+      if (typeof tab === 'string' && tabs.some((t) => t.id === tab)) activeTabBySpace[space] = tab;
+    }
+  }
   return {
     version: 1,
     tabs,
     activeTabId: tabs.some((t) => t.id === active) ? active : (tabs[0]?.id ?? null),
+    activeSpaceId: str(raw.activeSpaceId),
+    activeTabBySpace,
   };
 }

@@ -9,7 +9,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }));
 const empty: ConnectionsView = {
-  file: { version: 1, folders: [], connections: [], recents: [] },
+  file: { version: 1, spaces: [], folders: [], connections: [], recents: [] },
   readOnly: false,
   error: null,
   warnings: [],
@@ -40,6 +40,7 @@ test('store applies connections://changed and exposes read-only errors', async (
           icon: null,
           tags: [],
           favorite: false,
+          spaceId: null,
         },
       ],
     },

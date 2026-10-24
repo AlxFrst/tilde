@@ -31,23 +31,19 @@ import { closeTab, openDefaultTab } from './actions';
 import { StatusDot } from './ConnectionStatus';
 import { NewTabMenu } from './NewTabMenu';
 import { profileIcon } from './profileIcon';
-
-const TAB_COLORS = [
-  ['Pervenche', 'var(--tilde-accent)'],
-  ['Turquoise', 'var(--tilde-accent-2)'],
-  ['Vert', 'var(--tilde-success)'],
-  ['Ambre', 'var(--tilde-warning)'],
-  ['Rouge', 'var(--tilde-error)'],
-] as const;
+import { TAB_COLORS } from './tabColors';
 
 function useTabLabel(tab: Tab) {
   const profiles = useProfiles((s) => s.profiles);
   const active = findLeaf(tab.root, tab.activeLeafId) ?? leaves(tab.root)[0];
-  // A files pane is labelled by the SSH pane it belongs to.
-  const leaf =
+  // Files and a server monitor are labelled by the SSH pane they belong to.
+  const owner =
     active?.panel.kind === 'sftp'
-      ? (findLeaf(tab.root, active.panel.linkedLeafId) ?? active)
-      : active;
+      ? active.panel.linkedLeafId
+      : active?.panel.kind === 'monitor' && active.panel.source.kind === 'remote'
+        ? active.panel.source.linkedLeafId
+        : null;
+  const leaf = (owner ? findLeaf(tab.root, owner) : null) ?? active;
   const panel = leaf?.panel;
   const connection = useSsh((s) => (leaf ? s.states[leaf.id] : undefined));
   const saved = useConnections((s) =>
@@ -239,15 +235,6 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
             Tunnels…
           </ContextMenuItem>
         )}
-        {panel?.kind === 'ssh' && leaf && (
-          <ContextMenuItem
-            onSelect={() => {
-              ws().openMonitor(leaf.id, { kind: 'remote', linkedLeafId: leaf.id });
-            }}
-          >
-            Moniteur du serveur…
-          </ContextMenuItem>
-        )}
         <ContextMenuItem
           onSelect={() => {
             if (panel?.kind === 'ssh') ws().openSshTab(panel.target, panel.connectionId);
@@ -280,7 +267,7 @@ export function TabBar() {
           <div
             role="tablist"
             aria-label="Onglets"
-            className="flex h-full min-w-0 items-end gap-1 overflow-x-auto"
+            className="flex h-full min-w-0 items-end gap-1 overflow-x-auto [scrollbar-width:none]"
           >
             {tabs.map((t) => (
               <TabItem key={t.id} tab={t} active={t.id === activeTabId} />

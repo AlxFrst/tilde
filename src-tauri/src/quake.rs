@@ -157,7 +157,7 @@ pub fn sync_quake(app: &AppHandle, quake: &Quake, state: &Mutex<QuakeState>) {
 }
 
 fn create_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
-    WebviewWindowBuilder::new(app, QUAKE_LABEL, WebviewUrl::App("index.html".into()))
+    let window = WebviewWindowBuilder::new(app, QUAKE_LABEL, WebviewUrl::App("index.html".into()))
         .title("Tilde")
         .decorations(false)
         .always_on_top(true)
@@ -165,7 +165,9 @@ fn create_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .transparent(true)
         .resizable(false)
         .visible(false)
-        .build()
+        .build()?;
+    crate::autofill::disable(&window);
+    Ok(window)
 }
 
 /// Puts the window at the top of the monitor under the mouse (else the primary one).

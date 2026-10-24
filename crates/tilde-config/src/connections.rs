@@ -37,10 +37,33 @@ pub const ICONS: &[&str] = &[
     "server", "database", "cloud", "globe", "terminal", "box", "cpu", "shield", "house", "rocket",
 ];
 
+/// Icons a space may use: those of connections, plus two for work and personal spaces.
+pub const SPACE_ICONS: &[&str] = &[
+    "server",
+    "database",
+    "cloud",
+    "globe",
+    "terminal",
+    "box",
+    "cpu",
+    "shield",
+    "house",
+    "rocket",
+    "briefcase",
+    "user",
+];
+
+/// The space everything belongs to until the user creates a second one. It is implicit
+/// (not written) while `spaces` is empty.
+pub const MAIN_SPACE_ID: &str = "main";
+const MAIN_SPACE_NAME: &str = "Principal";
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ConnectionsFile {
     pub version: u32,
+    /// Empty: one implicit space, [`MAIN_SPACE_ID`].
+    pub spaces: Vec<Space>,
     pub folders: Vec<Folder>,
     pub connections: Vec<Connection>,
     pub recents: Vec<Recent>,
@@ -50,11 +73,24 @@ impl Default for ConnectionsFile {
     fn default() -> Self {
         Self {
             version: CONNECTIONS_VERSION,
+            spaces: Vec::new(),
             folders: Vec::new(),
             connections: Vec::new(),
             recents: Vec::new(),
         }
     }
+}
+
+/// A space (« Pro », « Perso »…): its own folders, connections and sessions.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Space {
+    pub id: String,
+    pub name: String,
+    /// `#RRGGBB`.
+    pub color: Option<String>,
+    /// One of [`SPACE_ICONS`].
+    pub icon: Option<String>,
 }
 
 /// A folder of connections (one level).
@@ -65,6 +101,8 @@ pub struct Folder {
     pub name: String,
     /// `#RRGGBB`.
     pub color: Option<String>,
+    /// `None`: the first space.
+    pub space_id: Option<String>,
 }
 
 /// A saved connection. `host` is an alias of `~/.ssh/config` or a host name; the
@@ -90,6 +128,8 @@ pub struct Connection {
     pub icon: Option<String>,
     pub tags: Vec<String>,
     pub favorite: bool,
+    /// `None`: the first space. Always its folder's space when it is in a folder.
+    pub space_id: Option<String>,
 }
 
 /// A recently opened target: `conn:<id>` or `ssh:<typed target>`.
@@ -168,8 +208,35 @@ fn clean_tags(tags: &mut Vec<String>) {
     *tags = cleaned;
 }
 
-/// Normalises a connection and checks it; `folders` are the known folder ids.
-fn validate_connection(c: &mut Connection, folders: &[Folder]) -> Result<(), ConfigError> {
+/// The ids of the spaces, the implicit main space when none is written.
+fn space_ids(spaces: &[Space]) -> Vec<&str> {
+    if spaces.is_empty() {
+        vec![MAIN_SPACE_ID]
+    } else {
+        spaces.iter().map(|s| s.id.as_str()).collect()
+    }
+}
+
+/// The space an item belongs to: its own if known, else the first one.
+fn resolve_space<'a>(space_id: Option<&'a str>, spaces: &'a [Space]) -> &'a str {
+    let ids = space_ids(spaces);
+    match space_id {
+        Some(id) if ids.contains(&id) => id,
+        _ => ids[0],
+    }
+}
+
+fn check_space_id(space_id: &mut Option<String>, spaces: &[Space]) -> Result<(), ConfigError> {
+    blank_to_none(space_id);
+    if space_id.as_deref().is_some_and(|id| !space_ids(spaces).contains(&id)) {
+        return Err(invalid("spaceId", "espace inconnu"));
+    }
+    Ok(())
+}
+
+/// Normalises a connection and checks it against the known folders and spaces. A
+/// connection whose folder is in another space leaves the folder (it was just moved).
+fn validate_connection(c: &mut Connection, file: &ConnectionsFile) -> Result<(), ConfigError> {
     c.name = c.name.trim().to_owned();
     c.host = c.host.trim().to_owned();
     for field in [&mut c.user, &mut c.identity_file, &mut c.proxy_jump, &mut c.color, &mut c.icon] {
@@ -177,6 +244,8 @@ fn validate_connection(c: &mut Connection, folders: &[Folder]) -> Result<(), Con
     }
     blank_to_none(&mut c.folder_id);
     clean_tags(&mut c.tags);
+    check_space_id(&mut c.space_id, &file.spaces)?;
+    let folders = &file.folders;
 
     if c.name.is_empty() {
         return Err(invalid("name", "le nom est obligatoire"));
@@ -207,12 +276,19 @@ fn validate_connection(c: &mut Connection, folders: &[Folder]) -> Result<(), Con
     if c.icon.as_deref().is_some_and(|i| !ICONS.contains(&i)) {
         return Err(invalid("icon", "icône inconnue"));
     }
+    if let Some(folder) = c.folder_id.as_ref().and_then(|id| folders.iter().find(|f| &f.id == id))
+        && resolve_space(folder.space_id.as_deref(), &file.spaces)
+            != resolve_space(c.space_id.as_deref(), &file.spaces)
+    {
+        c.folder_id = None;
+    }
     Ok(())
 }
 
-fn validate_folder(f: &mut Folder) -> Result<(), ConfigError> {
+fn validate_folder(f: &mut Folder, spaces: &[Space]) -> Result<(), ConfigError> {
     f.name = f.name.trim().to_owned();
     blank_to_none(&mut f.color);
+    check_space_id(&mut f.space_id, spaces)?;
     if f.name.is_empty() {
         return Err(invalid("name", "le nom est obligatoire"));
     }
@@ -225,10 +301,33 @@ fn validate_folder(f: &mut Folder) -> Result<(), ConfigError> {
     Ok(())
 }
 
+fn validate_space(s: &mut Space) -> Result<(), ConfigError> {
+    s.name = s.name.trim().to_owned();
+    blank_to_none(&mut s.color);
+    blank_to_none(&mut s.icon);
+    if s.name.is_empty() {
+        return Err(invalid("name", "le nom est obligatoire"));
+    }
+    if s.name.chars().count() > MAX_NAME {
+        return Err(invalid("name", format!("{MAX_NAME} caractères au plus")));
+    }
+    if s.color.as_deref().is_some_and(|col| !is_color(col)) {
+        return Err(invalid("color", "format #RRGGBB"));
+    }
+    if s.icon.as_deref().is_some_and(|i| !SPACE_ICONS.contains(&i)) {
+        return Err(invalid("icon", "icône inconnue"));
+    }
+    Ok(())
+}
+
+fn main_space() -> Space {
+    Space { id: MAIN_SPACE_ID.into(), name: MAIN_SPACE_NAME.into(), ..Space::default() }
+}
+
 /// Why a connection cannot be used as written (first problem only), if it cannot.
 #[must_use]
-pub fn connection_problem(c: &Connection, folders: &[Folder]) -> Option<String> {
-    match validate_connection(&mut c.clone(), folders) {
+pub fn connection_problem(c: &Connection, file: &ConnectionsFile) -> Option<String> {
+    match validate_connection(&mut c.clone(), file) {
         Err(ConfigError::Invalid(fields)) => {
             fields.first().map(|f| format!("{} : {}", f.path, f.message))
         }
@@ -248,7 +347,23 @@ fn neutralise(c: &mut Connection) {
 /// Repairs what can be repaired without losing data; logs each repair.
 fn repair(file: &mut ConnectionsFile) {
     let mut ids = HashSet::new();
+    for sp in &mut file.spaces {
+        if sp.id.is_empty() || !ids.insert(sp.id.clone()) {
+            tracing::warn!(space = %sp.name, "connections.json: duplicate space id renewed");
+            sp.id = new_id();
+            ids.insert(sp.id.clone());
+        }
+        if sp.icon.as_deref().is_some_and(|i| !SPACE_ICONS.contains(&i)) {
+            sp.icon = None;
+        }
+    }
+    let known: HashSet<String> = space_ids(&file.spaces).into_iter().map(str::to_owned).collect();
+    let mut ids = HashSet::new();
     for f in &mut file.folders {
+        if f.space_id.as_ref().is_some_and(|s| !known.contains(s)) {
+            tracing::warn!(folder = %f.name, "connections.json: unknown space, moved to the first");
+            f.space_id = None;
+        }
         if f.id.is_empty() || !ids.insert(f.id.clone()) {
             tracing::warn!(folder = %f.name, "connections.json: duplicate folder id renewed");
             f.id = new_id();
@@ -269,6 +384,18 @@ fn repair(file: &mut ConnectionsFile) {
         }
         if c.icon.as_deref().is_some_and(|i| !ICONS.contains(&i)) {
             c.icon = None;
+        }
+        if c.space_id.as_ref().is_some_and(|s| !known.contains(s)) {
+            tracing::warn!(connection = %c.name, "connections.json: unknown space, moved to the first");
+            c.space_id = None;
+        }
+        // A connection is always in its folder's space.
+        if let Some(folder) =
+            c.folder_id.as_ref().and_then(|id| file.folders.iter().find(|f| &f.id == id))
+            && resolve_space(folder.space_id.as_deref(), &file.spaces)
+                != resolve_space(c.space_id.as_deref(), &file.spaces)
+        {
+            c.space_id.clone_from(&folder.space_id);
         }
         clean_tags(&mut c.tags);
     }
@@ -389,7 +516,7 @@ impl ConnectionsStore {
     /// Read-only file, invalid field ([`ConfigError::Invalid`] naming it), or I/O.
     pub fn upsert_connection(&mut self, mut c: Connection) -> Result<Connection, ConfigError> {
         self.check_writable()?;
-        validate_connection(&mut c, &self.file.folders)?;
+        validate_connection(&mut c, &self.file)?;
         let mut file = self.file.clone();
         if let Some(existing) =
             file.connections.iter_mut().find(|x| !c.id.is_empty() && x.id == c.id)
@@ -436,10 +563,16 @@ impl ConnectionsStore {
     /// Read-only file, invalid field or I/O.
     pub fn upsert_folder(&mut self, mut f: Folder) -> Result<Folder, ConfigError> {
         self.check_writable()?;
-        validate_folder(&mut f)?;
+        validate_folder(&mut f, &self.file.spaces)?;
         let mut file = self.file.clone();
         if let Some(existing) = file.folders.iter_mut().find(|x| !f.id.is_empty() && x.id == f.id) {
             existing.clone_from(&f);
+            // A connection is always in its folder's space: moving the folder moves them.
+            for c in &mut file.connections {
+                if c.folder_id.as_deref() == Some(f.id.as_str()) {
+                    c.space_id.clone_from(&f.space_id);
+                }
+            }
         } else {
             f.id = new_id();
             file.folders.push(f.clone());
@@ -460,6 +593,63 @@ impl ConnectionsStore {
         for c in &mut file.connections {
             if c.folder_id.as_deref() == Some(id) {
                 c.folder_id = None;
+            }
+        }
+        self.commit(file)
+    }
+
+    /// Creates (empty id) or edits a space. The first space created also writes the
+    /// implicit [`MAIN_SPACE_ID`] space, so what was in it stays there.
+    ///
+    /// # Errors
+    ///
+    /// Read-only file, invalid field or I/O.
+    pub fn upsert_space(&mut self, mut s: Space) -> Result<Space, ConfigError> {
+        self.check_writable()?;
+        validate_space(&mut s)?;
+        let mut file = self.file.clone();
+        if file.spaces.is_empty() {
+            file.spaces.push(main_space());
+        }
+        if let Some(existing) = file.spaces.iter_mut().find(|x| !s.id.is_empty() && x.id == s.id) {
+            existing.clone_from(&s);
+        } else {
+            s.id = new_id();
+            file.spaces.push(s.clone());
+        }
+        self.commit(file)?;
+        Ok(s)
+    }
+
+    /// Removes a space; its folders and connections move to the first remaining space
+    /// (never deleted). The last space cannot be removed.
+    ///
+    /// # Errors
+    ///
+    /// Read-only file, last or unknown space, or I/O.
+    pub fn remove_space(&mut self, id: &str) -> Result<(), ConfigError> {
+        self.check_writable()?;
+        let mut file = self.file.clone();
+        if file.spaces.is_empty() {
+            file.spaces.push(main_space());
+        }
+        if file.spaces.len() <= 1 {
+            return Err(invalid("id", "il faut garder au moins un espace"));
+        }
+        let Some(index) = file.spaces.iter().position(|s| s.id == id) else {
+            return Err(invalid("id", "espace inconnu"));
+        };
+        file.spaces.remove(index);
+        let first = file.spaces[0].id.clone();
+        let target = Some(first);
+        for f in &mut file.folders {
+            if f.space_id.as_deref() == Some(id) || (index == 0 && f.space_id.is_none()) {
+                f.space_id.clone_from(&target);
+            }
+        }
+        for c in &mut file.connections {
+            if c.space_id.as_deref() == Some(id) || (index == 0 && c.space_id.is_none()) {
+                c.space_id.clone_from(&target);
             }
         }
         self.commit(file)
@@ -496,15 +686,44 @@ impl ConnectionsStore {
             });
         }
         let mut file = self.file.clone();
+        let mut space_map = std::collections::HashMap::new();
+        for mut sp in incoming.spaces {
+            let old = sp.id.clone();
+            let existing = if file.spaces.is_empty() {
+                MAIN_SPACE_NAME
+                    .eq_ignore_ascii_case(sp.name.trim())
+                    .then(|| MAIN_SPACE_ID.to_owned())
+            } else {
+                file.spaces
+                    .iter()
+                    .find(|x| x.name.eq_ignore_ascii_case(sp.name.trim()))
+                    .map(|x| x.id.clone())
+            };
+            let id = if let Some(id) = existing {
+                id
+            } else {
+                if validate_space(&mut sp).is_err() {
+                    continue;
+                }
+                if file.spaces.is_empty() {
+                    file.spaces.push(main_space());
+                }
+                sp.id = new_id();
+                file.spaces.push(sp.clone());
+                sp.id
+            };
+            space_map.insert(old, id);
+        }
         let mut folder_map = std::collections::HashMap::new();
         for mut f in incoming.folders {
             let old = f.id.clone();
+            f.space_id = f.space_id.and_then(|s| space_map.get(&s).cloned());
             let id = if let Some(existing) =
                 file.folders.iter().find(|x| x.name.eq_ignore_ascii_case(f.name.trim()))
             {
                 existing.id.clone()
             } else {
-                if validate_folder(&mut f).is_err() {
+                if validate_folder(&mut f, &file.spaces).is_err() {
                     continue;
                 }
                 f.id = new_id();
@@ -516,11 +735,12 @@ impl ConnectionsStore {
         let mut report = ImportReport { imported: 0, skipped: 0, review: Vec::new() };
         for mut c in incoming.connections {
             c.folder_id = c.folder_id.and_then(|f| folder_map.get(&f).cloned());
+            c.space_id = c.space_id.and_then(|s| space_map.get(&s).cloned());
             let risky = c.identity_file.is_some()
                 || c.proxy_jump.is_some()
                 || c.forward_agent == Some(true);
             neutralise(&mut c);
-            if validate_connection(&mut c, &file.folders).is_err()
+            if validate_connection(&mut c, &file).is_err()
                 || file.connections.iter().any(|x| {
                     x.host.eq_ignore_ascii_case(&c.host) && x.user == c.user && x.port == c.port
                 })
@@ -551,7 +771,7 @@ impl ConnectionsStore {
             .connections
             .iter()
             .filter_map(|c| {
-                connection_problem(c, &self.file.folders).map(|p| format!("« {} » : {p}", c.name))
+                connection_problem(c, &self.file).map(|p| format!("« {} » : {p}", c.name))
             })
             .collect()
     }
@@ -560,7 +780,7 @@ impl ConnectionsStore {
     #[must_use]
     pub fn problem(&self, id: &str) -> Option<String> {
         let c = self.file.connections.iter().find(|c| c.id == id)?;
-        connection_problem(c, &self.file.folders)
+        connection_problem(c, &self.file)
     }
 
     /// # Errors

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useEffect } from 'react';
 import { useWorkspace } from '@/stores/workspace';
 import type { TerminalViewProps } from '@/terminal/TerminalView';
@@ -44,6 +44,10 @@ vi.mock('@/terminal/TerminalView', () => ({
       </div>
     );
   },
+}));
+
+vi.mock('@/panels/monitor/ServerStatusBar', () => ({
+  ServerStatusBar: ({ leafId }: { leafId: string }) => <div data-testid={`strip-${leafId}`} />,
 }));
 
 const ws = () => useWorkspace.getState();
@@ -104,7 +108,8 @@ test('panes are positioned from the layout sizes', () => {
   render(<Live />);
   const [first, second] = leaves(tab().root);
   if (!first || !second) throw new Error();
-  const box = (id: string) => screen.getByTestId(`term-${id}`).parentElement as HTMLElement;
+  const box = (id: string) =>
+    screen.getByTestId(`term-${id}`).closest<HTMLElement>('[style*="left"]') as HTMLElement;
   expect(box(first.id).style.left).toBe('0%');
   expect(box(first.id).style.width).toBe('50%');
   expect(box(second.id).style.left).toBe('50%');
@@ -150,6 +155,8 @@ test('renders a pane through its module', () => {
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'x',
         root: { type: 'leaf', id: 'x', panel: { kind: 'thing', label: 'ok' } } as never,
       },
@@ -178,6 +185,8 @@ test('a pane that crashes is contained; the others keep running', () => {
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'a',
         root: {
           type: 'split',
@@ -212,6 +221,8 @@ test('a clean exit keeps an SSH pane open while an editor linked to it has unsav
         id: 't1',
         customTitle: null,
         color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
         activeLeafId: 'a',
         root: {
           type: 'split',
@@ -245,4 +256,28 @@ test('a clean exit keeps an SSH pane open while an editor linked to it has unsav
   fireEvent.click(screen.getByText('exit0-a'));
   expect(leaves(tab().root).map((l) => l.id)).toContain('a');
   useEditors.setState({ docs: {} });
+});
+
+test('ssh panes get the server status strip, local terminals do not', () => {
+  ws().openSshTab('prod');
+  const sshTab = ws().tabs.at(-1);
+  if (!sshTab) throw new Error('no tab');
+  render(<PaneView tab={sshTab} visible />);
+  expect(screen.getByTestId(`strip-${sshTab.activeLeafId}`)).toBeInTheDocument();
+  render(<Live />);
+  for (const l of leaves(tab().root)) expect(screen.queryByTestId(`strip-${l.id}`)).toBeNull();
+});
+
+test('pane headers appear with two panes and close one', async () => {
+  render(<Live />);
+  const headers = screen.getAllByRole('toolbar', { name: /^Panneau / });
+  expect(headers).toHaveLength(2);
+  expect(within(headers[0] as HTMLElement).getByText('Shell 1')).toBeInTheDocument();
+  fireEvent.click(
+    within(headers[1] as HTMLElement).getByRole('button', { name: 'Fermer ce panneau' }),
+  );
+  await vi.waitFor(() => {
+    expect(leaves(tab().root)).toHaveLength(1);
+  });
+  expect(screen.queryByRole('toolbar', { name: /^Panneau / })).toBeNull();
 });

@@ -156,6 +156,38 @@
   ::selection {
     background: color-mix(in srgb, var(--tilde-accent) 35%, transparent);
   }
+  /* The pop-up list of a native <select> ignores color-scheme in WebView2: without this it
+     is white, with the select's white text, in dark themes. */
+  select option,
+  select optgroup {
+    background-color: var(--tilde-surface-2);
+    color: var(--tilde-text);
+  }
+  /* Thin, rounded scrollbars in the theme's colours (WebView2, WebKitGTK and WKWebView all
+     read these; setting scrollbar-width or scrollbar-color would make Chromium ignore them). */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--tilde-text-muted) 28%, transparent);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--tilde-text-muted) 48%, transparent);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background-color: color-mix(in srgb, var(--tilde-text-muted) 60%, transparent);
+  }
 }
 
 /* Markdown preview (src/panels/preview). */

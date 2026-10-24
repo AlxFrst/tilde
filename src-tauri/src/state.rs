@@ -41,6 +41,8 @@ pub struct AppState {
     pub monitor_local: Arc<Mutex<tilde_monitor::LocalMonitor>>,
     /// Remote monitors by SSH session (same reason).
     pub monitor_remote: Mutex<HashMap<u32, tilde_monitor::RemoteMonitor>>,
+    /// The folder Tilde was started on (`--open`), until the front-end takes it.
+    pub launch_dir: crate::launch::LaunchDir,
 }
 
 #[derive(Default)]

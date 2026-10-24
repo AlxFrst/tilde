@@ -16,7 +16,8 @@ mod workspace;
 
 pub use connections::{
     CONNECTIONS_VERSION, Connection, ConnectionsFile, ConnectionsStore, Folder, ICONS,
-    ImportReport, MAX_RECENTS, Recent, connection_problem, connections_schema, new_id,
+    ImportReport, MAIN_SPACE_ID, MAX_RECENTS, Recent, SPACE_ICONS, Space, connection_problem,
+    connections_schema, new_id,
 };
 pub use error::{ConfigError, ConfigErrorDto, FieldError};
 pub use keybindings::{KEYBINDINGS_VERSION, KeybindingsFile, KeybindingsStore, keybindings_schema};

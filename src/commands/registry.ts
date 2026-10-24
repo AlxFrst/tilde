@@ -2,7 +2,8 @@
 // shortcut handler alike (spec §4.8). Panels and plugins add theirs with
 // `registerCommands`. Shortcuts are looked up by command id in the keybindings store.
 
-export type CommandGroup = 'Onglets' | 'Panneaux' | 'Terminal' | 'Connexions' | 'Application';
+export type CommandGroup =
+  'Sessions' | 'Espaces' | 'Panneaux' | 'Terminal' | 'Connexions' | 'Application';
 
 export interface Command {
   id: string;
@@ -11,6 +12,8 @@ export interface Command {
   run: () => void;
   /** Hidden from the palette (still reachable by its shortcut). */
   hidden?: boolean;
+  /** Other words that find it in the palette (English, synonyms). */
+  keywords?: string[];
 }
 
 const commands = new Map<string, Command>();

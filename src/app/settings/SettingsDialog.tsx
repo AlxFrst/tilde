@@ -66,7 +66,7 @@ export function SettingsDialog({
               }}
               className={cn(
                 'flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-2',
-                id === section && 'bg-surface-2 text-text',
+                id === section && 'bg-primary/15 text-text hover:bg-primary/15',
                 id !== section && 'text-text-muted',
               )}
             >

@@ -13,6 +13,14 @@ ignore = [
   # number of signatures made with the victim key; an SSH client signs once per login.
   # Host-key verification (public key) is unaffected. Ed25519 keys are recommended.
   { id = "RUSTSEC-2023-0071", reason = "no fix available; negligible exposure for an SSH client, see comment" },
+  # zip 4.x (via tauri-plugin-updater, which pins it): extraction of an attacker-made
+  # archive can keep SUID bits or write through symlinks. The updater only extracts an
+  # update after its minisign signature was checked against Tilde's public key, so no
+  # one without the private key can get an archive extracted. Revisit when the plugin
+  # moves to zip >= 9.
+  { id = "RUSTSEC-2026-0367", reason = "only signature-verified update archives are extracted" },
+  { id = "RUSTSEC-2026-0368", reason = "only signature-verified update archives are extracted" },
+  { id = "RUSTSEC-2026-0369", reason = "only signature-verified update archives are extracted" },
 ]
 
 [licenses]
@@ -30,6 +38,9 @@ allow = [
   "CC0-1.0",
   # Permissive, OSI-approved (clipboard-win via tauri-plugin-clipboard-manager).
   "BSL-1.0",
+  # Permissive data licence of the Mozilla root certificates (webpki-root-certs, via
+  # rustls-platform-verifier, used by the updater's HTTPS client).
+  "CDLA-Permissive-2.0",
 ]
 
 [bans]

@@ -23,6 +23,9 @@
         "window": {
           "effect": "none",
           "opacity": 1.0
+        },
+        "sshConfigHosts": {
+          "hidden": []
         }
       }
     },
@@ -48,7 +51,8 @@
         "keepaliveIntervalSecs": 15,
         "keepaliveCountMax": 3,
         "autoReconnect": true,
-        "confirmCloseSsh": true
+        "confirmCloseSsh": true,
+        "statusBar": true
       }
     },
     "sftp": {
@@ -66,7 +70,9 @@
         "quake": {
           "enabled": false,
           "shortcut": "Alt+F12"
-        }
+        },
+        "checkUpdates": true,
+        "explorerMenu": true
       }
     },
     "profiles": {
@@ -129,6 +135,13 @@
             "effect": "none",
             "opacity": 1.0
           }
+        },
+        "sshConfigHosts": {
+          "description": "Hosts of `~/.ssh/config` listed in the sidebar.",
+          "$ref": "#/$defs/SshConfigHosts",
+          "default": {
+            "hidden": []
+          }
         }
       }
     },
@@ -179,6 +192,19 @@
         "acrylic",
         "vibrancy"
       ]
+    },
+    "SshConfigHosts": {
+      "type": "object",
+      "properties": {
+        "hidden": {
+          "description": "Aliases tucked away in the section's collapsed \"Masqués\" group (still adoptable).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
     },
     "Terminal": {
       "type": "object",
@@ -281,6 +307,11 @@
         "confirmCloseSsh": {
           "type": "boolean",
           "default": true
+        },
+        "statusBar": {
+          "description": "The strip under SSH terminals with the server's CPU, memory, disk and network.",
+          "type": "boolean",
+          "default": true
         }
       }
     },
@@ -327,6 +358,16 @@
             "enabled": false,
             "shortcut": "Alt+F12"
           }
+        },
+        "checkUpdates": {
+          "description": "Look for a new version on GitHub at startup (at most once a day).",
+          "type": "boolean",
+          "default": true
+        },
+        "explorerMenu": {
+          "description": "\"Ouvrir dans Tilde\" in Windows Explorer's context menu (folders, drives, the\nbackground of an open folder). Ignored on other systems.",
+          "type": "boolean",
+          "default": true
         }
       }
     },

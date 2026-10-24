@@ -23,6 +23,13 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'ssh.quickConnect': 'Ctrl+Shift+K',
   'palette.toggle': 'Ctrl+Shift+P',
   'sftp.open': 'Ctrl+Shift+E',
+  'library.open': 'Ctrl+Shift+L',
+  'sidebar.toggle': 'Ctrl+Shift+B',
+  'space.next': 'Ctrl+Shift+PageDown',
+  'space.prev': 'Ctrl+Shift+PageUp',
+  ...Object.fromEntries(
+    Array.from({ length: 9 }, (_, i) => [`space.${String(i + 1)}`, `Ctrl+Shift+${String(i + 1)}`]),
+  ),
 };
 
 type KeyEventLike = Pick<
@@ -160,6 +167,23 @@ export function matchShortcut(e: KeyEventLike, table: BindingTable, mac = isMac(
       }
     }
   }
+  return null;
+}
+
+/**
+ * Ctrl+C with a selection copies it and Ctrl+V pastes, as in Windows Terminal; Ctrl+C
+ * without a selection still reaches the shell (interrupt). Not on macOS, where ⌘C/⌘V do
+ * this and Ctrl+C must always interrupt.
+ */
+export function clipboardKey(
+  e: KeyEventLike,
+  hasSelection: boolean,
+  mac = isMac(),
+): 'copy' | 'paste' | null {
+  if (mac || !e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) return null;
+  const k = e.key.toLowerCase();
+  if (k === 'c' && hasSelection) return 'copy';
+  if (k === 'v') return 'paste';
   return null;
 }
 

@@ -26,6 +26,7 @@ const conn = (id: string, name: string) => ({
   icon: null,
   tags: [],
   favorite: false,
+  spaceId: null,
 });
 
 beforeEach(() => {
@@ -33,6 +34,7 @@ beforeEach(() => {
   useConnections.setState({
     file: {
       version: 1,
+      spaces: [],
       folders: [],
       connections: [conn('a', 'Alpha'), conn('b', 'Beta')],
       recents: [{ key: 'conn:b', label: 'Beta', at: 1 }],
@@ -44,7 +46,7 @@ beforeEach(() => {
 
 test('palette lists connections first and runs the chosen command', async () => {
   const run = vi.fn();
-  const off = registerCommands([{ id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run }]);
+  const off = registerCommands([{ id: 'tab.new', title: 'Nouvel onglet', group: 'Sessions', run }]);
   render(<CommandPalette />);
   const options = screen.getAllByRole('option').map((o) => o.textContent);
   expect(options.slice(0, 3)).toEqual([
@@ -90,6 +92,7 @@ test('palette search folds accents and never matches internal ids', async () => 
   useConnections.setState({
     file: {
       version: 1,
+      spaces: [],
       folders: [],
       connections: [{ ...conn('beef42', 'Préprod'), host: 'pp.example' }],
       recents: [],

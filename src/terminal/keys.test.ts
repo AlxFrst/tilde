@@ -1,4 +1,5 @@
 import {
+  clipboardKey,
   compileBindings,
   DEFAULT_KEYBINDINGS,
   eventToBinding,
@@ -145,3 +146,31 @@ test('an unbound command no longer matches', () => {
 function fail(): never {
   throw new Error('unexpected null');
 }
+
+describe('Ctrl+C / Ctrl+V, as in Windows Terminal', () => {
+  const key = (k: string, mods: Partial<KeyboardEvent> = {}) => ({
+    key: k,
+    code: `Key${k.toUpperCase()}`,
+    ctrlKey: true,
+    shiftKey: false,
+    altKey: false,
+    metaKey: false,
+    ...mods,
+  });
+
+  test('Ctrl+C copies only when something is selected; otherwise it interrupts', () => {
+    expect(clipboardKey(key('c'), true, false)).toBe('copy');
+    expect(clipboardKey(key('c'), false, false)).toBeNull();
+  });
+
+  test('Ctrl+V pastes', () => {
+    expect(clipboardKey(key('v'), false, false)).toBe('paste');
+    expect(clipboardKey(key('V', { shiftKey: true }), false, false)).toBeNull();
+    expect(clipboardKey(key('v', { altKey: true }), false, false)).toBeNull();
+  });
+
+  test('not on macOS, where ⌘C and ⌘V already do it and Ctrl+C must interrupt', () => {
+    expect(clipboardKey(key('c'), true, true)).toBeNull();
+    expect(clipboardKey(key('v'), false, true)).toBeNull();
+  });
+});

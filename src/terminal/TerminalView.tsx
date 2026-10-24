@@ -1,12 +1,13 @@
 import { readText, writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { SearchAddon } from '@xterm/addon-search';
-import { ClipboardPaste, Copy, Search } from 'lucide-react';
+import { ClipboardPaste, Columns2, Copy, Rows2, Search } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
@@ -38,7 +39,7 @@ import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { createTerminal, terminalOptions, type TerminalHandle } from './createTerminal';
 import { ExitOverlay } from './ExitOverlay';
 import { useKeybindings } from '@/stores/keybindings';
-import { matchShortcut } from './keys';
+import { clipboardKey, matchShortcut } from './keys';
 import { enableLigatures } from './ligatures';
 import { parseOsc7 } from './osc7';
 import { needsPasteConfirmation, pastedLineCount } from './paste';
@@ -198,9 +199,22 @@ export function TerminalView(props: TerminalViewProps) {
     });
 
     term.attachCustomKeyEventHandler((e) => {
+      const clip = clipboardKey(e, term.hasSelection());
+      if (clip) {
+        if (e.type === 'keydown') {
+          // Cancels the browser's own paste, which would paste a second time.
+          e.preventDefault();
+          if (clip === 'copy') {
+            copySelection();
+            term.clearSelection();
+          } else pasteFromClipboard();
+        }
+        return false;
+      }
       const command = matchShortcut(e, useKeybindings.getState().table);
       if (!command) return true;
       if (e.type === 'keydown') {
+        if (command === 'terminal.paste') e.preventDefault();
         if (command === 'terminal.copy') copySelection();
         else if (command === 'terminal.paste') pasteFromClipboard();
         else if (command === 'terminal.search') setSearchOpen(true);
@@ -375,6 +389,25 @@ export function TerminalView(props: TerminalViewProps) {
           >
             <Search strokeWidth={1.5} /> Rechercher{' '}
             <ContextMenuShortcut>Ctrl+Maj+F</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onSelect={() => {
+              const ws = useWorkspace.getState();
+              ws.focusLeaf(props.tabId, props.leafId);
+              ws.splitActive('row');
+            }}
+          >
+            <Columns2 strokeWidth={1.5} /> Diviser à droite
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => {
+              const ws = useWorkspace.getState();
+              ws.focusLeaf(props.tabId, props.leafId);
+              ws.splitActive('column');
+            }}
+          >
+            <Rows2 strokeWidth={1.5} /> Diviser en bas
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

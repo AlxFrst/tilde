@@ -45,6 +45,8 @@ pub fn apply_live(app: &AppHandle, settings: &Settings) {
         q.set_concurrency(usize::from(settings.sftp.concurrency));
     }
     crate::quake::sync_quake(app, &settings.general.quake, &state.quake);
+    #[cfg(windows)]
+    crate::explorer_menu::apply(settings.general.explorer_menu);
 }
 
 /// Called by the file watcher: reloads `settings.json` and notifies the front-end.
