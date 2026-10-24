@@ -20,7 +20,7 @@ import { PromptHost } from './PromptHost';
 import { useQuakeTabs } from './quake';
 import { QuickConnectDialog } from './QuickConnectDialog';
 import { SettingsDialog } from './settings/SettingsDialog';
-import { Sidebar } from './Sidebar';
+import { Rail } from './rail/Rail';
 import { TabBar } from './TabBar';
 import { TunnelsDialog } from './TunnelsDialog';
 import { Titlebar } from './Titlebar';
@@ -66,7 +66,7 @@ export function AppShell({
   useQuakeTabs(quake);
 
   const sidebar = (
-    <Sidebar
+    <Rail
       side={sidebarPosition}
       width={sidebarWidth}
       onOpenSettings={() => {
@@ -81,14 +81,15 @@ export function AppShell({
       <div className="flex min-h-0 flex-1">
         {!quake && sidebarPosition === 'left' && sidebar}
         <main className="flex min-w-0 flex-1 flex-col">
-          <TabBar />
+          {quake && <TabBar />}
           <div className="relative min-h-0 flex-1">
-            {tabs.length === 0 ? (
-              <div className="h-full overflow-auto">
+            {tabs.map((t) => (
+              <PaneView key={t.id} tab={t} visible={t.id === activeTabId} />
+            ))}
+            {(tabs.length === 0 || activeTabId === null) && (
+              <div className="absolute inset-0 overflow-auto">
                 <Welcome version={appInfo.version} />
               </div>
-            ) : (
-              tabs.map((t) => <PaneView key={t.id} tab={t} visible={t.id === activeTabId} />)
             )}
           </div>
         </main>

@@ -8,7 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FolderTree, Plus, Server, X, type LucideIcon } from 'lucide-react';
+import { FolderTree, Plus, Server, X } from 'lucide-react';
 import { useState } from 'react';
 import {
   ContextMenu,
@@ -22,7 +22,7 @@ import { getPanelModule } from '@/panels/registry';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
-import { findLinked, useWorkspace } from '@/stores/workspace';
+import { useWorkspace } from '@/stores/workspace';
 import { cn } from '@/lib/utils';
 import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf, leaves } from '@/workspace/tree';
@@ -31,14 +31,7 @@ import { closeTab, openDefaultTab } from './actions';
 import { StatusDot } from './ConnectionStatus';
 import { NewTabMenu } from './NewTabMenu';
 import { profileIcon } from './profileIcon';
-
-const TAB_COLORS = [
-  ['Pervenche', 'var(--tilde-accent)'],
-  ['Turquoise', 'var(--tilde-accent-2)'],
-  ['Vert', 'var(--tilde-success)'],
-  ['Ambre', 'var(--tilde-warning)'],
-  ['Rouge', 'var(--tilde-error)'],
-] as const;
+import { TAB_COLORS } from './tabColors';
 
 function useTabLabel(tab: Tab) {
   const profiles = useProfiles((s) => s.profiles);
@@ -242,15 +235,6 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
             Tunnels…
           </ContextMenuItem>
         )}
-        {panel?.kind === 'ssh' && leaf && (
-          <ContextMenuItem
-            onSelect={() => {
-              ws().openMonitor(leaf.id, { kind: 'remote', linkedLeafId: leaf.id });
-            }}
-          >
-            Moniteur du serveur…
-          </ContextMenuItem>
-        )}
         <ContextMenuItem
           onSelect={() => {
             if (panel?.kind === 'ssh') ws().openSshTab(panel.target, panel.connectionId);
@@ -262,74 +246,6 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
         <ContextMenuItem onSelect={() => void closeTab(tab.id)}>Fermer</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
-  );
-}
-
-/** The SSH pane the active pane belongs to: itself, or the one its files/monitor follow. */
-function useActiveSshLeaf(): string | null {
-  return useWorkspace((s) => {
-    const tab = s.tabs.find((t) => t.id === s.activeTabId);
-    const panel = tab ? findLeaf(tab.root, tab.activeLeafId)?.panel : undefined;
-    if (!tab || !panel) return null;
-    if (panel.kind === 'ssh') return tab.activeLeafId;
-    if (panel.kind === 'sftp') return panel.linkedLeafId;
-    if (panel.kind === 'monitor' && panel.source.kind === 'remote') {
-      return panel.source.linkedLeafId;
-    }
-    return null;
-  });
-}
-
-function ToggleButton({
-  label,
-  title,
-  Icon,
-  pressed,
-  onClick,
-}: {
-  label: string;
-  title: string;
-  Icon: LucideIcon;
-  pressed: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={pressed}
-      title={title}
-      className={cn(
-        'flex h-6 items-center gap-1.5 rounded-md px-2 text-xs text-text-muted transition-colors hover:bg-surface-2 hover:text-text',
-        pressed && 'bg-surface-2 text-text',
-      )}
-      onClick={onClick}
-    >
-      <Icon className={cn('size-3.5', pressed && 'text-accent')} strokeWidth={1.5} />
-      <span>{label}</span>
-    </button>
-  );
-}
-
-/** Shows or hides the files of the active SSH session (its monitor is in the status strip). */
-function SessionActions() {
-  const sshLeafId = useActiveSshLeaf();
-  const filesOpen = useWorkspace((s) => !!sshLeafId && !!findLinked(s.tabs, sshLeafId, 'sftp'));
-  if (!sshLeafId) return null;
-  return (
-    <div className="mb-1 flex items-center gap-0.5 self-center border-r pr-1">
-      <ToggleButton
-        label="Fichiers"
-        title={
-          filesOpen ? 'Masquer les fichiers (Ctrl+Maj+E)' : 'Afficher les fichiers (Ctrl+Maj+E)'
-        }
-        Icon={FolderTree}
-        pressed={filesOpen}
-        onClick={() => {
-          useWorkspace.getState().toggleSftp(sshLeafId);
-        }}
-      />
-    </div>
   );
 }
 
@@ -359,7 +275,6 @@ export function TabBar() {
           </div>
         </SortableContext>
       </DndContext>
-      <SessionActions />
       <div className="mb-1 flex items-center self-center">
         <button
           type="button"

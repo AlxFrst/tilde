@@ -1,7 +1,9 @@
 // User-level actions shared by the tab bar, shortcuts and menus.
 
+import { connectionSpace } from '@/connections/spaces';
 import type { Connection } from '@/ipc/connections';
 import { pickDefaultProfile } from '@/ipc/profiles';
+import { useConnections } from '@/stores/connections';
 import { dirtyEditors } from '@/stores/editors';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
@@ -20,9 +22,13 @@ export function openDefaultTab(): void {
   if (id) useWorkspace.getState().openTab(id);
 }
 
-/** Opens a saved connection in a new tab. */
+/**
+ * Opens a saved connection: shows its pinned session (switching to its space), or opens
+ * it there.
+ */
 export function openConnection(c: Connection): void {
-  useWorkspace.getState().openSshTab(c.host, c.id);
+  const { file } = useConnections.getState();
+  useWorkspace.getState().openPinned(c.id, c.host, connectionSpace(c, file));
 }
 
 /**
@@ -56,6 +62,16 @@ export async function closeTab(tabId: string): Promise<void> {
   const leafIds = leaves(tab.root).map((l) => l.id);
   if (await confirmClose(sessionsFor(leafIds), unsavedIn(leafIds))) {
     useWorkspace.getState().closeTab(tabId);
+  }
+}
+
+/** Closes several sessions after one confirmation. */
+export async function closeTabs(tabIds: string[]): Promise<void> {
+  const tabs = useWorkspace.getState().tabs.filter((t) => tabIds.includes(t.id));
+  if (tabs.length === 0) return;
+  const leafIds = tabs.flatMap((t) => leaves(t.root).map((l) => l.id));
+  if (await confirmClose(sessionsFor(leafIds), unsavedIn(leafIds))) {
+    for (const t of tabs) useWorkspace.getState().closeTab(t.id);
   }
 }
 
