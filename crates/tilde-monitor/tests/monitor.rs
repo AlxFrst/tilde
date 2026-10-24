@@ -90,7 +90,7 @@ fn remote_command_reads_every_section() {
 }
 
 /// The status strip runs this every few seconds on every server: `df` must not stat
-/// network mounts (a stale NFS mount hangs it), and BusyBox's `df` has no `-l`.
+/// network mounts (a stale `NFS` mount hangs it), and `BusyBox` has no `df -l`.
 #[test]
 fn remote_command_lists_local_disks_only() {
     assert!(REMOTE_COMMAND.contains("df -kPl 2>/dev/null || df -kP 2>/dev/null"));

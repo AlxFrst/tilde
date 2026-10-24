@@ -9,7 +9,7 @@ use crate::{Disk, MonitorError, Snapshot, is_pseudo_mount};
 ///
 /// The SSH server runs it through the user's login shell, which may be fish or csh:
 /// the script itself always runs under `/bin/sh` (it contains no single quote). `df -l`
-/// skips network mounts, which a stale NFS server would hang (BusyBox lacks `-l`).
+/// skips network mounts, which a stale `NFS` server would hang (`BusyBox` lacks `-l`).
 pub const REMOTE_COMMAND: &str = "/bin/sh -c 'LC_ALL=C; export LC_ALL; \
 echo @@tilde:stat@@; cat /proc/stat 2>&1; \
 echo @@tilde:meminfo@@; cat /proc/meminfo 2>&1; \
