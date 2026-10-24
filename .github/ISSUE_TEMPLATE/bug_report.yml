@@ -1,31 +1,32 @@
-name: Bug
-description: Quelque chose ne fonctionne pas comme prévu
+name: Bug report
+description: Something does not work as expected
 labels: [bug]
 body:
   - type: textarea
     id: what
     attributes:
-      label: Que s'est-il passé ?
-      description: Et qu'attendiez-vous à la place ?
+      label: What happened?
+      description: And what did you expect instead?
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Étapes pour reproduire
+      label: Steps to reproduce
       placeholder: "1. …\n2. …"
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Version de Tilde
+      label: Tilde version
+      placeholder: '0.2.0'
     validations:
       required: true
   - type: dropdown
     id: os
     attributes:
-      label: Système
+      label: Operating system
       options: [Windows, Linux, macOS]
     validations:
       required: true
@@ -33,5 +34,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: Réglages → « Ouvrir le dossier des logs ». Vérifiez qu'aucune information sensible n'y figure.
+      description: >-
+        *Réglages* (Settings) → *Général* → *Logs* opens the log folder. Check that nothing
+        sensitive is in what you paste.
       render: json
