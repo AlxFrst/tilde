@@ -119,14 +119,14 @@ drop connections without saying why. Tilde starts from the other end.
 
 | | |
 |---|---|
+| <img src="docs/screenshots/spaces.png" alt="Creating a space: name, colour and icon" /> | <img src="docs/screenshots/quake.png" alt="Quake mode" /> |
+| Spaces for work, home and the rest, each with its colour | Quake mode: a terminal drops from the top of the screen |
 | <img src="docs/screenshots/ssh.png" alt="Connection dialog with a chain of jump hosts" /> | <img src="docs/screenshots/sftp.png" alt="Files pane following the terminal's directory" /> |
 | Saved connections, jump hosts picked from a list | Files on the same connection, following `cd` |
 | <img src="docs/screenshots/editor.png" alt="Built-in editor with a live Markdown preview" /> | <img src="docs/screenshots/monitor.png" alt="System monitor of a remote server" /> |
 | Built-in editor with a live preview | System monitor of a server, over SSH |
 | <img src="docs/screenshots/themes.png" alt="Theme editor" /> | <img src="docs/screenshots/settings.png" alt="Settings page" /> |
 | Theme editor, imports from iTerm2 / Windows Terminal / base16 | Every setting, also in JSON |
-
-<p align="center"><img src="docs/screenshots/quake.png" alt="Quake mode" width="700" /><br/><em>Quake mode</em></p>
 
 ## Install
 
