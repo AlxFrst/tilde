@@ -8,7 +8,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { FileDown, FileUp, FolderPlus, Library, Plus, ServerCog } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   ContextMenuContent,
   ContextMenuItem,
@@ -180,13 +180,30 @@ function AddMenu() {
   );
 }
 
+/**
+ * The whole section is the root's drop zone: a connection dropped outside the folders
+ * leaves its folder. It must sit inside the DndContext to register with it.
+ */
+function RootDropZone({ children }: { children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'folder:' });
+  return (
+    <section
+      ref={setNodeRef}
+      role="group"
+      aria-label="Épinglés"
+      className={cn('rounded-lg', isOver && 'bg-surface-2/60 ring-1 ring-ring')}
+    >
+      {children}
+    </section>
+  );
+}
+
 /** The folders and saved connections of the active space. */
 export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void }) {
   const { file, readOnly, save, setEditing } = useConnections();
   const space = useWorkspace((s) => s.activeSpaceId);
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const { setNodeRef, isOver } = useDroppable({ id: 'folder:' });
 
   const spaces = listSpaces(file);
   const folders = file.folders.filter((f) => spaceIdOf(f, spaces) === space);
@@ -212,19 +229,14 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
   };
 
   return (
-    <section
-      ref={setNodeRef}
-      role="group"
-      aria-label="Épinglés"
-      className={cn('rounded-lg', isOver && 'bg-surface-2/60 ring-1 ring-ring')}
-    >
-      <div className="flex items-center justify-between px-2 pt-3 pb-1">
-        <h3 className="text-[0.7rem] font-medium tracking-wider text-text-muted uppercase">
-          Épinglés
-        </h3>
-        <AddMenu />
-      </div>
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <RootDropZone>
+        <div className="flex items-center justify-between px-2 pt-3 pb-1">
+          <h3 className="text-[0.7rem] font-medium tracking-wider text-text-muted uppercase">
+            Épinglés
+          </h3>
+          <AddMenu />
+        </div>
         {folders.map((f) => (
           <Section
             key={f.id}
@@ -251,32 +263,32 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
             <PinnedRow key={c.id} c={c} />
           ))}
         </ul>
-      </DndContext>
-      {mine.length === 0 && (
-        <div className="grid gap-1 px-2 py-2 text-sm text-text-muted">
-          <p>Aucune connexion dans cet espace.</p>
-          <button
-            type="button"
-            disabled={readOnly}
-            className="w-fit text-left text-accent hover:underline disabled:opacity-40"
-            onClick={() => {
-              setEditing(blankConnection({ spaceId: space }));
-            }}
-          >
-            Nouvelle connexion…
-          </button>
-          {onOpenLibrary && (
+        {mine.length === 0 && (
+          <div className="grid gap-1 px-2 py-2 text-sm text-text-muted">
+            <p>Aucune connexion dans cet espace.</p>
             <button
               type="button"
-              className="flex w-fit items-center gap-1.5 text-left text-accent hover:underline"
-              onClick={onOpenLibrary}
+              disabled={readOnly}
+              className="w-fit text-left text-accent hover:underline disabled:opacity-40"
+              onClick={() => {
+                setEditing(blankConnection({ spaceId: space }));
+              }}
             >
-              <Library className="size-3.5" strokeWidth={1.75} />
-              Ouvrir la Bibliothèque
+              Nouvelle connexion…
             </button>
-          )}
-        </div>
-      )}
-    </section>
+            {onOpenLibrary && (
+              <button
+                type="button"
+                className="flex w-fit items-center gap-1.5 text-left text-accent hover:underline"
+                onClick={onOpenLibrary}
+              >
+                <Library className="size-3.5" strokeWidth={1.75} />
+                Ouvrir la Bibliothèque
+              </button>
+            )}
+          </div>
+        )}
+      </RootDropZone>
+    </DndContext>
   );
 }
