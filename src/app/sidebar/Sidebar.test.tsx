@@ -32,6 +32,7 @@ const conn = (id: string, name: string, extra: Partial<Connection> = {}): Connec
   icon: null,
   tags: [],
   favorite: false,
+  spaceId: null,
   ...extra,
 });
 
@@ -41,7 +42,7 @@ function setFile(file: Partial<ConnectionsFile>, extra: object = {}) {
     readOnly: false,
     error: null,
     sshHosts: [],
-    file: { version: 1, folders: [], connections: [], recents: [], ...file },
+    file: { version: 1, spaces: [], folders: [], connections: [], recents: [], ...file },
     ...extra,
   });
 }
@@ -81,7 +82,7 @@ beforeEach(() => {
 test('sections are ordered and empty ones hidden', () => {
   setFile(
     {
-      folders: [{ id: 'f', name: 'Prod', color: null }],
+      folders: [{ id: 'f', name: 'Prod', color: null, spaceId: null }],
       connections: [
         conn('a', 'Alpha', { favorite: true }),
         conn('b', 'Beta', { folderId: 'f' }),

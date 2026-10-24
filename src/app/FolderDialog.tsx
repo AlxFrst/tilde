@@ -15,7 +15,8 @@ import { ColorPicker } from './ColorPicker';
 
 function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => void }) {
   const saveFolder = useConnections((s) => s.saveFolder);
-  const initial = folder === 'new' ? { id: '', name: '', color: null } : folder;
+  const initial: Folder =
+    folder === 'new' ? { id: '', name: '', color: null, spaceId: null } : folder;
   const [name, setName] = useState(initial.name);
   const [color, setColor] = useState<string | null>(initial.color);
   const [error, setError] = useState<string | null>(null);

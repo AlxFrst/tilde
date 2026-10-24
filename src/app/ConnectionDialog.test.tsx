@@ -21,7 +21,8 @@ beforeEach(() => {
     sshHosts: [{ alias: 'prod', hostname: 'prod.internal', user: 'deploy', port: 22 }],
     file: {
       version: 1,
-      folders: [{ id: 'f1', name: 'Prod', color: null }],
+      spaces: [],
+      folders: [{ id: 'f1', name: 'Prod', color: null, spaceId: null }],
       connections: [],
       recents: [],
     },
@@ -86,6 +87,7 @@ test('editing keeps the id and the fields the form does not show', async () => {
       name: 'Old',
       host: 'h',
       favorite: true,
+      spaceId: null,
       folderId: 'f1',
       forwardAgent: true,
     }),
@@ -98,6 +100,7 @@ test('editing keeps the id and the fields the form does not show', async () => {
       id: 'c9',
       name: 'New',
       favorite: true,
+      spaceId: null,
       folderId: 'f1',
       forwardAgent: true,
     }),
@@ -110,7 +113,12 @@ test('a new folder is created with its name and colour', async () => {
   await userEvent.type(screen.getByLabelText('Nom du dossier'), 'Staging');
   await userEvent.click(screen.getByRole('radio', { name: 'Vert' }));
   await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
-  expect(upsertFolder).toHaveBeenCalledWith({ id: '', name: 'Staging', color: '#9ECE6A' });
+  expect(upsertFolder).toHaveBeenCalledWith({
+    id: '',
+    name: 'Staging',
+    color: '#9ECE6A',
+    spaceId: null,
+  });
 });
 
 test('jump hosts are picked from saved connections and ~/.ssh/config, in order', async () => {

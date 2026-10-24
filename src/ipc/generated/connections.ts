@@ -2,9 +2,28 @@
 
 export interface ConnectionsFile {
   version: number;
+  /**
+   * Empty: one implicit space, [`MAIN_SPACE_ID`].
+   */
+  spaces: Space[];
   folders: Folder[];
   connections: Connection[];
   recents: Recent[];
+}
+/**
+ * A space (« Pro », « Perso »…): its own folders, connections and sessions.
+ */
+export interface Space {
+  id: string;
+  name: string;
+  /**
+   * `#RRGGBB`.
+   */
+  color: string | null;
+  /**
+   * One of [`SPACE_ICONS`].
+   */
+  icon: string | null;
 }
 /**
  * A folder of connections (one level).
@@ -16,6 +35,10 @@ export interface Folder {
    * `#RRGGBB`.
    */
   color: string | null;
+  /**
+   * `None`: the first space.
+   */
+  spaceId: string | null;
 }
 /**
  * A saved connection. `host` is an alias of `~/.ssh/config` or a host name; the
@@ -50,6 +73,10 @@ export interface Connection {
   icon: string | null;
   tags: string[];
   favorite: boolean;
+  /**
+   * `None`: the first space. Always its folder's space when it is in a folder.
+   */
+  spaceId: string | null;
 }
 /**
  * A recently opened target: `conn:<id>` or `ssh:<typed target>`.

@@ -4,12 +4,15 @@ import {
   onConnectionsChanged,
   removeConnection,
   removeFolder,
+  removeSpace,
   setFavorite,
   upsertConnection,
   upsertFolder,
+  upsertSpace,
   type Connection,
   type ConnectionsFile,
   type Folder,
+  type Space,
 } from '@/ipc/connections';
 import type { ConfigErrorDto } from '@/ipc/errors';
 import { sshHosts, type SshHostEntry } from '@/ipc/ssh';
@@ -32,6 +35,8 @@ interface ConnectionsState {
   remove: (id: string) => Promise<void>;
   saveFolder: (f: Folder) => Promise<Folder>;
   removeFolder: (id: string) => Promise<void>;
+  saveSpace: (s: Space) => Promise<Space>;
+  removeSpace: (id: string) => Promise<void>;
   setFavorite: (id: string, favorite: boolean) => Promise<void>;
   /** The connection in the form: an existing one, or `'new'` (with optional presets). */
   editing: Connection | 'new' | null;
@@ -57,10 +62,17 @@ export const blankConnection = (preset: Partial<Connection> = {}): Connection =>
   icon: null,
   tags: [],
   favorite: false,
+  spaceId: null,
   ...preset,
 });
 
-const EMPTY: ConnectionsFile = { version: 1, folders: [], connections: [], recents: [] };
+const EMPTY: ConnectionsFile = {
+  version: 1,
+  spaces: [],
+  folders: [],
+  connections: [],
+  recents: [],
+};
 
 export const useConnections = create<ConnectionsState>()((set, get) => ({
   loaded: false,
@@ -101,6 +113,8 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
   remove: (id) => removeConnection(id),
   saveFolder: (f) => upsertFolder(f),
   removeFolder: (id) => removeFolder(id),
+  saveSpace: (sp) => upsertSpace(sp),
+  removeSpace: (id) => removeSpace(id),
   setFavorite: (id, favorite) => setFavorite(id, favorite),
   editing: null,
   setEditing: (editing) => {

@@ -124,6 +124,7 @@ test('an ssh tab opened from a saved connection shows its name', async () => {
   useConnections.setState({
     file: {
       version: 1,
+      spaces: [],
       folders: [],
       recents: [],
       connections: [
@@ -141,6 +142,7 @@ test('an ssh tab opened from a saved connection shows its name', async () => {
           icon: null,
           tags: [],
           favorite: false,
+          spaceId: null,
         },
       ],
     },
