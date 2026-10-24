@@ -27,7 +27,7 @@ drop connections without saying why. Tilde starts from the other end.
 
 - **It just works with your setup.** Your `~/.ssh/config` is read as OpenSSH reads it:
   `Include`, `Match`, `ProxyJump` chains, `ProxyCommand`, your agent, your `known_hosts`.
-  Double-click a host behind two bastions and you get a shell.
+  Click a host behind two bastions and you get a shell.
 - **Failures explain themselves.** You get "key refused", "host unreachable", "fingerprint
   changed" or "timeout on bastion #2", never a spinner that gives up silently.
 - **A sidebar that is your workspace.** No tab bar: your servers and sessions live in one
@@ -100,6 +100,10 @@ drop connections without saying why. Tilde starts from the other end.
   editor as you type.
 - **System monitor**: CPU, memory, network and disks for this machine, or for a Linux server
   read from `/proc` over the SSH connection you already have. Nothing to install.
+- **Status strip**: under each SSH session, a one-line summary of the server (CPU, memory,
+  disk, load). It reads `/proc` and runs `df` on local disks every 3 seconds over the open
+  connection, which shows up in the server's audit logs. Turn it off in *Réglages → SSH →
+  Bandeau d'état du serveur*.
 
 ### Make it yours
 - **14 themes** (Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine — dark
@@ -217,7 +221,8 @@ format, shortcut syntax, window effects; in French).
   shell access. Every file operation goes through dedicated, audited Rust commands, and local
   files open only through the system dialog.
 - **No telemetry.** The only request Tilde makes on its own is the daily update check, and it
-  can be turned off.
+  can be turned off. On the servers you connect to, it runs only what you type, plus the
+  read-only status strip command (`cat /proc/…`, `df`), which can be turned off too.
 
 Found a vulnerability? Please report it privately: see [SECURITY.md](SECURITY.md).
 

@@ -75,7 +75,8 @@ Réglages → Général.
 - **Fichiers (SFTP)** sur la même connexion que le terminal (voir [plus bas](#fichiers-sftp))
 - **Éditeur intégré**, **aperçu** et **moniteur système** à côté du terminal (voir
   [plus bas](#éditeur-aperçu-et-moniteur))
-- Aucune télémétrie ; aucune requête réseau en dehors des connexions que vous ouvrez
+- Aucune télémétrie : la seule requête que Tilde fait d'elle-même est la vérification
+  quotidienne des mises à jour (désactivable)
 
 ## Raccourcis
 
@@ -236,12 +237,15 @@ Chaque panneau s'ouvre à côté du panneau actif.
   - images.
   
   Depuis l'éditeur, l'aperçu suit le texte pendant la frappe.
-- **Moniteur système** (palette, ou clic droit sur un onglet SSH → « Moniteur du
-  serveur… ») :
+- **Moniteur système** (bouton « Moniteur » de l'en-tête de session, ou la palette) :
   - processeur, mémoire, réseau, disques, charge et uptime, actualisés toutes les 2 s tant
     que le panneau est visible ;
   - pour un serveur, Tilde lit `/proc` par la connexion SSH déjà ouverte : rien à installer.
     Seul Linux est pris en charge.
+- **Bandeau d'état** sous chaque session SSH : processeur, mémoire, disque et charge du
+  serveur en une ligne. Tilde lit `/proc` et lance `df` (disques locaux) toutes les 3 s par
+  la connexion ouverte, ce qui apparaît dans les journaux d'audit du serveur. Désactivable
+  dans *Réglages → SSH → Bandeau d'état du serveur*.
 
 Ces panneaux sont des modules du registre décrit dans [docs/panneaux.md](docs/panneaux.md).
 

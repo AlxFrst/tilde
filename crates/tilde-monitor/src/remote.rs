@@ -8,7 +8,8 @@ use crate::{Disk, MonitorError, Snapshot, is_pseudo_mount};
 /// `@@tilde:<section>@@` marker. `LC_ALL=C` keeps `df`'s output parseable.
 ///
 /// The SSH server runs it through the user's login shell, which may be fish or csh:
-/// the script itself always runs under `/bin/sh` (it contains no single quote).
+/// the script itself always runs under `/bin/sh` (it contains no single quote). `df -l`
+/// skips network mounts, which a stale NFS server would hang (BusyBox lacks `-l`).
 pub const REMOTE_COMMAND: &str = "/bin/sh -c 'LC_ALL=C; export LC_ALL; \
 echo @@tilde:stat@@; cat /proc/stat 2>&1; \
 echo @@tilde:meminfo@@; cat /proc/meminfo 2>&1; \
@@ -16,7 +17,7 @@ echo @@tilde:loadavg@@; cat /proc/loadavg 2>&1; \
 echo @@tilde:uptime@@; cat /proc/uptime 2>&1; \
 echo @@tilde:netdev@@; cat /proc/net/dev 2>&1; \
 echo @@tilde:hostname@@; hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null; \
-echo @@tilde:df@@; df -kP 2>/dev/null'";
+echo @@tilde:df@@; df -kPl 2>/dev/null || df -kP 2>/dev/null'";
 
 /// What one run of [`REMOTE_COMMAND`] says, before rates are computed.
 #[derive(Debug, Clone, PartialEq)]

@@ -89,6 +89,13 @@ fn remote_command_reads_every_section() {
     assert!(REMOTE_COMMAND.contains("LC_ALL=C"));
 }
 
+/// The status strip runs this every few seconds on every server: `df` must not stat
+/// network mounts (a stale NFS mount hangs it), and BusyBox's `df` has no `-l`.
+#[test]
+fn remote_command_lists_local_disks_only() {
+    assert!(REMOTE_COMMAND.contains("df -kPl 2>/dev/null || df -kP 2>/dev/null"));
+}
+
 #[test]
 fn remote_command_runs_under_sh_whatever_the_login_shell() {
     // The SSH server runs exec commands through the user's shell: fish rejects

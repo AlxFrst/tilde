@@ -28,6 +28,9 @@ In particular:
 - No telemetry. The only network request Tilde makes on its own is the update check at
   startup: at most once a day, to GitHub releases, with nothing sent. It can be turned off in
   *Réglages → Général*.
+- On a server, Tilde runs only what you type, plus a read-only command for the status strip
+  under each SSH session (`cat` of a few `/proc` files and `df` on local disks, every 3 s
+  while the session is shown). It can be turned off in *Réglages → SSH*.
 - Updates are signed (minisign): an update whose signature does not match the public key
   built into Tilde is refused.
 
