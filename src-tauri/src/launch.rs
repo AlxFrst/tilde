@@ -25,10 +25,21 @@ pub fn dir_from_args<S: AsRef<str>>(args: &[S], cwd: &Path) -> Option<PathBuf> {
         } else {
             continue;
         };
-        let dir = cwd.join(value.trim_matches('"'));
+        let dir = cwd.join(drive_root(value.trim_matches('"')).as_ref());
         return dir.is_dir().then_some(dir);
     }
     None
+}
+
+/// `C:` alone means "the current directory on C:"; Explorer means the drive's root (its
+/// `"C:\"` reaches us as `C:"`, the backslash escaping the quote).
+fn drive_root(value: &str) -> std::borrow::Cow<'_, str> {
+    let bytes = value.as_bytes();
+    if cfg!(windows) && bytes.len() == 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        format!("{value}\\").into()
+    } else {
+        value.into()
+    }
 }
 
 /// The folder Tilde was started on, kept until the front-end takes it.
@@ -69,6 +80,25 @@ mod tests {
         assert_eq!(
             dir_from_args(&["tilde".to_string(), format!("--open=\"{dir}\"")], Path::new("/")),
             Some(tmp.path().to_path_buf())
+        );
+    }
+
+    /// Explorer runs `--open "C:\"` on a drive: the `\"` reaches us as a quote, `C:"`.
+    #[cfg(windows)]
+    #[test]
+    fn a_drive_root_opens_the_root_not_the_current_directory() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert_eq!(
+            dir_from_args(&["tilde", "--open", "C:\""], tmp.path()),
+            Some(PathBuf::from("C:\\"))
+        );
+        assert_eq!(
+            dir_from_args(&["tilde", "--open", "C:"], tmp.path()),
+            Some(PathBuf::from("C:\\"))
+        );
+        assert_eq!(
+            dir_from_args(&["tilde", "--open=C:\\"], tmp.path()),
+            Some(PathBuf::from("C:\\"))
         );
     }
 
