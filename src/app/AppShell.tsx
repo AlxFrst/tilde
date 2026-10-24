@@ -24,6 +24,7 @@ import { SettingsDialog } from './settings/SettingsDialog';
 import { SessionHeader } from './content/SessionHeader';
 import { sessionEnv } from './content/sessionEnv';
 import { Rail } from './rail/Rail';
+import { SpaceDialog } from './spaces/SpaceDialog';
 import { TabBar } from './TabBar';
 import { TunnelsDialog } from './TunnelsDialog';
 import { useShortcuts } from './useShortcuts';
@@ -138,6 +139,7 @@ export function AppShell({
         }}
       />
       <TunnelsDialog />
+      <SpaceDialog />
       <PromptHost />
     </div>
   );

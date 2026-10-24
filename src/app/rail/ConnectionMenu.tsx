@@ -99,6 +99,24 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
           ))}
         </ContextMenuSubContent>
       </ContextMenuSub>
+      {spaces.length > 1 && (
+        <ContextMenuSub>
+          <ContextMenuSubTrigger disabled={readOnly}>Déplacer vers l’espace</ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            {spaces.map((s) => (
+              <ContextMenuItem
+                key={s.id}
+                disabled={s.id === space}
+                onSelect={() => {
+                  void save({ ...c, spaceId: s.id });
+                }}
+              >
+                {s.name}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      )}
       <ContextMenuSeparator />
       <ContextMenuItem
         variant="destructive"

@@ -11,6 +11,7 @@ import { ShortcutRecorder } from './ShortcutRecorder';
 
 const GROUP_ORDER: CommandGroup[] = [
   'Onglets',
+  'Espaces',
   'Panneaux',
   'Terminal',
   'Connexions',

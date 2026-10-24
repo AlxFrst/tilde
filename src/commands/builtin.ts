@@ -1,6 +1,7 @@
 // Tilde's own commands. Titles are what the palette shows.
 
 import { closeActivePane, closeTab, openDefaultTab, splitActivePane } from '@/app/actions';
+import { switchSpaceAt, switchSpaceRelative } from '@/app/spaces/spaceActions';
 import { checkForUpdates } from '@/app/updates';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { openKeybindingsFile } from '@/ipc/keybindings';
@@ -56,6 +57,39 @@ export function registerBuiltins(): () => void {
         ws().activateRelative(-1);
       },
     },
+    {
+      id: 'space.next',
+      title: 'Espace suivant',
+      group: 'Espaces',
+      run: () => {
+        switchSpaceRelative(1);
+      },
+    },
+    {
+      id: 'space.prev',
+      title: 'Espace précédent',
+      group: 'Espaces',
+      run: () => {
+        switchSpaceRelative(-1);
+      },
+    },
+    {
+      id: 'space.new',
+      title: 'Nouvel espace…',
+      group: 'Espaces',
+      run: () => {
+        useUi.getState().setSpaceDialog('new');
+      },
+    },
+    ...Array.from({ length: 9 }, (_, i): Command => ({
+      id: `space.${String(i + 1)}`,
+      title: `Aller à l’espace ${String(i + 1)}`,
+      group: 'Espaces',
+      hidden: true,
+      run: () => {
+        switchSpaceAt(i);
+      },
+    })),
     {
       id: 'pane.splitRight',
       title: 'Diviser à droite',

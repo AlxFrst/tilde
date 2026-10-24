@@ -2,7 +2,8 @@
 // shortcut handler alike (spec §4.8). Panels and plugins add theirs with
 // `registerCommands`. Shortcuts are looked up by command id in the keybindings store.
 
-export type CommandGroup = 'Onglets' | 'Panneaux' | 'Terminal' | 'Connexions' | 'Application';
+export type CommandGroup =
+  'Onglets' | 'Espaces' | 'Panneaux' | 'Terminal' | 'Connexions' | 'Application';
 
 export interface Command {
   id: string;

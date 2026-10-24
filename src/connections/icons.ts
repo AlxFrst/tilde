@@ -1,5 +1,6 @@
 import {
   Box,
+  Briefcase,
   Cloud,
   Cpu,
   Database,
@@ -9,10 +10,11 @@ import {
   Server,
   Shield,
   SquareTerminal,
+  User,
   type LucideIcon,
 } from 'lucide-react';
 
-/** Lucide components for `CONNECTION_ICONS`; unknown or missing → Server. */
+/** Lucide components for `CONNECTION_ICONS` and `SPACE_ICONS`; unknown or missing → Server. */
 const ICONS: Record<string, LucideIcon> = {
   server: Server,
   database: Database,
@@ -24,6 +26,8 @@ const ICONS: Record<string, LucideIcon> = {
   shield: Shield,
   house: House,
   rocket: Rocket,
+  briefcase: Briefcase,
+  user: User,
 };
 
 export const connectionIcon = (name: string | null | undefined): LucideIcon =>

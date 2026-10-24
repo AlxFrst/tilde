@@ -17,6 +17,7 @@ import {
   type FormErrors,
 } from '@/connections/validate';
 import { CONNECTION_ICONS, type Connection } from '@/ipc/connections';
+import { connectionSpace, listSpaces, spaceIdOf } from '@/connections/spaces';
 import { isConfigError } from '@/ipc/errors';
 import { cn } from '@/lib/utils';
 import { blankConnection, useConnections } from '@/stores/connections';
@@ -75,6 +76,11 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
   });
   const [tags, setTags] = useState(initial.tags.join(', '));
   const [folderId, setFolderId] = useState(initial.folderId);
+  const spaces = listSpaces(file);
+  const [spaceId, setSpaceId] = useState(() =>
+    initial.id ? connectionSpace(initial, file) : spaceIdOf(initial, spaces),
+  );
+  const spaceFolders = file.folders.filter((f) => spaceIdOf(f, spaces) === spaceId);
   const [color, setColor] = useState(initial.color);
   const [icon, setIcon] = useState(initial.icon);
   const [agent, setAgent] = useState(
@@ -106,7 +112,9 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
       identityFile: opt(form.identityFile),
       proxyJump: opt(form.proxyJump),
       forwardAgent: agent === '' ? null : agent === 'yes',
-      folderId,
+      folderId: spaceFolders.some((f) => f.id === folderId) ? folderId : null,
+      // While no space is written, everything stays in the implicit one (null).
+      spaceId: file.spaces.length === 0 ? null : spaceId,
       color,
       icon,
       tags: parseTags(tags),
@@ -207,6 +215,25 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             }}
           />
         </Field>
+        {spaces.length > 1 && (
+          <Field id="conn-space" label="Espace" className="col-span-6">
+            <select
+              id="conn-space"
+              className={selectClass}
+              value={spaceId}
+              onChange={(e) => {
+                setSpaceId(e.currentTarget.value);
+                setFolderId(null);
+              }}
+            >
+              {spaces.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field id="conn-folder" label="Dossier" className="col-span-2">
           <select
             id="conn-folder"
@@ -217,7 +244,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             }}
           >
             <option value="">Sans dossier</option>
-            {file.folders.map((f) => (
+            {spaceFolders.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
               </option>

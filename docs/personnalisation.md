@@ -161,6 +161,9 @@ fait avec la touche `)`.
 | `ssh.quickConnect`                   | Connexion SSH              | Ctrl+Shift+K                |
 | `palette.toggle`                     | Palette de commandes       | Ctrl+Shift+P                |
 | `sftp.open`                          | Afficher / masquer les fichiers (SFTP) | Ctrl+Shift+E   |
+| `space.1` … `space.9`                | Aller à l'espace 1 … 9     | Ctrl+Shift+1 … 9            |
+| `space.next` / `space.prev`          | Espace suivant / précédent | Ctrl+Shift+PageDown / PageUp |
+| `space.new`                          | Nouvel espace              | —                           |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 

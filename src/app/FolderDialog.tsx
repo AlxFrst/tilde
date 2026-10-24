@@ -10,13 +10,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { formatConfigError, isConfigError } from '@/ipc/errors';
 import type { Folder } from '@/ipc/connections';
+import { listSpaces, spaceIdOf } from '@/connections/spaces';
 import { useConnections } from '@/stores/connections';
+import { useWorkspace } from '@/stores/workspace';
 import { ColorPicker } from './ColorPicker';
 
 function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => void }) {
   const saveFolder = useConnections((s) => s.saveFolder);
+  const file = useConnections((s) => s.file);
+  const activeSpace = useWorkspace((s) => s.activeSpaceId);
+  const spaces = listSpaces(file);
+  // A new folder goes in the space shown.
   const initial: Folder =
-    folder === 'new' ? { id: '', name: '', color: null, spaceId: null } : folder;
+    folder === 'new' ? { id: '', name: '', color: null, spaceId: activeSpace } : folder;
+  const [spaceId, setSpaceId] = useState(spaceIdOf(initial, spaces));
   const [name, setName] = useState(initial.name);
   const [color, setColor] = useState<string | null>(initial.color);
   const [error, setError] = useState<string | null>(null);
@@ -26,9 +33,13 @@ function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => 
       setError('Le nom est obligatoire');
       return;
     }
-    saveFolder({ ...initial, name: name.trim(), color }).then(onDone, (e: unknown) => {
-      setError(isConfigError(e) ? formatConfigError(e, 'connections.json') : String(e));
-    });
+    const stored = file.spaces.length === 0 ? null : spaceId;
+    saveFolder({ ...initial, name: name.trim(), color, spaceId: stored }).then(
+      onDone,
+      (e: unknown) => {
+        setError(isConfigError(e) ? formatConfigError(e, 'connections.json') : String(e));
+      },
+    );
   };
 
   return (
@@ -58,6 +69,27 @@ function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => 
         />
         {error && <p className="text-xs text-error">{error}</p>}
       </div>
+      {spaces.length > 1 && (
+        <div className="grid gap-1.5">
+          <label htmlFor="folder-space" className="text-sm">
+            Espace du dossier
+          </label>
+          <select
+            id="folder-space"
+            className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            value={spaceId}
+            onChange={(e) => {
+              setSpaceId(e.currentTarget.value);
+            }}
+          >
+            {spaces.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="grid gap-1.5">
         <span className="text-sm">Couleur</span>
         <ColorPicker label="Couleur du dossier" value={color} onChange={setColor} />

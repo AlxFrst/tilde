@@ -3,14 +3,17 @@ import { openConnectionsFile } from '@/ipc/connections';
 import { formatConfigError } from '@/ipc/errors';
 import type { Appearance } from '@/ipc/generated/settings';
 import { cn } from '@/lib/utils';
+import { listSpaces } from '@/connections/spaces';
 import { useConnections } from '@/stores/connections';
 import { useKeybindings } from '@/stores/keybindings';
 import { useUi } from '@/stores/ui';
+import { useWorkspace } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { Logo } from '../Logo';
 import { FavoriteTiles } from './FavoriteTiles';
 import { PinnedSection } from './PinnedSection';
 import { RailFooter } from './RailFooter';
+import { SpaceSwitcher } from '../spaces/SpaceSwitcher';
 import { TodaySection } from './TodaySection';
 
 export interface RailProps {
@@ -55,12 +58,23 @@ function SearchButton() {
  * (« Épinglés ») and its other sessions (« Aujourd’hui »), above a fixed footer.
  */
 export function Rail({ side, width, onOpenSettings, macInset = false }: RailProps) {
-  const { readOnly, error, warnings } = useConnections();
+  const { readOnly, error, warnings, file } = useConnections();
+  const activeSpace = useWorkspace((s) => s.activeSpaceId);
+  const tint = listSpaces(file).find((s) => s.id === activeSpace)?.color ?? null;
   return (
     <aside
       aria-label="Barre latérale"
       data-side={side}
-      style={{ width }}
+      // Arc's signature: the Rail takes a hint of the space's colour.
+      style={
+        tint
+          ? ({
+              width,
+              '--tilde-space': tint,
+              background: 'color-mix(in srgb, var(--tilde-space) 7%, var(--tilde-surface-1))',
+            } as React.CSSProperties)
+          : { width }
+      }
       className={cn(
         'flex min-h-0 shrink-0 flex-col gap-2 bg-surface-1 pt-2',
         side === 'left' ? 'border-r' : 'border-l',
@@ -117,7 +131,9 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
         <TodaySection />
       </div>
 
-      <RailFooter onOpenSettings={onOpenSettings} />
+      <RailFooter onOpenSettings={onOpenSettings}>
+        <SpaceSwitcher />
+      </RailFooter>
     </aside>
   );
 }

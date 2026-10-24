@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { Space } from '@/ipc/connections';
 
 export type SettingsSectionId =
   'appearance' | 'themes' | 'terminal' | 'shortcuts' | 'ssh' | 'sftp' | 'general';
@@ -14,6 +15,9 @@ interface UiState {
   setPaletteOpen: (open: boolean) => void;
   /** A shortcut is being recorded: app shortcuts are paused. */
   recordingShortcut: boolean;
+  /** The space being created (`'new'`) or edited. */
+  spaceDialog: Space | 'new' | null;
+  setSpaceDialog: (s: Space | 'new' | null) => void;
 }
 
 export const useUi = create<UiState>()((set) => ({
@@ -30,4 +34,8 @@ export const useUi = create<UiState>()((set) => ({
     set({ paletteOpen });
   },
   recordingShortcut: false,
+  spaceDialog: null,
+  setSpaceDialog: (spaceDialog) => {
+    set({ spaceDialog });
+  },
 }));

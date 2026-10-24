@@ -6,13 +6,17 @@ import {
   ContextMenuItem,
   ContextMenuLabel,
   ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { listSpaces } from '@/connections/spaces';
 import { cn } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useWorkspace } from '@/stores/workspace';
-import { isPinnedTab } from '@/workspace/spaces';
+import { isPinnedTab, spaceOfTab } from '@/workspace/spaces';
 import { leaves } from '@/workspace/tree';
 import type { Tab } from '@/workspace/types';
 import { closeTab, closeTabs } from '../actions';
@@ -20,6 +24,7 @@ import { StatusDot } from '../ConnectionStatus';
 import { paneLabel, sessionTitle, useLabelNames } from '../paneLabel';
 import { profileIcon } from '../profileIcon';
 import { focusSibling } from '../sidebar/ConnectionItem';
+import { moveSessionToSpace } from '../spaces/spaceActions';
 import { TAB_COLORS } from '../tabColors';
 import { PaneList } from './PaneList';
 import { useSessionStatus } from './sessionStatus';
@@ -45,6 +50,29 @@ function useSessionIcon(tab: Tab): LucideIcon {
     return profileIcon(profiles.find((p) => p.id === profileId)?.icon);
   }
   return paneLabel(tab, first, names).Icon;
+}
+
+/** « Déplacer vers l’espace » (only when there are several spaces). */
+export function MoveToSpace({ tabId, current }: { tabId: string; current: string }) {
+  const file = useConnections((s) => s.file);
+  const spaces = listSpaces(file);
+  if (spaces.length < 2) return null;
+  return (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>Déplacer vers l’espace</ContextMenuSubTrigger>
+      <ContextMenuSubContent>
+        {spaces.map((s) => (
+          <ContextMenuItem
+            key={s.id}
+            disabled={s.id === current}
+            onSelect={() => void moveSessionToSpace(tabId, s.id)}
+          >
+            {s.name}
+          </ContextMenuItem>
+        ))}
+      </ContextMenuSubContent>
+    </ContextMenuSub>
+  );
 }
 
 /** What a session's menu offers: name, colour, copy, pin, close (several ways). */
@@ -112,6 +140,7 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
           </ContextMenuItem>
         )
       )}
+      <MoveToSpace tabId={tab.id} current={spaceOfTab(tab)} />
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => void closeTab(tab.id)}>Fermer</ContextMenuItem>
       <ContextMenuItem

@@ -23,6 +23,11 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'ssh.quickConnect': 'Ctrl+Shift+K',
   'palette.toggle': 'Ctrl+Shift+P',
   'sftp.open': 'Ctrl+Shift+E',
+  'space.next': 'Ctrl+Shift+PageDown',
+  'space.prev': 'Ctrl+Shift+PageUp',
+  ...Object.fromEntries(
+    Array.from({ length: 9 }, (_, i) => [`space.${String(i + 1)}`, `Ctrl+Shift+${String(i + 1)}`]),
+  ),
 };
 
 type KeyEventLike = Pick<
