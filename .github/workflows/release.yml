@@ -86,7 +86,8 @@ jobs:
             args: --bundles appimage,deb
           - name: macOS
             os: macos-latest
-            args: --target universal-apple-darwin --bundles dmg
+            # `app` also yields the update archive (.app.tar.gz) that latest.json points to.
+            args: --target universal-apple-darwin --bundles app,dmg
     runs-on: ${{ matrix.os }}
     timeout-minutes: 75
     env:
