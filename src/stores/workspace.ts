@@ -73,6 +73,8 @@ interface WorkspaceState {
   renameTab: (tabId: string, title: string | null) => void;
   setTabColor: (tabId: string, color: string | null) => void;
   splitActive: (direction: Direction, profileId?: string) => void;
+  /** A new SSH pane to `target` beside the shown session's active pane (or a new session). */
+  splitWithSsh: (target: string, connectionId: string | null, direction?: Direction) => void;
   /** A new shell on the host of SSH pane `sshLeafId`, beside its session's active pane. */
   addShellBeside: (sshLeafId: string, direction?: Direction) => void;
   closeLeaf: (tabId: string, leafId: string) => void;
@@ -553,6 +555,20 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       mapTab(tab.id, (t) => ({
         ...t,
         root: splitLeaf(t.root, current.id, direction, leaf),
+        activeLeafId: leaf.id,
+      }));
+    },
+
+    splitWithSsh: (target, connectionId, direction = 'row') => {
+      const tab = activeTab();
+      const leaf = newSshLeaf(target, connectionId);
+      if (!tab) {
+        addTab(leaf);
+        return;
+      }
+      mapTab(tab.id, (t) => ({
+        ...t,
+        root: splitLeaf(t.root, t.activeLeafId, direction, leaf),
         activeLeafId: leaf.id,
       }));
     },

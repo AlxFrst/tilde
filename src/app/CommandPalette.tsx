@@ -1,11 +1,27 @@
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { Command } from 'cmdk';
 import { single } from 'fuzzysort';
-import { FileCode2, History, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef } from 'react';
+import {
+  Activity,
+  ChevronRight,
+  Columns2,
+  Copy,
+  FileCode2,
+  FolderTree,
+  History,
+  Pencil,
+  Plug,
+  Plus,
+  Search,
+  type LucideIcon,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { listCommands, runCommand, type Command as AppCommand } from '@/commands/registry';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { connectionIcon } from '@/connections/icons';
 import { fold } from '@/connections/search';
+import { listSpaces } from '@/connections/spaces';
 import type { Connection } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
 import { useKeybindings } from '@/stores/keybindings';
@@ -13,7 +29,10 @@ import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { activeTerminal } from '@/terminal/terminalActions';
+import { spaceOfTab } from '@/workspace/spaces';
+import { leaves } from '@/workspace/tree';
 import { openConnection } from './actions';
+import { sessionTitle, useLabelNames } from './paneLabel';
 import { describeTarget } from './sidebar/Section';
 import { adoptedAliases } from './sidebar/SshConfigSection';
 
@@ -22,9 +41,24 @@ interface Target {
   label: string;
   detail: string;
   keywords: string[];
+  /** What `ssh` is given: a saved connection's host, an alias, a typed target. */
+  sshTarget: string;
   open: () => void;
   connection?: Connection;
   kind: 'connection' | 'sshConfig' | 'recent';
+}
+
+/** The command line that opens the same connection with OpenSSH. */
+export function sshCommand(c: Pick<Connection, 'host' | 'user' | 'port' | 'proxyJump'>): string {
+  const parts = ['ssh'];
+  const jumps = c.proxyJump
+    ?.split(',')
+    .map((j) => j.trim())
+    .filter(Boolean);
+  if (jumps && jumps.length > 0) parts.push('-J', jumps.join(','));
+  if (c.port && c.port !== 22) parts.push('-p', String(c.port));
+  parts.push(c.user ? `${c.user}@${c.host}` : c.host);
+  return parts.join(' ');
 }
 
 /** Recents first, then saved connections, then ~/.ssh/config hosts; each once. */
@@ -39,6 +73,7 @@ function useTargets(): Target[] {
       label: c.name,
       detail: describeTarget(c),
       keywords: [c.host, c.user ?? '', ...c.tags],
+      sshTarget: c.host,
       open: () => {
         openConnection(c);
       },
@@ -60,6 +95,7 @@ function useTargets(): Target[] {
           label: target,
           detail: 'récent',
           keywords: [],
+          sshTarget: target,
           open: () => {
             useWorkspace.getState().openSshTab(target);
           },
@@ -76,6 +112,7 @@ function useTargets(): Target[] {
         label: h.alias,
         detail: describeTarget({ host: h.hostname, user: h.user, port: h.port }),
         keywords: [h.hostname, h.user],
+        sshTarget: h.alias,
         open: () => {
           useWorkspace.getState().openSshTab(h.alias);
         },
@@ -84,6 +121,93 @@ function useTargets(): Target[] {
     }
     return out;
   }, [file, sshHosts]);
+}
+
+/** Opens a target, then hands its SSH pane to `then` (files, monitor). */
+function openThen(t: Target, then: (sshLeafId: string) => void): void {
+  t.open();
+  const ws = useWorkspace.getState();
+  const tab = ws.tabs.find((x) => x.id === ws.activeTabId);
+  const ssh = tab ? leaves(tab.root).find((l) => l.panel.kind === 'ssh') : undefined;
+  if (ssh) then(ssh.id);
+}
+
+interface Action {
+  id: string;
+  title: string;
+  Icon: LucideIcon;
+  run: () => void;
+}
+
+/** What can be done with a host (→ in the palette). */
+function targetActions(t: Target): Action[] {
+  const ws = () => useWorkspace.getState();
+  const actions: Action[] = [
+    { id: 'open', title: 'Se connecter', Icon: Plug, run: t.open },
+    {
+      id: 'beside',
+      title: 'Se connecter à côté',
+      Icon: Columns2,
+      run: () => {
+        ws().splitWithSsh(t.sshTarget, t.connection?.id ?? null);
+      },
+    },
+    {
+      id: 'files',
+      title: 'Fichiers',
+      Icon: FolderTree,
+      run: () => {
+        openThen(t, (id) => {
+          ws().openSftpBeside(id);
+        });
+      },
+    },
+    {
+      id: 'monitor',
+      title: 'Moniteur',
+      Icon: Activity,
+      run: () => {
+        openThen(t, (id) => {
+          useUi.getState().setPeek({ sshLeafId: id });
+        });
+      },
+    },
+    {
+      id: 'copy',
+      title: 'Copier la commande ssh',
+      Icon: Copy,
+      run: () => {
+        const c = t.connection ?? { host: t.sshTarget, user: null, port: null, proxyJump: null };
+        writeText(sshCommand(c)).then(
+          () => toast.success('Commande copiée'),
+          () => toast.error('Impossible de copier la commande'),
+        );
+      },
+    },
+  ];
+  const c = t.connection;
+  if (c) {
+    actions.push({
+      id: 'edit',
+      title: 'Modifier…',
+      Icon: Pencil,
+      run: () => {
+        useConnections.getState().setEditing(c);
+      },
+    });
+  } else if (t.kind === 'sshConfig') {
+    actions.push({
+      id: 'adopt',
+      title: 'Adopter (enregistrer dans Tilde)…',
+      Icon: Plus,
+      run: () => {
+        const { activeSpaceId } = useWorkspace.getState();
+        const written = useConnections.getState().file.spaces.length > 0;
+        void useConnections.getState().adopt(t.sshTarget, written ? activeSpaceId : null);
+      },
+    });
+  }
+  return actions;
 }
 
 function Shortcut({ command }: { command: AppCommand }) {
@@ -105,8 +229,9 @@ function Shortcut({ command }: { command: AppCommand }) {
 
 /** Item values end with an id (cmdk needs them unique); it is never searched. */
 const ID_SEPARATOR = '\u0000';
+const keyOf = (value: string) => value.split(ID_SEPARATOR)[1] ?? '';
 
-/** Same matching as the sidebar: case and accents ignored, best matches first. */
+/** Same matching as the Library: case and accents ignored, best matches first. */
 function paletteFilter(value: string, query: string, keywords?: string[]): number {
   const label = value.split(ID_SEPARATOR)[0] ?? '';
   const q = fold(query.trim());
@@ -117,20 +242,36 @@ function paletteFilter(value: string, query: string, keywords?: string[]): numbe
 
 const itemClass =
   'flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm data-[selected=true]:bg-surface-2';
+const groupClass =
+  '[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-text-muted';
 
-/** Ctrl+Shift+P: connections first, then every command of the registry. */
+/**
+ * Ctrl+Shift+P: connections, open sessions, spaces, then every command. → on a host lists
+ * what can be done with it; ← goes back.
+ */
 export function CommandPalette() {
   const open = useUi((s) => s.paletteOpen);
   const setOpen = useUi((s) => s.setPaletteOpen);
   const targets = useTargets();
+  const tabs = useWorkspace((s) => s.tabs);
+  const file = useConnections((s) => s.file);
+  const names = useLabelNames();
+  const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState('');
+  const [page, setPage] = useState<Target | null>(null);
   // Read when the palette opens: commands registered later still show next time.
   const commands = useMemo(() => (open ? listCommands().filter((c) => !c.hidden) : []), [open]);
+  const spaces = listSpaces(file);
 
   // However the palette closes (Escape, Ctrl+Shift+P, a choice), typing goes back to the
   // terminal of the active pane.
   const wasOpen = useRef(open);
   useEffect(() => {
-    if (wasOpen.current && !open) activeTerminal()?.focus();
+    if (wasOpen.current && !open) {
+      activeTerminal()?.focus();
+      setQuery('');
+      setPage(null);
+    }
     wasOpen.current = open;
   }, [open]);
 
@@ -140,6 +281,14 @@ export function CommandPalette() {
   const choose = (run: () => void) => {
     close();
     run();
+  };
+  const openActions = (t: Target) => {
+    setPage(t);
+    setQuery('');
+  };
+  const back = () => {
+    setPage(null);
+    setQuery('');
   };
 
   return (
@@ -155,76 +304,194 @@ export function CommandPalette() {
         onCloseAutoFocus={(e) => {
           e.preventDefault();
         }}
+        onEscapeKeyDown={(e) => {
+          // Escape leaves a host's actions before it closes the palette.
+          if (page) {
+            e.preventDefault();
+            back();
+          }
+        }}
       >
         <DialogTitle className="sr-only">Palette de commandes</DialogTitle>
-        <Command label="Palette de commandes" loop filter={paletteFilter}>
+        <Command
+          label="Palette de commandes"
+          loop
+          filter={paletteFilter}
+          value={selected}
+          onValueChange={setSelected}
+        >
           <div className="flex items-center gap-2 border-b px-3">
             <Search className="size-4 text-text-muted" strokeWidth={1.5} />
+            {page && (
+              <span className="flex shrink-0 items-center gap-1 rounded bg-surface-2 px-1.5 py-0.5 text-xs">
+                {page.label}
+                <ChevronRight className="size-3" strokeWidth={1.5} />
+              </span>
+            )}
             <Command.Input
               autoFocus
-              placeholder="Se connecter à… ou lancer une commande"
+              value={query}
+              onValueChange={setQuery}
+              placeholder={
+                page ? 'Que faire avec ce serveur ?' : 'Se connecter à… ou lancer une commande'
+              }
               className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-text-muted"
+              onKeyDown={(e) => {
+                const input = e.currentTarget;
+                const atEnd = input.selectionStart === input.value.length;
+                if (e.key === 'ArrowRight' && !page && atEnd) {
+                  const t = targets.find((x) => x.key === keyOf(selected));
+                  if (t) {
+                    e.preventDefault();
+                    openActions(t);
+                  }
+                } else if (
+                  page &&
+                  input.selectionStart === 0 &&
+                  (e.key === 'ArrowLeft' || (e.key === 'Backspace' && input.value === ''))
+                ) {
+                  e.preventDefault();
+                  back();
+                }
+              }}
             />
           </div>
           <Command.List className="max-h-96 overflow-y-auto p-1">
             <Command.Empty className="px-3 py-6 text-center text-sm text-text-muted">
               Aucun résultat
             </Command.Empty>
-            {targets.length > 0 && (
-              <Command.Group
-                heading="Connexions"
-                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-text-muted"
-              >
-                {targets.map((t) => {
-                  const Icon =
-                    t.kind === 'connection'
-                      ? connectionIcon(t.connection?.icon)
-                      : t.kind === 'recent'
-                        ? History
-                        : FileCode2;
-                  return (
+            {page ? (
+              <Command.Group heading={`Actions · ${page.label}`} className={groupClass}>
+                {targetActions(page).map((a) => (
+                  <Command.Item
+                    key={a.id}
+                    value={`${a.title}${ID_SEPARATOR}action:${a.id}`}
+                    className={itemClass}
+                    onSelect={() => {
+                      choose(a.run);
+                    }}
+                  >
+                    <a.Icon className="size-4 shrink-0 text-text-muted" strokeWidth={1.5} />
+                    <span className="truncate">{a.title}</span>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            ) : (
+              <>
+                {targets.length > 0 && (
+                  <Command.Group heading="Connexions" className={groupClass}>
+                    {targets.map((t) => {
+                      const Icon =
+                        t.kind === 'connection'
+                          ? connectionIcon(t.connection?.icon)
+                          : t.kind === 'recent'
+                            ? History
+                            : FileCode2;
+                      return (
+                        <Command.Item
+                          key={t.key}
+                          value={`${t.label}${ID_SEPARATOR}${t.key}`}
+                          keywords={t.keywords}
+                          className={itemClass}
+                          onSelect={() => {
+                            choose(t.open);
+                          }}
+                        >
+                          <Icon
+                            className="size-4 shrink-0"
+                            strokeWidth={1.5}
+                            style={{ color: t.connection?.color ?? undefined }}
+                          />
+                          <span className="truncate">{t.label}</span>
+                          <span className="ml-auto truncate text-xs text-text-muted">
+                            {t.detail}
+                          </span>
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            aria-label={`Actions de ${t.label}`}
+                            title="Actions (→)"
+                            className="shrink-0 rounded p-0.5 text-text-muted hover:bg-surface-1 hover:text-text"
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openActions(t);
+                            }}
+                          >
+                            <ChevronRight className="size-3.5" strokeWidth={1.5} />
+                          </button>
+                        </Command.Item>
+                      );
+                    })}
+                  </Command.Group>
+                )}
+                {tabs.length > 0 && (
+                  <Command.Group heading="Sessions" className={groupClass}>
+                    {tabs.map((t) => {
+                      const space = spaces.find((s) => s.id === spaceOfTab(t));
+                      return (
+                        <Command.Item
+                          key={t.id}
+                          value={`${sessionTitle(t, names)}${ID_SEPARATOR}tab:${t.id}`}
+                          keywords={['session', space?.name ?? '']}
+                          className={itemClass}
+                          onSelect={() => {
+                            choose(() => {
+                              useWorkspace.getState().activateTab(t.id);
+                            });
+                          }}
+                        >
+                          <span className="truncate">{sessionTitle(t, names)}</span>
+                          {spaces.length > 1 && space && (
+                            <span className="ml-auto truncate text-xs text-text-muted">
+                              {space.name}
+                            </span>
+                          )}
+                        </Command.Item>
+                      );
+                    })}
+                  </Command.Group>
+                )}
+                {spaces.length > 1 && (
+                  <Command.Group heading="Espaces" className={groupClass}>
+                    {spaces.map((s) => (
+                      <Command.Item
+                        key={s.id}
+                        value={`${s.name}${ID_SEPARATOR}space:${s.id}`}
+                        keywords={['espace', 'space', 'profil', 'profile']}
+                        className={itemClass}
+                        onSelect={() => {
+                          choose(() => {
+                            useWorkspace.getState().switchSpace(s.id);
+                          });
+                        }}
+                      >
+                        <span className="truncate">{s.name}</span>
+                        <span className="ml-auto text-xs text-text-muted">Espace</span>
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                )}
+                <Command.Group heading="Commandes" className={groupClass}>
+                  {commands.map((c) => (
                     <Command.Item
-                      key={t.key}
-                      value={`${t.label}${ID_SEPARATOR}${t.key}`}
-                      keywords={t.keywords}
+                      key={c.id}
+                      value={`${c.title}${ID_SEPARATOR}${c.id}`}
+                      keywords={[c.group, ...(c.keywords ?? [])]}
                       className={itemClass}
                       onSelect={() => {
-                        choose(t.open);
+                        choose(() => {
+                          runCommand(c.id);
+                        });
                       }}
                     >
-                      <Icon
-                        className="size-4 shrink-0"
-                        strokeWidth={1.5}
-                        style={{ color: t.connection?.color ?? undefined }}
-                      />
-                      <span className="truncate">{t.label}</span>
-                      <span className="ml-auto truncate text-xs text-text-muted">{t.detail}</span>
+                      <span className="truncate">{c.title}</span>
+                      <Shortcut command={c} />
                     </Command.Item>
-                  );
-                })}
-              </Command.Group>
+                  ))}
+                </Command.Group>
+              </>
             )}
-            <Command.Group
-              heading="Commandes"
-              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-text-muted"
-            >
-              {commands.map((c) => (
-                <Command.Item
-                  key={c.id}
-                  value={`${c.title}${ID_SEPARATOR}${c.id}`}
-                  keywords={[c.group]}
-                  className={itemClass}
-                  onSelect={() => {
-                    choose(() => {
-                      runCommand(c.id);
-                    });
-                  }}
-                >
-                  <span className="truncate">{c.title}</span>
-                  <Shortcut command={c} />
-                </Command.Item>
-              ))}
-            </Command.Group>
           </Command.List>
         </Command>
       </DialogContent>

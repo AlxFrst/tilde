@@ -31,11 +31,18 @@ const noop = () => undefined;
 
 export function registerBuiltins(): () => void {
   const commands: Command[] = [
-    { id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run: openDefaultTab },
+    {
+      id: 'tab.new',
+      title: 'Nouvelle session',
+      group: 'Sessions',
+      keywords: ['new tab', 'onglet', 'terminal', 'shell'],
+      run: openDefaultTab,
+    },
     {
       id: 'tab.close',
-      title: 'Fermer l’onglet',
-      group: 'Onglets',
+      keywords: ['close tab', 'onglet'],
+      title: 'Fermer la session',
+      group: 'Sessions',
       run: () => {
         const id = ws().activeTabId;
         if (id) void closeTab(id);
@@ -43,22 +50,25 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'tab.next',
-      title: 'Onglet suivant',
-      group: 'Onglets',
+      keywords: ['next tab', 'onglet'],
+      title: 'Session suivante',
+      group: 'Sessions',
       run: () => {
         ws().activateRelative(1);
       },
     },
     {
       id: 'tab.prev',
-      title: 'Onglet précédent',
-      group: 'Onglets',
+      keywords: ['previous tab', 'onglet'],
+      title: 'Session précédente',
+      group: 'Sessions',
       run: () => {
         ws().activateRelative(-1);
       },
     },
     {
       id: 'sidebar.toggle',
+      keywords: ['sidebar', 'rail', 'hide', 'zen', 'focus'],
       title: 'Masquer / afficher la barre latérale',
       group: 'Application',
       run: () => {
@@ -68,6 +78,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'library.open',
+      keywords: ['library', 'hosts', 'ssh config', 'connexions'],
       title: 'Bibliothèque',
       group: 'Connexions',
       run: () => {
@@ -76,6 +87,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'space.next',
+      keywords: ['next space', 'profile'],
       title: 'Espace suivant',
       group: 'Espaces',
       run: () => {
@@ -84,6 +96,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'space.prev',
+      keywords: ['previous space', 'profile'],
       title: 'Espace précédent',
       group: 'Espaces',
       run: () => {
@@ -92,6 +105,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'space.new',
+      keywords: ['new space', 'profile', 'profil'],
       title: 'Nouvel espace…',
       group: 'Espaces',
       run: () => {
@@ -109,6 +123,7 @@ export function registerBuiltins(): () => void {
     })),
     {
       id: 'pane.splitRight',
+      keywords: ['split', 'right', 'côte à côte', 'vertical'],
       title: 'Diviser à droite',
       group: 'Panneaux',
       run: () => {
@@ -117,6 +132,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'pane.splitDown',
+      keywords: ['split', 'down', 'horizontal'],
       title: 'Diviser en bas',
       group: 'Panneaux',
       run: () => {
@@ -125,6 +141,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'pane.close',
+      keywords: ['close pane'],
       title: 'Fermer le panneau',
       group: 'Panneaux',
       run: () => void closeActivePane(),
@@ -187,6 +204,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'ssh.quickConnect',
+      keywords: ['connect', 'ssh', 'host'],
       title: 'Connexion SSH rapide…',
       group: 'Connexions',
       run: () => {
@@ -195,12 +213,14 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'sftp.open',
+      keywords: ['files', 'sftp', 'explorer', 'transfer'],
       title: 'Afficher / masquer les fichiers (SFTP)',
       group: 'Connexions',
       run: toggleFilesOfActivePane,
     },
     {
       id: 'connections.new',
+      keywords: ['new connection', 'host', 'server'],
       title: 'Nouvelle connexion…',
       group: 'Connexions',
       run: () => {
@@ -217,12 +237,14 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'connections.import',
+      keywords: ['import'],
       title: 'Importer des connexions…',
       group: 'Connexions',
       run: () => void importWithReport(),
     },
     {
       id: 'connections.export',
+      keywords: ['export'],
       title: 'Exporter les connexions…',
       group: 'Connexions',
       run: () => void exportWithToast(),
@@ -239,6 +261,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'app.settings',
+      keywords: ['settings', 'preferences', 'options', 'paramètres'],
       title: 'Réglages…',
       group: 'Application',
       run: () => {
@@ -265,6 +288,7 @@ export function registerBuiltins(): () => void {
     },
     {
       id: 'app.checkUpdates',
+      keywords: ['update', 'version'],
       title: 'Rechercher des mises à jour',
       group: 'Application',
       run: () => void checkForUpdates({ manual: true }),

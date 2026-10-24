@@ -44,6 +44,7 @@ export const monitorModule: PanelModule<MonitorPanel> = {
     {
       id: 'monitor.open',
       title: 'Moniteur système',
+      keywords: ['monitor', 'stats', 'cpu', 'ram', 'disk', 'charge'],
       group: 'Panneaux',
       run: openMonitorForActivePane,
     },

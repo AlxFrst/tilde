@@ -46,7 +46,7 @@ beforeEach(() => {
 
 test('palette lists connections first and runs the chosen command', async () => {
   const run = vi.fn();
-  const off = registerCommands([{ id: 'tab.new', title: 'Nouvel onglet', group: 'Onglets', run }]);
+  const off = registerCommands([{ id: 'tab.new', title: 'Nouvel onglet', group: 'Sessions', run }]);
   render(<CommandPalette />);
   const options = screen.getAllByRole('option').map((o) => o.textContent);
   expect(options.slice(0, 3)).toEqual([
