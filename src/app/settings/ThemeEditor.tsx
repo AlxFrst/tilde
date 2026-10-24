@@ -72,7 +72,9 @@ export function uniqueThemeId(base: string, taken: ReadonlySet<string>): string 
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <fieldset className="grid gap-1.5">
+    // `min-w-0`: a fieldset otherwise refuses to shrink below its widest row and spills
+    // into the next column; `content-start`: rows keep their height in a taller column.
+    <fieldset className="grid min-w-0 content-start gap-1.5">
       <legend className="mb-1 text-xs font-medium tracking-wide text-text-muted uppercase">
         {title}
       </legend>
@@ -175,7 +177,7 @@ export function ThemeEditor({
 
   return (
     <form
-      className="grid gap-4"
+      className="@container grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         void save();
@@ -224,32 +226,36 @@ export function ThemeEditor({
 
       <Contrast theme={draft} />
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Group title="Interface">
-          {UI_LABELS.map(([key, label]) => (
-            <ColorField
-              key={key}
-              label={label}
-              value={draft.ui[key]}
-              onChange={(v) => {
-                setUi(key, v);
-              }}
-            />
-          ))}
-        </Group>
-        <Group title="Terminal">
-          {TERMINAL_LABELS.map(([key, label]) => (
-            <ColorField
-              key={key}
-              label={label}
-              alpha={key === 'selectionBackground'}
-              value={draft.terminal[key]}
-              onChange={(v) => {
-                setTerminal(key, v);
-              }}
-            />
-          ))}
-        </Group>
+      {/* Two columns when the pane is wide enough (not the window: the settings dialog is
+          narrower than the screen). */}
+      <div className="grid gap-6 @xl:grid-cols-2">
+        <div className="grid content-start gap-6">
+          <Group title="Interface">
+            {UI_LABELS.map(([key, label]) => (
+              <ColorField
+                key={key}
+                label={label}
+                value={draft.ui[key]}
+                onChange={(v) => {
+                  setUi(key, v);
+                }}
+              />
+            ))}
+          </Group>
+          <Group title="Terminal">
+            {TERMINAL_LABELS.map(([key, label]) => (
+              <ColorField
+                key={key}
+                label={label}
+                alpha={key === 'selectionBackground'}
+                value={draft.terminal[key]}
+                onChange={(v) => {
+                  setTerminal(key, v);
+                }}
+              />
+            ))}
+          </Group>
+        </div>
         <Group title="Couleurs ANSI">
           {ANSI_KEYS.map((key, i) => (
             <ColorField

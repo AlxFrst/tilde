@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { Platform } from '@/ipc/app';
-import { cn } from '@/lib/utils';
+import { cn, SELECTED } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
@@ -44,7 +44,7 @@ function HeaderButton({
       title={title ?? label}
       className={cn(
         'flex h-7 shrink-0 items-center gap-1.5 rounded-md border border-transparent px-2 text-xs text-text-muted transition-colors hover:bg-surface-2 hover:text-text',
-        pressed && 'border-border bg-surface-2 text-text',
+        pressed && SELECTED,
       )}
       onClick={onClick}
     >

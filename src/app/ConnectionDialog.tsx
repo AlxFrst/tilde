@@ -9,7 +9,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { connectionIcon } from '@/connections/icons';
 import {
   parseTags,
   validateConnection,
@@ -23,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { openConnection } from './actions';
 import { ColorPicker } from './ColorPicker';
+import { IconPicker } from './IconPicker';
 import { JumpHosts } from './JumpHosts';
 
 const AGENT = [
@@ -282,34 +282,15 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
         </div>
         <div className="col-span-6 grid gap-1">
           <span className="text-sm">Icône</span>
-          <div role="radiogroup" aria-label="Icône" className="flex flex-wrap gap-1">
-            {CONNECTION_ICONS.map((name) => {
-              const Icon = connectionIcon(name);
-              const checked = (icon ?? 'server') === name;
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  role="radio"
-                  aria-checked={checked}
-                  aria-label={name}
-                  className={cn(
-                    'flex size-8 items-center justify-center rounded-md border',
-                    checked ? 'border-ring bg-surface-2' : 'border-transparent hover:bg-surface-2',
-                  )}
-                  onClick={() => {
-                    setIcon(name === 'server' ? null : name);
-                  }}
-                >
-                  <Icon
-                    className="size-4"
-                    strokeWidth={1.5}
-                    style={color ? { color } : undefined}
-                  />
-                </button>
-              );
-            })}
-          </div>
+          <IconPicker
+            label="Icône"
+            icons={CONNECTION_ICONS}
+            value={icon ?? 'server'}
+            color={color}
+            onChange={(name) => {
+              setIcon(name === 'server' ? null : name);
+            }}
+          />
         </div>
       </div>
 

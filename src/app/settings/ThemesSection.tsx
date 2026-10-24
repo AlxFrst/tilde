@@ -1,9 +1,19 @@
-import { Copy, Download, FolderOpen, Pencil, Trash2, TriangleAlert, Upload } from 'lucide-react';
+import {
+  Check,
+  Copy,
+  Download,
+  FolderOpen,
+  Pencil,
+  Trash2,
+  TriangleAlert,
+  Upload,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { confirmAction } from '@/app/confirm';
 import { Button } from '@/components/ui/button';
 import { openThemesDir, themesExport, themesImportPick } from '@/ipc/themes';
+import { cn } from '@/lib/utils';
 import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { allThemes, serializeTheme, ThemeError, type ThemeDefinition } from '@/themes';
@@ -192,10 +202,15 @@ export function ThemesSection() {
       <ul className="grid gap-1">
         {allThemes(user).map((t) => {
           const mine = userIds.has(t.id);
+          const used = inUse(t);
+          const mode = t.kind === 'dark' ? 'sombre' : 'clair';
           return (
             <li
               key={t.id}
-              className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-2"
+              className={cn(
+                'flex items-center gap-3 rounded-md border border-transparent px-2 py-1.5 hover:bg-surface-2',
+                used && 'border-primary/50 bg-primary/10 hover:bg-primary/10',
+              )}
             >
               <Swatches theme={t} />
               <div className="min-w-0 flex-1">
@@ -203,21 +218,27 @@ export function ThemesSection() {
                 <div className="text-xs text-text-muted">
                   {t.kind === 'dark' ? 'Sombre' : 'Clair'}
                   {mine ? ' · personnel' : ''}
-                  {inUse(t) ? ' · utilisé' : ''}
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="xs"
-                disabled={readOnly || inUse(t)}
-                onClick={() =>
-                  void update({
-                    appearance: t.kind === 'dark' ? { themeDark: t.id } : { themeLight: t.id },
-                  })
-                }
-              >
-                {t.kind === 'dark' ? 'Utiliser en sombre' : 'Utiliser en clair'}
-              </Button>
+              {used ? (
+                <span className="flex h-6 items-center gap-1 px-2 text-xs font-medium text-primary">
+                  <Check className="size-3.5" strokeWidth={2.5} />
+                  Utilisé en {mode}
+                </span>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  disabled={readOnly}
+                  onClick={() =>
+                    void update({
+                      appearance: t.kind === 'dark' ? { themeDark: t.id } : { themeLight: t.id },
+                    })
+                  }
+                >
+                  Utiliser en {mode}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon-xs"

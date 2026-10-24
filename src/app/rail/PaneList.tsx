@@ -28,7 +28,7 @@ export function PaneList({ tab }: { tab: Tab }) {
               className={cn(
                 'flex h-6 w-full min-w-0 items-center gap-2 rounded-md px-2 text-left text-[0.8rem] text-text-muted outline-none',
                 'hover:bg-surface-2 hover:text-text focus-visible:ring-1 focus-visible:ring-ring',
-                current && 'bg-surface-2 text-text',
+                current && 'bg-surface-2 text-text [&>svg]:text-primary',
               )}
               onClick={() => {
                 const ws = useWorkspace.getState();

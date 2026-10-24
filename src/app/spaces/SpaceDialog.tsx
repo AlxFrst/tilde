@@ -9,14 +9,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { connectionIcon } from '@/connections/icons';
 import { SPACE_ICONS, type Space } from '@/ipc/connections';
 import { formatConfigError, isConfigError } from '@/ipc/errors';
-import { cn } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { ColorPicker } from '../ColorPicker';
+import { IconPicker } from '../IconPicker';
 
 function SpaceForm({ space, onDone }: { space: Space | 'new'; onDone: () => void }) {
   const saveSpace = useConnections((s) => s.saveSpace);
@@ -80,30 +79,13 @@ function SpaceForm({ space, onDone }: { space: Space | 'new'; onDone: () => void
       </div>
       <div className="grid gap-1.5">
         <span className="text-sm">Icône</span>
-        <div role="radiogroup" aria-label="Icône de l’espace" className="flex flex-wrap gap-1">
-          {SPACE_ICONS.map((name) => {
-            const Icon = connectionIcon(name);
-            const checked = (icon ?? 'server') === name;
-            return (
-              <button
-                key={name}
-                type="button"
-                role="radio"
-                aria-checked={checked}
-                aria-label={name}
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-md border',
-                  checked ? 'border-ring bg-surface-2' : 'border-transparent hover:bg-surface-2',
-                )}
-                onClick={() => {
-                  setIcon(name);
-                }}
-              >
-                <Icon className="size-4" strokeWidth={1.5} style={{ color: color ?? undefined }} />
-              </button>
-            );
-          })}
-        </div>
+        <IconPicker
+          label="Icône de l’espace"
+          icons={SPACE_ICONS}
+          value={icon ?? 'server'}
+          color={color}
+          onChange={setIcon}
+        />
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>

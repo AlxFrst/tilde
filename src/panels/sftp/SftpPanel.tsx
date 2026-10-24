@@ -142,7 +142,7 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
           <button
             key={s.shell}
             type="button"
-            className={cn('rounded px-1.5', i === shell ? 'bg-surface-2' : 'text-text-muted')}
+            className={cn('rounded px-1.5', i === shell ? 'bg-primary/15 text-text' : 'text-text-muted')}
             onClick={() => {
               setShell(i);
             }}
@@ -511,7 +511,7 @@ export function SftpPanelView({
           aria-label={panel.follow ? 'Ne pas suivre le terminal' : 'Suivre le terminal'}
           aria-pressed={panel.follow}
           title={panel.follow ? 'Suit le dossier du terminal' : 'Ne suit pas le terminal'}
-          className={cn(tool, panel.follow && 'text-primary')}
+          className={cn(tool, panel.follow && 'bg-primary/15 text-primary')}
           onClick={() => {
             update({ follow: !panel.follow });
           }}

@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import type { CSSProperties } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -64,9 +65,11 @@ export function SpaceSwitcher() {
                 aria-label={space.name}
                 aria-pressed={current}
                 title={`${space.name}${keys}`}
+                // The current space wears its own colour: border and tint.
+                style={{ '--chip': space.color ?? 'var(--tilde-accent)' } as CSSProperties}
                 className={cn(
                   'flex size-8 items-center justify-center rounded-lg border border-transparent transition-colors hover:bg-surface-2',
-                  current && 'border-border bg-surface-2',
+                  current && 'border-(--chip) bg-(--chip)/20 hover:bg-(--chip)/25',
                 )}
                 onClick={() => {
                   useWorkspace.getState().switchSpace(space.id);

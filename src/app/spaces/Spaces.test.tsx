@@ -221,3 +221,19 @@ test('the rail takes the space colour', () => {
   render(<Shell />);
   expect(rail().style.getPropertyValue('--tilde-space')).toBe('#7AA2F7');
 });
+
+test('the current space wears its colour, the others do not', () => {
+  setFile({ spaces: [MAIN_SPACE, pro], connections: [prodConn] });
+  act(() => {
+    ws().switchSpace('pro');
+  });
+  render(<Shell />);
+  const spaces = within(rail()).getByRole('group', { name: 'Espaces' });
+  const current = within(spaces).getByRole('button', { name: /Pro/ });
+  expect(current).toHaveAttribute('aria-pressed', 'true');
+  expect(current).toHaveClass('border-(--chip)', 'bg-(--chip)/20');
+  expect(current.style.getPropertyValue('--chip')).toBe('#7AA2F7');
+  expect(within(spaces).getByRole('button', { name: /Principal/ })).not.toHaveClass(
+    'bg-(--chip)/20',
+  );
+});
