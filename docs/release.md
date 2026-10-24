@@ -23,6 +23,9 @@ Rien n'est public tant qu'un mainteneur ne la publie pas.
 5. **Relire la release brouillon** sur GitHub : les installeurs et les sommes SHA-256.
    L'éditer si besoin, puis la publier.
 
+Si le workflow échoue en route, le relancer (*Re-run all jobs*) : il réutilise le brouillon
+du tag au lieu d'en créer un second.
+
 Une PR qui modifie `release.yml` ou `tauri.conf.json` construit aussi les installeurs (en
 artefacts, sans release) : le packaging est vérifié avant le prochain tag.
 
