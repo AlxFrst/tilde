@@ -57,8 +57,16 @@ jobs:
             on { print }
           ' CHANGELOG.md > notes.md 2>/dev/null || true
           if [ ! -s notes.md ]; then echo "See CHANGELOG.md." > notes.md; fi
-          gh release create "$TAG" --draft --verify-tag --title "Tilde $TAG" --notes-file notes.md
-          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n 1)
+          # A re-run reuses this tag's draft. A new one's id comes from the creation
+          # itself: the release list does not show a draft created a moment ago.
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.draft and .tag_name == \"$TAG\") | .id" | head -n 1)
+          if [ -z "$id" ]; then
+            id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+              -f tag_name="$TAG" -f name="Tilde $TAG" -F draft=true -F body=@notes.md --jq .id)
+          fi
+          # Without it the installers would be built and attached nowhere.
+          if [ -z "$id" ]; then echo "::error::No draft release id for $TAG"; exit 1; fi
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
   build:
