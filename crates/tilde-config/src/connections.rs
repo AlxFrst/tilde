@@ -567,6 +567,12 @@ impl ConnectionsStore {
         let mut file = self.file.clone();
         if let Some(existing) = file.folders.iter_mut().find(|x| !f.id.is_empty() && x.id == f.id) {
             existing.clone_from(&f);
+            // A connection is always in its folder's space: moving the folder moves them.
+            for c in &mut file.connections {
+                if c.folder_id.as_deref() == Some(f.id.as_str()) {
+                    c.space_id.clone_from(&f.space_id);
+                }
+            }
         } else {
             f.id = new_id();
             file.folders.push(f.clone());

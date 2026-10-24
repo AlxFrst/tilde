@@ -406,6 +406,30 @@ fn moving_a_connection_to_another_space_leaves_its_folder() {
 }
 
 #[test]
+fn moving_a_folder_moves_its_connections() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    let pro = store.upsert_space(space("Pro")).unwrap();
+    let folder = store.upsert_folder(Folder { name: "Prod".into(), ..Folder::default() }).unwrap();
+    let mut c = conn("A", "h");
+    c.folder_id = Some(folder.id.clone());
+    let saved = store.upsert_connection(c).unwrap();
+
+    store.upsert_folder(Folder { space_id: Some(pro.id.clone()), ..folder.clone() }).unwrap();
+    let in_memory = &store.file().connections[0];
+    assert_eq!(in_memory.space_id.as_deref(), Some(pro.id.as_str()));
+    assert_eq!(in_memory.folder_id.as_deref(), Some(folder.id.as_str()));
+    // Written too, not only repaired on the next load.
+    assert!(read(&paths).contains(&format!("\"spaceId\": \"{}\"", pro.id)));
+    // A copy of it (« Dupliquer » sends what it was given) stays in the folder.
+    let copy = store
+        .upsert_connection(Connection { id: String::new(), ..store.file().connections[0].clone() })
+        .unwrap();
+    assert_eq!(copy.folder_id.as_deref(), Some(folder.id.as_str()));
+    assert_ne!(copy.id, saved.id);
+}
+
+#[test]
 fn unknown_space_is_refused_on_write_and_repaired_on_load() {
     let (_d, paths) = setup(None);
     let (mut store, _) = ConnectionsStore::load(paths);
