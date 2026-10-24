@@ -9,7 +9,8 @@ import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { useWorkspace } from '@/stores/workspace';
 import { sessionsFor } from '@/terminal/sessionRegistry';
-import { leaves } from '@/workspace/tree';
+import { findLeaf, leaves } from '@/workspace/tree';
+import type { Direction } from '@/workspace/types';
 import { confirmClose } from './closeGuard';
 
 export function defaultProfileId(): string | null {
@@ -73,6 +74,41 @@ export async function closeTabs(tabIds: string[]): Promise<void> {
   if (await confirmClose(sessionsFor(leafIds), unsavedIn(leafIds))) {
     for (const t of tabs) useWorkspace.getState().closeTab(t.id);
   }
+}
+
+/**
+ * Splits a pane: another shell like it (terminal, SSH), a shell on the same host (files,
+ * server monitor), or the default shell (anything else: an editor, a preview).
+ */
+export function splitPane(tabId: string, leafId: string, direction: Direction): void {
+  const ws = useWorkspace.getState();
+  const tab = ws.tabs.find((t) => t.id === tabId);
+  const panel = tab ? findLeaf(tab.root, leafId)?.panel : undefined;
+  if (!panel) return;
+  ws.focusLeaf(tabId, leafId);
+  if (panel.kind === 'terminal' || panel.kind === 'ssh') {
+    ws.splitActive(direction);
+    return;
+  }
+  const owner =
+    panel.kind === 'sftp'
+      ? panel.linkedLeafId
+      : panel.kind === 'monitor' && panel.source.kind === 'remote'
+        ? panel.source.linkedLeafId
+        : null;
+  if (owner) {
+    ws.addShellBeside(owner, direction);
+    return;
+  }
+  const profile = defaultProfileId();
+  if (profile) ws.splitActive(direction, profile);
+}
+
+/** Splits the active pane of the shown session. */
+export function splitActivePane(direction: Direction): void {
+  const { tabs, activeTabId } = useWorkspace.getState();
+  const tab = tabs.find((t) => t.id === activeTabId);
+  if (tab) splitPane(tab.id, tab.activeLeafId, direction);
 }
 
 export function closeActivePane(): Promise<void> {

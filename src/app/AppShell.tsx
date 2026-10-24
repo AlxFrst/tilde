@@ -4,6 +4,7 @@ import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { registerBuiltins } from '@/commands/builtin';
 import { dirtyEditors } from '@/stores/editors';
+import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
@@ -20,10 +21,11 @@ import { PromptHost } from './PromptHost';
 import { useQuakeTabs } from './quake';
 import { QuickConnectDialog } from './QuickConnectDialog';
 import { SettingsDialog } from './settings/SettingsDialog';
+import { SessionHeader } from './content/SessionHeader';
+import { sessionEnv } from './content/sessionEnv';
 import { Rail } from './rail/Rail';
 import { TabBar } from './TabBar';
 import { TunnelsDialog } from './TunnelsDialog';
-import { Titlebar } from './Titlebar';
 import { useShortcuts } from './useShortcuts';
 import { Welcome } from './Welcome';
 
@@ -50,7 +52,7 @@ export function AppShell({
 }: {
   settings: Settings;
   appInfo: AppInfo;
-  /** `quake`: no titlebar nor sidebar; the window hides (Rust) instead of closing. */
+  /** `quake`: no Rail nor header, a tab bar; the window hides (Rust) instead of closing. */
   mode?: 'main' | 'quake';
 }) {
   const quake = mode === 'quake';
@@ -60,41 +62,68 @@ export function AppShell({
   const tabs = useWorkspace((s) => s.tabs);
   const activeTabId = useWorkspace((s) => s.activeTabId);
   const quickConnectOpen = useSsh((s) => s.quickConnectOpen);
+  const activeTab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const file = useConnections((s) => s.file);
+  const env = activeTab ? sessionEnv(activeTab, file) : null;
   useShortcuts();
   useEffect(() => registerBuiltins(), []);
   useWindowCloseGuard(!quake);
   useQuakeTabs(quake);
 
+  const isMac = appInfo.platform === 'macos';
   const sidebar = (
     <Rail
       side={sidebarPosition}
       width={sidebarWidth}
+      // macOS draws its traffic lights over the top-left corner.
+      macInset={isMac && sidebarPosition === 'left'}
       onOpenSettings={() => {
         setSettingsOpen(true);
       }}
     />
   );
+  const panes = (
+    <>
+      {tabs.map((t) => (
+        <PaneView key={t.id} tab={t} visible={t.id === activeTabId} />
+      ))}
+      {(tabs.length === 0 || activeTabId === null) && (
+        <div className="absolute inset-0 overflow-auto">
+          <Welcome version={appInfo.version} />
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="flex h-full flex-col">
-      {!quake && <Titlebar platform={appInfo.platform} />}
-      <div className="flex min-h-0 flex-1">
-        {!quake && sidebarPosition === 'left' && sidebar}
-        <main className="flex min-w-0 flex-1 flex-col">
-          {quake && <TabBar />}
-          <div className="relative min-h-0 flex-1">
-            {tabs.map((t) => (
-              <PaneView key={t.id} tab={t} visible={t.id === activeTabId} />
-            ))}
-            {(tabs.length === 0 || activeTabId === null) && (
-              <div className="absolute inset-0 overflow-auto">
-                <Welcome version={appInfo.version} />
-              </div>
-            )}
-          </div>
+      {quake ? (
+        <main className="flex min-h-0 flex-1 flex-col">
+          <TabBar />
+          <div className="relative min-h-0 flex-1">{panes}</div>
         </main>
-        {!quake && sidebarPosition === 'right' && sidebar}
-      </div>
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          {sidebarPosition === 'left' && sidebar}
+          <div
+            className="flex min-w-0 flex-1 flex-col"
+            style={isMac && sidebarPosition === 'right' ? { paddingLeft: 78 } : undefined}
+          >
+            <SessionHeader platform={appInfo.platform} />
+            <main
+              className="relative mx-1.5 mb-1.5 min-h-0 flex-1 overflow-hidden rounded-lg border bg-background"
+              style={
+                env
+                  ? { borderColor: `color-mix(in srgb, ${env.color} 55%, transparent)` }
+                  : undefined
+              }
+            >
+              {panes}
+            </main>
+          </div>
+          {sidebarPosition === 'right' && sidebar}
+        </div>
+      )}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <CommandPalette />
       <ConfirmCloseDialog />

@@ -1,6 +1,7 @@
 import { Component, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { getPanelModule } from '@/panels/registry';
+import { PaneHeader } from './content/PaneHeader';
 import { useWorkspace } from '@/stores/workspace';
 import {
   layoutRects,
@@ -78,32 +79,37 @@ function Leaf({
         if (!active) ws().focusLeaf(tab.id, leaf.id);
       }}
     >
-      {Module ? (
-        <PaneErrorBoundary
-          title={module.title}
-          onClose={() => {
-            ws().closeLeaf(tab.id, leaf.id);
-          }}
-        >
-          <Module
-            tabId={tab.id}
-            leafId={leaf.id}
-            state={leaf.panel}
-            active={visible && active}
-            visible={visible}
-            update={(patch) => {
-              ws().updatePanel(tab.id, leaf.id, patch);
-            }}
-            close={() => {
-              ws().closeLeaf(tab.id, leaf.id);
-            }}
-          />
-        </PaneErrorBoundary>
-      ) : (
-        <div className="flex h-full items-center justify-center text-sm text-text-muted">
-          Panneau inconnu : « {leaf.panel.kind} »
+      <div className="flex h-full flex-col">
+        {multi && <PaneHeader tab={tab} leaf={leaf} active={visible && active} />}
+        <div className="relative min-h-0 flex-1">
+          {Module ? (
+            <PaneErrorBoundary
+              title={module.title}
+              onClose={() => {
+                ws().closeLeaf(tab.id, leaf.id);
+              }}
+            >
+              <Module
+                tabId={tab.id}
+                leafId={leaf.id}
+                state={leaf.panel}
+                active={visible && active}
+                visible={visible}
+                update={(patch) => {
+                  ws().updatePanel(tab.id, leaf.id, patch);
+                }}
+                close={() => {
+                  ws().closeLeaf(tab.id, leaf.id);
+                }}
+              />
+            </PaneErrorBoundary>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-text-muted">
+              Panneau inconnu : « {leaf.panel.kind} »
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

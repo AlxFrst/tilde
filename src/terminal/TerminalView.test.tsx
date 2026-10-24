@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-extraneous-class -- stand-ins for xterm addons */
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { OpenSessionOptions } from '@/ipc/session';
 import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { useSettings } from '@/stores/settings';
@@ -403,4 +404,20 @@ test('Ctrl+C copies a selection, Ctrl+V pastes, and Ctrl+C alone still reaches t
     await Promise.resolve();
   });
   expect(paste).toHaveBeenCalledWith('echo hi');
+});
+
+test('the terminal menu splits the pane', async () => {
+  const splitActive = vi.fn();
+  const focusLeaf = vi.fn();
+  const { useWorkspace } = await import('@/stores/workspace');
+  useWorkspace.setState({ splitActive, focusLeaf });
+  const { container } = renderView();
+  const surface = container.querySelector('.h-full.w-full.px-2') as HTMLElement;
+  fireEvent.contextMenu(surface);
+  await userEvent.click(await screen.findByRole('menuitem', { name: /Diviser à droite/ }));
+  expect(focusLeaf).toHaveBeenCalledWith('t', 'l');
+  expect(splitActive).toHaveBeenCalledWith('row');
+  fireEvent.contextMenu(surface);
+  await userEvent.click(await screen.findByRole('menuitem', { name: /Diviser en bas/ }));
+  expect(splitActive).toHaveBeenLastCalledWith('column');
 });

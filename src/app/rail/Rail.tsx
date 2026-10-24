@@ -17,6 +17,8 @@ export interface RailProps {
   side: Appearance['sidebarPosition'];
   width: number;
   onOpenSettings: () => void;
+  /** Leaves room for macOS's traffic lights in the top-left corner. */
+  macInset?: boolean;
 }
 
 /** Opens the command palette; shows its shortcut so it is learnt by looking. */
@@ -52,7 +54,7 @@ function SearchButton() {
  * The Rail: the main window's only navigation. Favourites, the space's saved connections
  * (« Épinglés ») and its other sessions (« Aujourd’hui »), above a fixed footer.
  */
-export function Rail({ side, width, onOpenSettings }: RailProps) {
+export function Rail({ side, width, onOpenSettings, macInset = false }: RailProps) {
   const { readOnly, error, warnings } = useConnections();
   return (
     <aside
@@ -67,6 +69,7 @@ export function Rail({ side, width, onOpenSettings }: RailProps) {
       <div
         data-tauri-drag-region
         className="flex h-8 shrink-0 items-center gap-2 px-3 text-sm font-medium"
+        style={macInset ? { paddingLeft: 78 } : undefined}
       >
         <Logo className="size-[18px]" />
         <span data-tauri-drag-region>Tilde</span>

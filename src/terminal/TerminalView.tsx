@@ -1,12 +1,13 @@
 import { readText, writeText } from '@tauri-apps/plugin-clipboard-manager';
 import type { SearchAddon } from '@xterm/addon-search';
-import { ClipboardPaste, Copy, Search } from 'lucide-react';
+import { ClipboardPaste, Columns2, Copy, Rows2, Search } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
@@ -388,6 +389,25 @@ export function TerminalView(props: TerminalViewProps) {
           >
             <Search strokeWidth={1.5} /> Rechercher{' '}
             <ContextMenuShortcut>Ctrl+Maj+F</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onSelect={() => {
+              const ws = useWorkspace.getState();
+              ws.focusLeaf(props.tabId, props.leafId);
+              ws.splitActive('row');
+            }}
+          >
+            <Columns2 strokeWidth={1.5} /> Diviser à droite
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => {
+              const ws = useWorkspace.getState();
+              ws.focusLeaf(props.tabId, props.leafId);
+              ws.splitActive('column');
+            }}
+          >
+            <Rows2 strokeWidth={1.5} /> Diviser en bas
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>

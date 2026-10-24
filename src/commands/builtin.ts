@@ -1,6 +1,6 @@
 // Tilde's own commands. Titles are what the palette shows.
 
-import { closeActivePane, closeTab, openDefaultTab } from '@/app/actions';
+import { closeActivePane, closeTab, openDefaultTab, splitActivePane } from '@/app/actions';
 import { checkForUpdates } from '@/app/updates';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { openKeybindingsFile } from '@/ipc/keybindings';
@@ -61,7 +61,7 @@ export function registerBuiltins(): () => void {
       title: 'Diviser à droite',
       group: 'Panneaux',
       run: () => {
-        ws().splitActive('row');
+        splitActivePane('row');
       },
     },
     {
@@ -69,7 +69,7 @@ export function registerBuiltins(): () => void {
       title: 'Diviser en bas',
       group: 'Panneaux',
       run: () => {
-        ws().splitActive('column');
+        splitActivePane('column');
       },
     },
     {

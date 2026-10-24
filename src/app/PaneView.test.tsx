@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useEffect } from 'react';
 import { useWorkspace } from '@/stores/workspace';
 import type { TerminalViewProps } from '@/terminal/TerminalView';
@@ -108,7 +108,8 @@ test('panes are positioned from the layout sizes', () => {
   render(<Live />);
   const [first, second] = leaves(tab().root);
   if (!first || !second) throw new Error();
-  const box = (id: string) => screen.getByTestId(`term-${id}`).parentElement as HTMLElement;
+  const box = (id: string) =>
+    screen.getByTestId(`term-${id}`).closest<HTMLElement>('[style*="left"]') as HTMLElement;
   expect(box(first.id).style.left).toBe('0%');
   expect(box(first.id).style.width).toBe('50%');
   expect(box(second.id).style.left).toBe('50%');
@@ -265,4 +266,18 @@ test('ssh panes get the server status strip, local terminals do not', () => {
   expect(screen.getByTestId(`strip-${sshTab.activeLeafId}`)).toBeInTheDocument();
   render(<Live />);
   for (const l of leaves(tab().root)) expect(screen.queryByTestId(`strip-${l.id}`)).toBeNull();
+});
+
+test('pane headers appear with two panes and close one', async () => {
+  render(<Live />);
+  const headers = screen.getAllByRole('toolbar', { name: /^Panneau / });
+  expect(headers).toHaveLength(2);
+  expect(within(headers[0] as HTMLElement).getByText('Shell 1')).toBeInTheDocument();
+  fireEvent.click(
+    within(headers[1] as HTMLElement).getByRole('button', { name: 'Fermer ce panneau' }),
+  );
+  await vi.waitFor(() => {
+    expect(leaves(tab().root)).toHaveLength(1);
+  });
+  expect(screen.queryByRole('toolbar', { name: /^Panneau / })).toBeNull();
 });
