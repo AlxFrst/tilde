@@ -316,7 +316,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 5. ✅ SFTP
 6. ✅ Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence, mode Quake
 7. ✅ Panneaux modulaires : éditeur, aperçu, moniteur
-8. Packaging et CI multiplateforme, puis le Rail et les espaces
+8. ✅ Packaging et CI multiplateforme, le Rail et les espaces
 
 ## Contribuer
 
