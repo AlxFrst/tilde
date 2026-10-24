@@ -281,6 +281,10 @@ test('the rail scrolls vertically and keeps its footer', () => {
   show();
   const scroller = rail().querySelector('[data-rail-scroll]');
   expect(scroller).toHaveClass('overflow-y-auto', 'overflow-x-hidden', 'min-h-0', 'flex-1');
+  // Grid tracks default to their content's width: long names must truncate instead.
+  for (const list of rail().querySelectorAll('ul')) {
+    expect(list).toHaveClass('grid-cols-[minmax(0,1fr)]');
+  }
   expect(
     within(rail()).getByRole('button', { name: 'Réglages' }).closest('[data-rail-footer]'),
   ).toHaveClass('shrink-0');

@@ -62,7 +62,7 @@ export function TodaySection() {
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={today.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-          <ul className="grid gap-px">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-px">
             {today.map((t) => (
               <SortableSession key={t.id} tab={t} />
             ))}

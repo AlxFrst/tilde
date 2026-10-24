@@ -39,15 +39,11 @@ export function paneLabel(tab: Tab, leaf: LeafNode, names: LabelNames): PaneLabe
     case 'ssh': {
       const shells = leaves(tab.root).filter(isShell);
       const rank = shells.findIndex((l) => l.id === leaf.id) + 1;
-      const detail =
-        panel.cwd ??
-        (panel.kind === 'ssh'
-          ? (names.connectionName(panel.connectionId) ?? panel.target)
-          : names.profileName(panel.profileId));
       return {
         title: shells.length > 1 ? `Shell ${String(rank)}` : 'Shell',
         owner: null,
-        detail,
+        // The session's row already names the host or the shell.
+        detail: panel.cwd,
         Icon: Terminal,
       };
     }
@@ -88,7 +84,8 @@ export function sessionTitle(tab: Tab, names: LabelNames): string {
   if (ssh?.kind === 'ssh') return names.connectionName(ssh.connectionId) ?? ssh.title ?? ssh.target;
   const term = all.find((l) => l.panel.kind === 'terminal')?.panel;
   if (term?.kind === 'terminal') {
-    return term.title ?? names.profileName(term.profileId) ?? term.profileId;
+    // The shell's own title (« Administrateur : C:\WINDOWS… ») is noise in the Rail.
+    return names.profileName(term.profileId) ?? term.title ?? term.profileId;
   }
   const first = all[0];
   return first ? paneLabel(tab, first, names).title : '';

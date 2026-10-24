@@ -44,7 +44,8 @@ test('shells are numbered when a session has several, and show their directory',
   const [a, b, c] = [0, 1, 2].map((i) => (t.root.type === 'split' ? t.root.children[i] : t.root));
   expect(paneLabel(t, a as never, names)).toMatchObject({ title: 'Shell 1', detail: '/var/www' });
   expect(paneLabel(t, b as never, names).title).toBe('Shell 2');
-  expect(paneLabel(t, c as never, names)).toMatchObject({ title: 'Shell 3', detail: 'PowerShell' });
+  // The parent row already names the host or the shell: a pane only adds its directory.
+  expect(paneLabel(t, c as never, names)).toMatchObject({ title: 'Shell 3', detail: null });
 });
 
 test('files and the monitor name the connection they belong to', () => {
@@ -79,5 +80,11 @@ test('a session is named after what it was given, its connection, or its shell',
   expect(sessionTitle(tab([ssh('a')]), names)).toBe('demo-server');
   expect(sessionTitle(tab([ssh('a', null)]), names)).toBe('osc title');
   expect(sessionTitle(tab([term('a')]), names)).toBe('PowerShell');
+  // A shell's own title (« Administrateur : C:\WINDOWS… ») does not replace its name.
+  const titled = tab([term('a')]);
+  if (titled.root.type === 'leaf' && titled.root.panel.kind === 'terminal') {
+    titled.root.panel.title = 'Administrateur : C:/WINDOWS/system32';
+  }
+  expect(sessionTitle(titled, names)).toBe('PowerShell');
   expect(sessionTitle(tab([term('a')], 'build'), names)).toBe('build');
 });

@@ -237,7 +237,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
             }}
             menu={<FolderMenu f={f} />}
           >
-            <ul className="grid gap-px">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-px">
               {mine
                 .filter((c) => c.folderId === f.id)
                 .map((c) => (
@@ -246,7 +246,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
             </ul>
           </Section>
         ))}
-        <ul className="grid gap-px">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-px">
           {loose.map((c) => (
             <PinnedRow key={c.id} c={c} />
           ))}

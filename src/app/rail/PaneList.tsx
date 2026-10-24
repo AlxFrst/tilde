@@ -14,10 +14,10 @@ export function PaneList({ tab }: { tab: Tab }) {
   return (
     <ul
       aria-label={`Panneaux de ${sessionTitle(tab, names)}`}
-      className="ml-[15px] grid gap-px border-l border-border py-0.5 pl-2"
+      className="ml-[15px] grid grid-cols-[minmax(0,1fr)] gap-px border-l border-border py-0.5 pl-2"
     >
       {all.map((leaf) => {
-        const { title, owner, detail, Icon } = paneLabel(tab, leaf, names);
+        const { title, detail, Icon } = paneLabel(tab, leaf, names);
         const current = shown && tab.activeLeafId === leaf.id;
         return (
           <li key={leaf.id}>
@@ -44,9 +44,7 @@ export function PaneList({ tab }: { tab: Tab }) {
             >
               <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
               <span className="shrink-0">{title}</span>
-              {(detail ?? owner) && (
-                <span className="ml-auto min-w-0 truncate text-xs">{detail ?? owner}</span>
-              )}
+              {detail && <span className="ml-auto min-w-0 truncate text-xs">{detail}</span>}
             </button>
           </li>
         );
