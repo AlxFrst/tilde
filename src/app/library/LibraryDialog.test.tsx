@@ -161,3 +161,23 @@ test('adopting a host saves it in the active space', async () => {
     expect.objectContaining({ name: 'mail', host: 'mail', spaceId: 'pro' }),
   );
 });
+
+test('an ~/.ssh/config host opens from a visible button, and the Library steps aside', async () => {
+  const dialog = await openLibrary();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Ouvrir mail' }));
+  expect(useUi.getState().libraryOpen).toBe(false);
+  const shown = ws().tabs.find((t) => t.id === ws().activeTabId);
+  const ssh = shown && leaves(shown.root)[0]?.panel;
+  expect(ssh).toMatchObject({ kind: 'ssh', target: 'mail' });
+});
+
+test('hiding a host is a visible button too, and the section folds', async () => {
+  const update = vi.fn(() => Promise.resolve());
+  useSettings.setState({ update });
+  const dialog = await openLibrary();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Masquer backup' }));
+  expect(update).toHaveBeenCalledWith({ appearance: { sshConfigHosts: { hidden: ['backup'] } } });
+  const hosts = within(dialog).getByRole('group', { name: '~/.ssh/config' });
+  await userEvent.click(within(hosts).getByText('~/.ssh/config'));
+  expect(within(hosts).queryByText('mail')).toBeNull();
+});

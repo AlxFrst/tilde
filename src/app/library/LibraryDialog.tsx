@@ -19,30 +19,7 @@ import { useWorkspace } from '@/stores/workspace';
 import { openConnection } from '../actions';
 import { describeTarget } from '../sidebar/Section';
 import { adoptedAliases, SshConfigSection } from '../sidebar/SshConfigSection';
-
-function RowAction({
-  label,
-  children,
-  onClick,
-  disabled,
-}: {
-  label: string;
-  children: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      className="h-7 shrink-0 rounded-md border border-border px-2 text-xs text-text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-40"
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
+import { RowAction } from './RowAction';
 
 function ConnectionLine({ c, here, Icon }: { c: Connection; here: boolean; Icon: LucideIcon }) {
   const { file, readOnly, save, setEditing } = useConnections();
@@ -112,6 +89,7 @@ function LibraryBody() {
   const { file, sshHosts, readOnly, setEditing } = useConnections();
   const active = useWorkspace((s) => s.activeSpaceId);
   const [query, setQuery] = useState('');
+  const [hostsOpen, setHostsOpen] = useState(true);
   const spaces = listSpaces(file);
   const adopted = adoptedAliases(file.connections);
   const freeHosts = sshHosts.filter((h) => !adopted.has(h.alias));
@@ -203,7 +181,7 @@ function LibraryBody() {
         )}
         {hosts.length > 0 && (
           <div data-sidebar-list>
-            <SshConfigSection hosts={hosts} open onOpenChange={() => undefined} />
+            <SshConfigSection hosts={hosts} open={hostsOpen} onOpenChange={setHostsOpen} />
           </div>
         )}
         {connections.length === 0 && hosts.length === 0 && query.trim() !== '' && (

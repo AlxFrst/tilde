@@ -1,18 +1,14 @@
-import { ChevronRight, FileCode2, Plus } from 'lucide-react';
+import { ChevronRight, FileCode2 } from 'lucide-react';
 import { useState } from 'react';
-import {
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 import type { Connection } from '@/ipc/connections';
 import type { SshHostEntry } from '@/ipc/ssh';
 import { useConnections } from '@/stores/connections';
 import { useSettings } from '@/stores/settings';
+import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { Section, describeTarget } from './Section';
-import { SidebarRow } from './ConnectionItem';
+import { RowAction } from '../library/RowAction';
 
 /** Aliases already saved as-is (a connection on that host without overrides). */
 export function adoptedAliases(connections: Connection[]): Set<string> {
@@ -33,7 +29,7 @@ export function adoptedAliases(connections: Connection[]): Set<string> {
 /** Above this many hosts, the section starts folded. */
 const FOLD_ABOVE = 8;
 
-/** Hosts of ~/.ssh/config, read-only: open them, adopt them, or tuck them away. */
+/** Hosts of ~/.ssh/config in the Library, read-only: open, adopt or tuck them away. */
 export function SshConfigSection({
   hosts,
   open: storedOpen,
@@ -106,6 +102,7 @@ export function SshConfigSection({
 
 const NO_HOSTS: string[] = [];
 
+/** A host as a Library line: every action is a visible button. */
 function HostRow({
   h,
   muted,
@@ -122,46 +119,38 @@ function HostRow({
   // Adopted in the space shown (none written while there is only the implicit one).
   const space = useWorkspace((s) => s.activeSpaceId);
   const written = useConnections((s) => s.file.spaces.length > 0);
-  const adopt = (alias: string) => adoptIn(alias, written ? space : null);
   const open = () => {
+    useUi.getState().setLibraryOpen(false);
     useWorkspace.getState().openSshTab(h.alias);
   };
   return (
-    <div className={cn(muted && 'opacity-60 hover:opacity-100')}>
-      <SidebarRow
-        Icon={FileCode2}
-        title={h.alias}
-        subtitle={describeTarget({ host: h.hostname, user: h.user, port: h.port })}
-        onOpen={open}
-        menu={
-          <ContextMenuContent>
-            <ContextMenuItem onSelect={open}>Ouvrir</ContextMenuItem>
-            <ContextMenuItem
-              disabled={readOnly}
-              onSelect={() => {
-                void adopt(h.alias);
-              }}
-            >
-              Adopter (enregistrer dans Tilde)
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem onSelect={onTuck}>{tuckLabel}</ContextMenuItem>
-          </ContextMenuContent>
-        }
-        action={
-          readOnly ? undefined : (
-            <button
-              type="button"
-              aria-label={`Adopter ${h.alias}`}
-              title="Adopter : enregistrer dans Tilde (dossier, couleur, tags…)"
-              className="rounded p-1 text-text-muted hover:bg-surface-1 hover:text-text"
-              onClick={() => void adopt(h.alias)}
-            >
-              <Plus className="size-3.5" strokeWidth={1.5} />
-            </button>
-          )
-        }
-      />
+    <div
+      className={cn(
+        'flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-1',
+        muted && 'opacity-60 hover:opacity-100',
+      )}
+    >
+      <FileCode2 className="size-4 shrink-0 text-text-muted" strokeWidth={1.6} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{h.alias}</span>
+        <span className="block truncate text-xs text-text-muted">
+          {describeTarget({ host: h.hostname, user: h.user, port: h.port })}
+        </span>
+      </span>
+      <RowAction label={`Ouvrir ${h.alias}`} onClick={open}>
+        Ouvrir
+      </RowAction>
+      <RowAction
+        label={`Adopter ${h.alias}`}
+        title="Enregistrer dans Tilde (espace, dossier, couleur, tags…)"
+        disabled={readOnly}
+        onClick={() => void adoptIn(h.alias, written ? space : null)}
+      >
+        Adopter
+      </RowAction>
+      <RowAction label={`${tuckLabel} ${h.alias}`} onClick={onTuck}>
+        {tuckLabel}
+      </RowAction>
     </div>
   );
 }
