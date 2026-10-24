@@ -4,23 +4,25 @@ import { connectionSpace, listSpaces } from '@/connections/spaces';
 import type { Space } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
-import { isPinnedTab } from '@/workspace/spaces';
+import { isPinnedTab, knownSpaceIds } from '@/workspace/spaces';
 import { confirmAction } from '../confirm';
 
 const spaces = () => listSpaces(useConnections.getState().file);
 
+// The spaces this window shows (the Quake console has only one).
+
 /** Shows the n-th space (0-based), if there is one. */
 export function switchSpaceAt(index: number): void {
-  const space = spaces()[index];
-  if (space) useWorkspace.getState().switchSpace(space.id);
+  const space = knownSpaceIds()[index];
+  if (space) useWorkspace.getState().switchSpace(space);
 }
 
 /** Shows the next (1) or previous (-1) space, wrapping around. */
 export function switchSpaceRelative(delta: 1 | -1): void {
-  const list = spaces();
-  const index = list.findIndex((s) => s.id === useWorkspace.getState().activeSpaceId);
+  const list = knownSpaceIds();
+  const index = list.indexOf(useWorkspace.getState().activeSpaceId);
   const next = list[(index + delta + list.length) % list.length];
-  if (next) useWorkspace.getState().switchSpace(next.id);
+  if (next) useWorkspace.getState().switchSpace(next);
 }
 
 /**

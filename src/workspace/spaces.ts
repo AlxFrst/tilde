@@ -26,6 +26,14 @@ export const defaultSpaceResolver: SpaceResolver = {
   ready: false,
 };
 
+/** The Quake console: one list of sessions, whatever their space; nothing is pinned. */
+export const singleSpaceResolver: SpaceResolver = {
+  spaceOf: () => MAIN_SPACE.id,
+  isPinned: () => false,
+  spaceIds: () => [MAIN_SPACE.id],
+  ready: true,
+};
+
 let current = defaultSpaceResolver;
 
 export function setSpaceResolver(r: SpaceResolver): void {

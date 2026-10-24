@@ -1,7 +1,12 @@
-import { listSpaces } from '@/connections/spaces';
+import { listSpaces, MAIN_SPACE } from '@/connections/spaces';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
-import { makeSpaceResolver, setSpaceResolver } from '@/workspace/spaces';
+import {
+  defaultSpaceResolver,
+  makeSpaceResolver,
+  setSpaceResolver,
+  singleSpaceResolver,
+} from '@/workspace/spaces';
 
 function apply(): void {
   const { file, loaded } = useConnections.getState();
@@ -18,4 +23,13 @@ export function startSpaceSync(): () => void {
   return useConnections.subscribe((state, previous) => {
     if (state.file !== previous.file || state.loaded !== previous.loaded) apply();
   });
+}
+
+/** The Quake console: every session in one list, whatever its space. Returns the cleanup. */
+export function startSingleSpace(): () => void {
+  setSpaceResolver(singleSpaceResolver);
+  useWorkspace.getState().switchSpace(MAIN_SPACE.id);
+  return () => {
+    setSpaceResolver(defaultSpaceResolver);
+  };
 }

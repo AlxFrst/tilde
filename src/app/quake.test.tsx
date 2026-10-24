@@ -1,11 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
-import { render, renderHook, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import App from '@/App';
+import { blankConnection, useConnections } from '@/stores/connections';
 import { useSettings } from '@/stores/settings';
 import { useWorkspace } from '@/stores/workspace';
 import { defaultSettings } from '@/test/fixtures';
+import { defaultSpaceResolver, setSpaceResolver } from '@/workspace/spaces';
 import { openDefaultTab } from './actions';
 import { isQuakeWindow, useQuakeTabs } from './quake';
+import { switchSpaceAt } from './spaces/spaceActions';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 const events = vi.hoisted(() => new Map<string, (e: { payload: unknown }) => void>());
@@ -45,7 +48,13 @@ beforeAll(() => {
 beforeEach(() => {
   vi.clearAllMocks();
   useSettings.setState({ settings: null, readOnly: false, error: null });
-  useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
+  useWorkspace.setState({
+    tabs: [],
+    activeTabId: null,
+    dormant: [],
+    activeSpaceId: 'main',
+    activeTabBySpace: {},
+  });
   vi.mocked(invoke).mockImplementation((cmd: string) => {
     switch (cmd) {
       case 'settings_get':
@@ -54,6 +63,24 @@ beforeEach(() => {
         return Promise.resolve({ version: '0.1.0', platform: 'windows' });
       case 'profiles_list':
         return Promise.resolve([]);
+      case 'connections_get':
+        return Promise.resolve({
+          file: {
+            version: 1,
+            spaces: [
+              { id: 'main', name: 'Principal', color: null, icon: null },
+              { id: 'pro', name: 'Pro', color: null, icon: null },
+            ],
+            folders: [],
+            connections: [
+              blankConnection({ id: 'c1', name: 'prod', host: 'prod.example', spaceId: 'pro' }),
+            ],
+            recents: [],
+          },
+          readOnly: false,
+          error: null,
+          warnings: [],
+        });
       default:
         return Promise.reject(new Error(`unexpected ${cmd}`));
     }
@@ -129,4 +156,40 @@ test('turning Quake off closes its tabs (and their sessions) before the window g
   // Shutting down is not « last tab closed »: no hide, no fresh tab.
   expect(win.hide).not.toHaveBeenCalled();
   expect(openDefaultTab).not.toHaveBeenCalled();
+});
+
+afterEach(() => {
+  setSpaceResolver(defaultSpaceResolver);
+});
+
+test('the quake console is one list of sessions, whatever their space', async () => {
+  render(<App mode="quake" />);
+  expect(await screen.findByRole('tablist')).toBeInTheDocument();
+  await vi.waitFor(() => {
+    expect(useConnections.getState().loaded).toBe(true);
+  });
+  const ws = () => useWorkspace.getState();
+  let local = '';
+  let ssh = '';
+  act(() => {
+    local = ws().openTab('pwsh');
+    // A saved connection of another space, opened from the palette.
+    ssh = ws().openPinned('c1', 'prod.example', 'pro');
+  });
+  expect(ws().activeTabId).toBe(ssh);
+  expect(ws().activeSpaceId).toBe('main');
+  act(() => {
+    ws().activateRelative(1);
+  });
+  expect(ws().activeTabId).toBe(local);
+  act(() => {
+    ws().activateTab(ssh);
+    ws().closeTab(ssh);
+  });
+  expect(ws().activeTabId).toBe(local);
+  // Ctrl+Shift+2: there is no second space here.
+  act(() => {
+    switchSpaceAt(1);
+  });
+  expect(ws().activeTabId).toBe(local);
 });

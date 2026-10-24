@@ -7,7 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
 import { startLaunchHandling } from '@/app/launch';
-import { startSpaceSync } from '@/app/spaceSync';
+import { startSingleSpace, startSpaceSync } from '@/app/spaceSync';
 import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
@@ -124,8 +124,9 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
           console.warn('transfers unavailable', err);
         },
       );
-    // Sessions follow their connections' spaces (connections.json, live).
-    const stopSpaceSync = startSpaceSync();
+    // Sessions follow their connections' spaces (connections.json, live). The Quake console
+    // has no Rail to show spaces: all its sessions are one list.
+    const stopSpaceSync = quake ? startSingleSpace() : startSpaceSync();
     useConnections
       .getState()
       .init()

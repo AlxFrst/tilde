@@ -29,7 +29,7 @@ import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { activeTerminal } from '@/terminal/terminalActions';
-import { spaceOfTab } from '@/workspace/spaces';
+import { knownSpaceIds, spaceOfTab } from '@/workspace/spaces';
 import { leaves } from '@/workspace/tree';
 import { openConnection } from './actions';
 import { sessionTitle, useLabelNames } from './paneLabel';
@@ -261,7 +261,8 @@ export function CommandPalette() {
   const [page, setPage] = useState<Target | null>(null);
   // Read when the palette opens: commands registered later still show next time.
   const commands = useMemo(() => (open ? listCommands().filter((c) => !c.hidden) : []), [open]);
-  const spaces = listSpaces(file);
+  // The spaces this window shows (the Quake console has only one).
+  const spaces = listSpaces(file).filter((s) => knownSpaceIds().includes(s.id));
 
   // However the palette closes (Escape, Ctrl+Shift+P, a choice), typing goes back to the
   // terminal of the active pane.
