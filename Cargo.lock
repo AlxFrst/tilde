@@ -5932,6 +5932,8 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "webview2-com",
+ "windows 0.62.2",
  "windows-version",
  "winreg 0.56.0",
 ]

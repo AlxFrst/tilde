@@ -44,6 +44,9 @@ time = { version = "0.3", features = ["formatting"] }
 [target.'cfg(windows)'.dependencies]
 windows-version = "0.1"
 winreg = "0.56"
+# Same versions as wry's: WebView2 settings (autofill off).
+webview2-com = "0.39"
+windows = "0.62"
 
 
 [dev-dependencies]

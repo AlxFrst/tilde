@@ -1,5 +1,6 @@
 //! Tilde desktop application: wires the core crates into Tauri.
 
+mod autofill;
 mod commands;
 #[cfg(windows)]
 mod explorer_menu;
@@ -82,6 +83,9 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     );
     let _ = app.state::<AppState>().sftp.transfers.set(transfers);
     std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
+    if let Some(window) = app.get_webview_window("main") {
+        autofill::disable(&window);
+    }
     let quake = app.state::<AppState>().settings.lock().settings().general.quake.clone();
     quake::sync_quake(app, &quake, &app.state::<AppState>().quake);
     #[cfg(windows)]
