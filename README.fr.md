@@ -40,14 +40,20 @@ Réglages → Général.
 
 - **Terminal local** : PowerShell 7, Windows PowerShell, cmd, Git Bash et chaque
   distribution WSL détectés automatiquement (bash/zsh/fish sous Linux et macOS)
-- Onglets (glisser-déposer, renommage, couleur) et **splits** redimensionnables
+- **Le Rail** à la place des onglets : vos serveurs **épinglés** (en sommeil tant qu'ils ne
+  sont pas ouverts), les sessions **d'aujourd'hui**, et sous chaque session ses panneaux
+  (shells, fichiers, moniteur) ; **espaces** à la Arc (Pro, Perso, Homelab…) avec leur
+  couleur ; **Bibliothèque** (Ctrl+Maj+L) pour toutes les connexions et `~/.ssh/config`
+- En-tête de session (Fichiers, Moniteur, Tunnels, Nouveau shell, Diviser), en-têtes de
+  panneau (diviser, fermer), cadre de couleur d'environnement, moniteur en aperçu
+- **Splits** redimensionnables, sessions renommables et colorables
 - Rendu WebGL (xterm.js), Unicode/emoji, recherche dans le scrollback, liens cliquables,
   copie à la sélection, confirmation avant de coller plusieurs lignes
 - Confirmation avant de fermer un terminal où un programme tourne
 - Onglets et splits **restaurés** au redémarrage (dans le dernier dossier connu)
 - Profils personnalisés dans `settings.json` (commande, arguments, dossier, variables,
   couleur), ou masquage d'un shell détecté
-- Fenêtre sans bordure avec titlebar intégrée
+- Fenêtre sans bordure ; sous Windows, « Ouvrir dans Tilde » dans le menu de l'Explorateur
 - **14 thèmes** : Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine
   (sombres et clairs), suivi automatique du thème de l'OS
 - **Personnalisation** (voir [docs/personnalisation.md](docs/personnalisation.md)) :
@@ -63,8 +69,9 @@ Réglages → Général.
 - Logs structurés, accessibles depuis l'interface
 - **SSH** (voir [plus bas](#ssh)) : votre `~/.ssh/config` tel quel, bastions en chaîne,
   agent, reconnexion automatique, tunnels
-- **Connexions enregistrées** dans la sidebar (voir [plus bas](#connexions)) et **palette de
-  commandes** (Ctrl+Maj+P)
+- **Connexions enregistrées** dans le Rail (voir [plus bas](#connexions)) et **palette de
+  commandes** (Ctrl+Maj+P) : connexions, sessions, espaces, commandes, et → pour les actions
+  d'un serveur
 - **Fichiers (SFTP)** sur la même connexion que le terminal (voir [plus bas](#fichiers-sftp))
 - **Éditeur intégré**, **aperçu** et **moniteur système** à côté du terminal (voir
   [plus bas](#éditeur-aperçu-et-moniteur))
@@ -74,9 +81,12 @@ Réglages → Général.
 
 | Raccourci | Action |
 |---|---|
-| Ctrl+Maj+T | Nouvel onglet (profil par défaut) |
-| Ctrl+Maj+W | Fermer l'onglet |
-| Ctrl+Tab / Ctrl+Maj+Tab | Onglet suivant / précédent |
+| Ctrl+Maj+T | Nouvelle session (shell par défaut) |
+| Ctrl+Maj+W | Fermer la session |
+| Ctrl+Tab / Ctrl+Maj+Tab | Session suivante / précédente de l'espace |
+| Ctrl+Maj+1 … 9, Ctrl+Maj+Page suiv. / préc. | Aller à un espace, espace suivant / précédent |
+| Ctrl+Maj+L | Bibliothèque |
+| Ctrl+Maj+B | Masquer / afficher le Rail |
 | Alt+Maj+= | Diviser à droite |
 | Alt+Maj+- | Diviser en bas |
 | Ctrl+Maj+X | Fermer le panneau |
@@ -85,7 +95,7 @@ Réglages → Général.
 | Ctrl+Maj+F | Rechercher |
 | Ctrl+Maj+K | Connexion SSH |
 | Ctrl+Maj+P | Palette de commandes (connexions et commandes) |
-| Ctrl+Maj+E | Fichiers (SFTP) de l'onglet SSH |
+| Ctrl+Maj+E | Afficher / masquer les fichiers (SFTP) de la session SSH |
 
 Les lettres suivent la touche **imprimée** (Ctrl+Maj+W = la touche W, y compris en AZERTY).
 Les symboles suivent la **position physique** (disposition US) : sur un clavier AZERTY,
@@ -147,23 +157,30 @@ Ce qui est pris en charge :
 d'identification Windows, Trousseau macOS, Secret Service sous Linux), service
 `dev.tilde.app`. Jamais dans `settings.json`, `workspace.json` ni les logs.
 
-Fermer un onglet SSH connecté demande toujours confirmation, sauf si
+Fermer une session SSH connectée demande toujours confirmation, sauf si
 `ssh.confirmCloseSsh` vaut `false`.
 
 ## Connexions
 
-La sidebar range vos serveurs : **Favoris**, **Récents**, vos **dossiers** (couleur, repliables),
-**Sans dossier**, puis les hôtes de **`~/.ssh/config`** en lecture seule.
+Le Rail range les serveurs de l'**espace** affiché : les **Favoris** en tuiles, puis
+**Épinglés** (vos **dossiers**, couleur, repliables, et les connexions hors dossier), et
+**Aujourd'hui** pour les autres sessions. Les hôtes de **`~/.ssh/config`** sont dans la
+**Bibliothèque** (Ctrl+Maj+L), en lecture seule.
 
-- Double-clic ou Entrée ouvre un onglet ; ↑/↓ pour se déplacer ; Ctrl+F pour chercher
-  (recherche floue sur le nom, l'hôte, l'utilisateur et les tags, sans tenir compte des accents).
-- `+` → « Nouvelle connexion… » : nom, hôte (ou alias de `~/.ssh/config`), port, utilisateur,
-  clé, ProxyJump, transfert d'agent, dossier, tags, couleur, icône. Pour un alias, les réglages
+- Un clic ou Entrée ouvre la session épinglée d'une connexion (ou l'affiche si elle est déjà
+  ouverte) ; ↑/↓ pour se déplacer ; la palette et la Bibliothèque cherchent par nom, hôte,
+  utilisateur et tags, sans tenir compte des accents.
+- **Espaces** : « + Nouvel espace » en bas du Rail (nom, couleur, icône). Clic droit sur une
+  session ou une connexion : « Déplacer vers l'espace ». Supprimer un espace ne ferme rien.
+- `+` (Épinglés) → « Nouvelle connexion… » : nom, hôte (ou alias de `~/.ssh/config`), port,
+  utilisateur, clé, rebonds (choisis dans une liste), transfert d'agent, espace, dossier, tags,
+  couleur, icône. Pour un alias, les réglages
   de `~/.ssh/config` s'appliquent et les champs remplis les remplacent.
-- Un hôte de `~/.ssh/config` s'**adopte** d'un clic (`+` sur la ligne) pour lui donner un
-  dossier, une couleur ou des tags. Votre `~/.ssh/config` n'est jamais modifié.
-- Clic droit : ouvrir, modifier, dupliquer, favori, déplacer, supprimer. On peut aussi glisser
-  une connexion sur un dossier.
+- Un hôte de `~/.ssh/config` s'**adopte** d'un clic dans la Bibliothèque (dans l'espace
+  affiché) pour lui donner un dossier, une couleur ou des tags. Votre `~/.ssh/config` n'est jamais modifié.
+- Clic droit : ouvrir, ouvrir une autre session, modifier, dupliquer, favori, ranger dans un
+  dossier, déplacer vers un espace, supprimer. On peut aussi glisser une connexion sur un
+  dossier.
 - **Import / export** (menu `+` ou palette) : un fichier JSON **sans aucun secret**. À l'import,
   les doublons (même hôte, utilisateur et port) sont ignorés et les dossiers fusionnés par nom.
 
@@ -274,7 +291,7 @@ Les types TypeScript des réglages sont **générés** depuis Rust : après avoi
 | Réglages | `%APPDATA%\Tilde\settings.json` | `~/.config/Tilde/settings.json` | `~/Library/Application Support/Tilde/settings.json` |
 | Connexions | `%APPDATA%\Tilde\connections.json` | `~/.config/Tilde/connections.json` | `~/Library/Application Support/Tilde/connections.json` |
 | Raccourcis | `%APPDATA%\Tilde\keybindings.json` | `~/.config/Tilde/keybindings.json` | `~/Library/Application Support/Tilde/keybindings.json` |
-| Thèmes | `%APPDATA%\Tilde	hemes\` | `~/.config/Tilde/themes/` | `~/Library/Application Support/Tilde/themes/` |
+| Thèmes | `%APPDATA%\Tilde\themes\` | `~/.config/Tilde/themes/` | `~/Library/Application Support/Tilde/themes/` |
 | Logs | `%LOCALAPPDATA%\Tilde\logs\` | `~/.local/share/Tilde/logs/` | `~/Library/Application Support/Tilde/logs/` |
 
 Ils sont aussi accessibles depuis **Réglages → Général** dans l'application. Si `settings.json`
@@ -295,7 +312,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 5. ✅ SFTP
 6. ✅ Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence, mode Quake
 7. ✅ Panneaux modulaires : éditeur, aperçu, moniteur
-8. Packaging et CI multiplateforme
+8. Packaging et CI multiplateforme, puis le Rail et les espaces
 
 ## Contribuer
 

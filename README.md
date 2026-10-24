@@ -14,7 +14,7 @@ free and open source.**
 
 English · *[Français](README.fr.md)*
 
-<img src="docs/screenshots/hero.png" alt="Tilde with an SSH session, its files and a system monitor side by side" width="900" />
+<img src="docs/screenshots/hero.png" alt="Tilde: the Rail with pinned servers and today's sessions, an SSH session and its files" width="900" />
 
 </div>
 
@@ -30,6 +30,9 @@ drop connections without saying why. Tilde starts from the other end.
   Double-click a host behind two bastions and you get a shell.
 - **Failures explain themselves.** You get "key refused", "host unreachable", "fingerprint
   changed" or "timeout on bastion #2", never a spinner that gives up silently.
+- **A sidebar that is your workspace.** No tab bar: your servers and sessions live in one
+  vertical *Rail*, grouped in *spaces* (work, personal, homelab…), with everything that
+  belongs to a connection — shells, files, monitor, tunnels — right under it.
 - **Everything around the shell is built in:** files over the same connection, an editor,
   previews and a system monitor, as panes beside your terminal.
 - **No account, no subscription, no telemetry.** Secrets live in your OS keyring and nowhere
@@ -49,11 +52,30 @@ drop connections without saying why. Tilde starts from the other end.
 - Saved passwords and passphrases go to the **OS keyring** only, never to a file, log or
   export.
 
+### The Rail and spaces
+- **The Rail** replaces tabs. *Pinned* lists the space's saved servers (asleep until you open
+  them, then live with their connection state); *Today* holds everything else you opened.
+  A session unfolds into its panes; a click shows one, a middle click closes it.
+- **Spaces** (Arc-style): create *Pro*, *Personal*, *Homelab*, *Cloud*… each with its own
+  colour, icon, servers and sessions. Switch with a click or `Ctrl+Shift+1…9`; the other
+  spaces' sessions keep running.
+- **The Library** (`Ctrl+Shift+L`) holds every saved connection of every space and your
+  `~/.ssh/config` hosts (read-only, one click to adopt), so they never flood the Rail.
+- **Environment colours**: a server in a coloured folder (production in red…) frames the
+  session in that colour and shows its name in the session header.
+- A **session header** shows where you are (`user@host`, jump hosts) and offers *Files*,
+  *Monitor*, *Tunnels*, *New shell* and *Split*; each pane has its own small header to split
+  or close it. The server monitor opens **over** the session (*Peek*) and can be docked.
+- The Rail hides (`Ctrl+Shift+B`) and slides back when the mouse reaches the edge.
+
 ### Connections at hand
-- A sidebar with favourites, recents, coloured folders, tags and icons, plus your
-  `~/.ssh/config` hosts (read-only, one click to adopt).
-- Fuzzy search, and a **command palette** (`Ctrl+Shift+P`) for every connection and command.
+- Coloured folders, tags, icons and favourites (shown as tiles at the top of the Rail).
+- Fuzzy search, and a **command palette** (`Ctrl+Shift+P`) for every connection, session,
+  space and command; `→` on a server lists what you can do with it (connect beside, files,
+  monitor, copy the `ssh` command…). English words work too (« split », « files »).
 - Import and export of connections as JSON, **without any secret**.
+- On Windows, **« Ouvrir dans Tilde »** in Explorer's context menu opens a terminal in that
+  folder.
 
 ### Files (SFTP) on the same connection
 - A file pane next to the SSH terminal: no second login, and it comes back after a
@@ -68,8 +90,8 @@ drop connections without saying why. Tilde starts from the other end.
 ### A fast local terminal
 - PowerShell 7, Windows PowerShell, cmd, Git Bash and every WSL distribution are detected
   (bash/zsh/fish on Linux and macOS), and custom profiles are supported.
-- Tabs and splits, restored at startup; WebGL rendering, ligatures, search, clickable links,
-  copy on select, safe multi-line paste.
+- Sessions and splits, restored at startup; WebGL rendering, ligatures, search, clickable
+  links, copy on select, `Ctrl+C` / `Ctrl+V`, safe multi-line paste.
 
 ### Panes beside your shell
 - **Editor** (CodeMirror 6): 16 languages, search, Ctrl+S. Conflict detection, Windows line
@@ -93,8 +115,8 @@ drop connections without saying why. Tilde starts from the other end.
 
 | | |
 |---|---|
-| <img src="docs/screenshots/ssh.png" alt="SSH session and connection sidebar" /> | <img src="docs/screenshots/sftp.png" alt="Files pane following the terminal's directory" /> |
-| SSH, the connection sidebar and the command palette | Files on the same connection, following `cd` |
+| <img src="docs/screenshots/ssh.png" alt="Connection dialog with a chain of jump hosts" /> | <img src="docs/screenshots/sftp.png" alt="Files pane following the terminal's directory" /> |
+| Saved connections, jump hosts picked from a list | Files on the same connection, following `cd` |
 | <img src="docs/screenshots/editor.png" alt="Built-in editor with a live Markdown preview" /> | <img src="docs/screenshots/monitor.png" alt="System monitor of a remote server" /> |
 | Built-in editor with a live preview | System monitor of a server, over SSH |
 | <img src="docs/screenshots/themes.png" alt="Theme editor" /> | <img src="docs/screenshots/settings.png" alt="Settings page" /> |
@@ -130,8 +152,9 @@ match the key built into Tilde is refused. You can turn the check off in *Régla
 ## Quick start
 
 1. **Connect**: press `Ctrl+Shift+K`, then type a host alias from `~/.ssh/config` or
-   `user@host:port`. Or double-click a host in the sidebar.
-2. **Files**: in an SSH tab, press `Ctrl+Shift+E`.
+   `user@host:port`. Or click a server in the Rail, or find it in the Library
+   (`Ctrl+Shift+L`).
+2. **Files**: click *Files* in the session header (or `Ctrl+Shift+E`).
 3. **Everything else**: press `Ctrl+Shift+P` and type what you want ("split", "theme",
    "monitor"…).
 
@@ -139,15 +162,18 @@ match the key built into Tilde is refused. You can turn the check off in *Régla
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Shift+T` / `Ctrl+Shift+W` | New tab / close tab |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Ctrl+Shift+T` / `Ctrl+Shift+W` | New session / close session |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous session of the space |
+| `Ctrl+Shift+1` … `9`, `Ctrl+Shift+PageDown` / `PageUp` | Go to a space, next / previous space |
+| `Ctrl+Shift+L` | Library (every connection and `~/.ssh/config` host) |
+| `Ctrl+Shift+B` | Hide / show the Rail |
 | `Alt+Shift+=` / `Alt+Shift+-` | Split right / down |
 | `Alt+←↑→↓` | Move between panes |
 | `Ctrl+Shift+X` | Close pane |
 | `Ctrl+C` (with a selection) / `Ctrl+V`, or `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` with nothing selected interrupts, as usual) |
 | `Ctrl+Shift+F` | Search the scrollback |
 | `Ctrl+Shift+K` | SSH quick connect |
-| `Ctrl+Shift+E` | Files (SFTP) of the SSH tab |
+| `Ctrl+Shift+E` | Show / hide the files (SFTP) of the SSH session |
 | `Ctrl+Shift+P` | Command palette |
 
 On macOS, `Ctrl` means `⌘`.
@@ -244,6 +270,7 @@ French).
 - [x] Customisation: themes, shortcuts, window effects, Quake mode
 - [x] Editor, preview and system monitor panes
 - [x] Installers for Windows, macOS and Linux, built-in updates
+- [x] The Rail, spaces and the Library
 - [ ] English interface
 - [ ] Signed installers
 - [ ] Third-party plugins on top of the panel registry

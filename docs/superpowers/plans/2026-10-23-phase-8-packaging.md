@@ -169,6 +169,9 @@
 
 ### Task 5 : Captures d'écran (avec l'auteur)
 
+> Ajout du 2026-10-24 : la refonte « Rail et espaces » (`2026-10-24-phase-8b-rail-espaces.md`)
+> s'exécute avant cette tâche, sur la même branche ; les captures montrent la nouvelle interface.
+
 - [ ] **Step 1 :** demander à l'auteur s'il fournit les captures, ou s'il autorise le lancement de l'app pour les prendre (fenêtre 1280×800, thème Tilde Dark, données de démonstration sans hôte réel).
 - [ ] **Step 2 :** placer les images dans `docs/screenshots/` (PNG optimisés, moins de 500 Kio chacune).
 - [ ] **Step 3 :** `pnpm vitest run src/test/docs` → PASS.

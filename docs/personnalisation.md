@@ -150,9 +150,9 @@ fait avec la touche `)`.
 
 | Id                                   | Action                     | Défaut                      |
 | ------------------------------------ | -------------------------- | --------------------------- |
-| `tab.new`                            | Nouvel onglet              | Ctrl+Shift+T                |
-| `tab.close`                          | Fermer l'onglet            | Ctrl+Shift+W                |
-| `tab.next` / `tab.prev`              | Onglet suivant / précédent | Ctrl+Tab / Ctrl+Shift+Tab   |
+| `tab.new`                            | Nouvelle session           | Ctrl+Shift+T                |
+| `tab.close`                          | Fermer la session          | Ctrl+Shift+W                |
+| `tab.next` / `tab.prev`              | Session suivante / précédente | Ctrl+Tab / Ctrl+Shift+Tab |
 | `pane.splitRight` / `pane.splitDown` | Diviser                    | Alt+Shift+= / Alt+Shift+-   |
 | `pane.close`                         | Fermer le panneau          | Ctrl+Shift+X                |
 | `pane.focusLeft` … `pane.focusDown`  | Changer de panneau         | Alt+flèches                 |

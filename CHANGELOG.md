@@ -8,6 +8,16 @@ All notable changes to Tilde are listed here. The format follows
 
 The first public version.
 
+### The Rail and spaces
+- The Rail replaces the tab bar and the sidebar: favourite tiles, *Pinned* servers (asleep
+  until opened, then live with their state and panes) and *Today*'s other sessions.
+- Spaces (Arc-style), each with its colour, icon, servers and sessions; `Ctrl+Shift+1…9`.
+- The Library: every connection of every space and the `~/.ssh/config` hosts.
+- Session header (files, monitor, tunnels, new shell, split), pane headers (split, close),
+  environment colour frame, monitor *Peek*, a Rail that hides.
+- The palette finds sessions and spaces, lists a server's actions with `→`, and understands
+  English words.
+
 ### SSH
 - `~/.ssh/config` read as OpenSSH does: `Include`, `Host`/`Match` patterns, tokens, first
   value wins; problems are reported with file and line.
@@ -20,8 +30,8 @@ The first public version.
 - Secrets in the OS keyring only.
 
 ### Connections
-- Sidebar with favourites, recents, folders, tags, colours and icons.
-- `~/.ssh/config` hosts listed, and adopted in one click.
+- Folders, tags, colours, icons and favourites; jump hosts picked from a list.
+- `~/.ssh/config` hosts listed in the Library, and adopted in one click.
 - Fuzzy search and a command palette.
 - JSON import and export without secrets.
 
@@ -33,7 +43,8 @@ The first public version.
 
 ### Terminal
 - ConPTY/PTY shells, with Windows shells and WSL distributions detected; custom profiles.
-- Tabs and splits restored at startup.
+- Sessions and splits restored at startup; `Ctrl+C` / `Ctrl+V` as in Windows Terminal.
+- « Ouvrir dans Tilde » in Windows Explorer's context menu.
 - WebGL rendering, ligatures, search, links, copy on select, safe paste.
 
 ### Panes
