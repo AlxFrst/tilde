@@ -2,13 +2,19 @@ name: Release
 
 # A tag vX.Y.Z builds the installers on the three platforms and attaches them, with
 # their SHA-256 sums, to a *draft* GitHub release that a maintainer reviews and
-# publishes. Pull requests that touch packaging build the installers without
-# releasing anything. See docs/release.md.
+# publishes. A manual run on main given a `tag` does the same, creating that tag on
+# its commit first. Pull requests that touch packaging, and manual runs without a
+# tag, build the installers without releasing anything. See docs/release.md.
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to create on this commit and release (vX.Y.Z). Empty only builds.
+        required: false
+        default: ''
   pull_request:
     paths:
       - .github/workflows/release.yml
@@ -24,7 +30,9 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+  # The tag being released: the one pushed, or the one a manual run creates.
+  TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || inputs.tag }}
+  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.tag != '' }}
 
 jobs:
   prepare:
@@ -41,13 +49,30 @@ jobs:
         with:
           node-version: 24
       - name: Versions agree (and match the tag)
-        run: node scripts/check-version.ts ${{ env.IS_TAG == 'true' && github.ref_name || '' }}
+        run: node scripts/check-version.ts ${TAG:+"$TAG"}
+      - name: Create the tag (manual run)
+        if: env.IS_TAG == 'true' && github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::A release is cut from main, not $GITHUB_REF"; exit 1
+          fi
+          # A re-run finds the tag it created; the same tag on another commit is refused.
+          # Created with the workflow's token, it does not start a second run.
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null); then
+            if [ "$existing" != "$GITHUB_SHA" ]; then
+              echo "::error::$TAG already exists on another commit ($existing)"; exit 1
+            fi
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" > /dev/null
+          fi
       - name: Create the draft release
         id: release
         if: env.IS_TAG == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
         run: |
           version="${TAG#v}"
           # The changelog section of this version, or a pointer to the file.
@@ -203,7 +228,7 @@ jobs:
   checksums:
     name: SHA-256 sums
     needs: [prepare, build]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: needs.prepare.outputs.release-id != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

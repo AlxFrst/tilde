@@ -19,7 +19,9 @@ Rien n'est public tant qu'un mainteneur ne la publie pas.
 2. **Compléter `CHANGELOG.md`** : la section `## [X.Y.Z]` devient le texte de la release.
 3. **Fusionner dans `main`** avec la CI verte.
 4. **Pousser le tag** : `git tag vX.Y.Z && git push origin vX.Y.Z`. Le workflow refuse un tag qui
-   ne correspond pas à la version des fichiers.
+   ne correspond pas à la version des fichiers. Sans terminal : *Actions → Release → Run
+   workflow* sur `main`, avec le tag `vX.Y.Z` ; le workflow crée le tag sur le dernier commit
+   de `main`, puis tout se passe comme pour un tag poussé.
 5. **Relire la release brouillon** sur GitHub : les installeurs et les sommes SHA-256.
    L'éditer si besoin, puis la publier.
 

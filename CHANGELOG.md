@@ -17,6 +17,8 @@ All notable changes to Tilde are listed here. The format follows
   editor's unsaved dot, the shortcut recorder and JSON preview keys.
 - In the Rail, a session's status dot no longer shows under its close button: it gives way to
   the button on hover.
+- macOS installs receive built-in updates: releases now carry the signed update archive
+  (`.app.tar.gz`) that `latest.json` points to.
 
 ## [0.1.0]
 
