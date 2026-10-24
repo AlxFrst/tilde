@@ -237,3 +237,17 @@ test('the current space wears its colour, the others do not', () => {
     'bg-(--chip)/20',
   );
 });
+
+test('a restored space that connections.json no longer has hands over to the first one', () => {
+  setFile({ spaces: [MAIN_SPACE, pro], connections: [prodConn] });
+  ws().openTab('pwsh');
+  const snap = ws().snapshot();
+  act(() => {
+    useWorkspace.setState({ tabs: [], activeTabId: null, activeSpaceId: 'main' });
+    ws().hydrate({ ...snap, activeSpaceId: 'gone' }, ['pwsh'], 'pwsh');
+  });
+  expect(ws().activeSpaceId).toBe('main');
+  // Its session shows in the space it lands in.
+  const [tab] = ws().tabs;
+  expect(tab && spaceOfTab(tab)).toBe('main');
+});

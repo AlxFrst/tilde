@@ -23,7 +23,7 @@ import type {
   WorkspaceSnapshot,
 } from '@/workspace/types';
 import { sanitizeSnapshot } from '@/workspace/sanitize';
-import { isPinnedTab, spaceOfTab } from '@/workspace/spaces';
+import { isPinnedTab, knownSpaceIds, spaceOfTab, spacesReady } from '@/workspace/spaces';
 import { MAIN_SPACE } from '@/connections/spaces';
 
 interface WorkspaceState {
@@ -654,6 +654,9 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         activeSpaceId: snap.activeSpaceId ?? MAIN_SPACE.id,
         activeTabBySpace: snap.activeTabBySpace ?? {},
       });
+      // A space removed (or a connections.json unreadable) since: hand over to the first.
+      // Before connections.json is read, its loading does this check.
+      if (spacesReady()) get().reconcileSpaces(knownSpaceIds());
       return { replaced };
     },
   };

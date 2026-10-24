@@ -1,11 +1,11 @@
 import { listSpaces } from '@/connections/spaces';
-import type { ConnectionsFile } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
 import { makeSpaceResolver, setSpaceResolver } from '@/workspace/spaces';
 
-function apply(file: ConnectionsFile): void {
-  setSpaceResolver(makeSpaceResolver(file));
+function apply(): void {
+  const { file, loaded } = useConnections.getState();
+  setSpaceResolver(makeSpaceResolver(file, loaded));
   useWorkspace.getState().reconcileSpaces(listSpaces(file).map((s) => s.id));
 }
 
@@ -14,8 +14,8 @@ function apply(file: ConnectionsFile): void {
  * connection, and a deleted space hands over to the first one. Returns the cleanup.
  */
 export function startSpaceSync(): () => void {
-  apply(useConnections.getState().file);
+  apply();
   return useConnections.subscribe((state, previous) => {
-    if (state.file !== previous.file) apply(state.file);
+    if (state.file !== previous.file || state.loaded !== previous.loaded) apply();
   });
 }

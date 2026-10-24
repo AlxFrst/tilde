@@ -14,6 +14,8 @@ export interface SpaceResolver {
   isPinned: (tab: Tab) => boolean;
   /** The spaces' ids, in order. */
   spaceIds: () => string[];
+  /** Built from the loaded connections.json (not the empty file before it is read). */
+  ready: boolean;
 }
 
 /** Before connections.json is loaded: everything as written, one space. */
@@ -21,6 +23,7 @@ export const defaultSpaceResolver: SpaceResolver = {
   spaceOf: (t) => t.spaceId ?? MAIN_SPACE.id,
   isPinned: (t) => t.pinnedConnectionId !== null,
   spaceIds: () => [MAIN_SPACE.id],
+  ready: false,
 };
 
 let current = defaultSpaceResolver;
@@ -32,8 +35,10 @@ export function setSpaceResolver(r: SpaceResolver): void {
 export const spaceOfTab = (tab: Tab): string => current.spaceOf(tab);
 export const isPinnedTab = (tab: Tab): boolean => current.isPinned(tab);
 export const knownSpaceIds = (): string[] => current.spaceIds();
+/** Whether `knownSpaceIds` is the real list yet. */
+export const spacesReady = (): boolean => current.ready;
 
-export function makeSpaceResolver(file: ConnectionsFile): SpaceResolver {
+export function makeSpaceResolver(file: ConnectionsFile, ready = true): SpaceResolver {
   const spaces = listSpaces(file);
   const byId = new Map(file.connections.map((c) => [c.id, c]));
   const pinned = (t: Tab) => (t.pinnedConnectionId ? byId.get(t.pinnedConnectionId) : undefined);
@@ -44,5 +49,6 @@ export function makeSpaceResolver(file: ConnectionsFile): SpaceResolver {
     },
     isPinned: (t) => pinned(t) !== undefined,
     spaceIds: () => spaces.map((s) => s.id),
+    ready,
   };
 }
