@@ -82,8 +82,8 @@ drop connections without saying why. Tilde starts from the other end.
   reconnection.
 - It **follows your `cd`** (OSC 7; Tilde offers the one-line snippet if your shell doesn't
   report it).
-- Upload by drag and drop, download, rename, delete, `chmod`. A transfer queue shows speed,
-  time left, cancel, and **resume**.
+- Upload by drag and drop, download, new file or folder, rename, delete, `chmod`. A transfer
+  queue shows speed, time left, cancel, and **resume**.
 - **Edit remote files** in the built-in editor or in your own (`code --wait`…). A file changed
   on the server in the meantime is never overwritten silently.
 

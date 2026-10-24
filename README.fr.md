@@ -204,6 +204,8 @@ revient tout seul après une reconnexion.
 - Clic droit : télécharger, télécharger vers…, **modifier** dans votre éditeur, renommer,
   permissions (octal + cases à cocher), copier le chemin, supprimer. Les suppressions
   demandent confirmation ; un lien symbolique est supprimé sans toucher à sa cible.
+- **Nouveau fichier**, **nouveau dossier** : boutons de la barre d'outils. Le fichier créé
+  s'ouvre dans l'éditeur ; un fichier existant n'est jamais écrasé.
 - **Envoyer** : bouton ⬆ ou glisser-déposer des fichiers et dossiers depuis l'explorateur.
 - **Transferts** (icône dans la barre de titre) : progression, vitesse, temps restant,
   annulation. « Réessayer » **reprend** où le transfert s'est arrêté. Trois transferts à la

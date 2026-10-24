@@ -79,6 +79,15 @@ pub async fn sftp_mkdir(
 }
 
 #[tauri::command]
+pub async fn sftp_create_file(
+    state: State<'_, AppState>,
+    session_id: u32,
+    path: String,
+) -> Result<(), SessionErrorDto> {
+    client(&state, session_id).await?.create_file(&path).await.map_err(|e| sftp_err(&e))
+}
+
+#[tauri::command]
 pub async fn sftp_rename(
     state: State<'_, AppState>,
     session_id: u32,

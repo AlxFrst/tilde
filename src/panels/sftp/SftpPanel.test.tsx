@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { ConfirmDialog } from '@/app/ConfirmDialog';
 import type { RemoteEntry } from '@/ipc/sftp';
-import { sftpList, sftpRemove } from '@/ipc/sftp';
+import { sftpCreateFile, sftpList, sftpRemove } from '@/ipc/sftp';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { registerSession, unregisterSession } from '@/terminal/sessionRegistry';
@@ -47,6 +47,7 @@ vi.mock('@/ipc/sftp', async (orig) => ({
   sftpHome: vi.fn(() => Promise.resolve('/home/me')),
   sftpList: vi.fn((_s: number, path: string) => Promise.resolve(tree[path] ?? [])),
   sftpRemove: vi.fn(() => Promise.resolve(1)),
+  sftpCreateFile: vi.fn(() => Promise.resolve()),
   onTransfer: vi.fn(() => Promise.resolve(() => undefined)),
 }));
 vi.mock('@tauri-apps/api/webview', () => ({
@@ -170,4 +171,34 @@ test('Modifier opens the built-in editor when editorMode is builtin', async () =
     source: { kind: 'remote', linkedLeafId: sshLeaf, path: '/home/me/a.txt' },
   });
   useSettings.setState({ settings: defaultSettings });
+});
+
+test('Nouveau fichier creates an empty file and opens it in the editor', async () => {
+  const { useSettings } = await import('@/stores/settings');
+  const { defaultSettings } = await import('@/test/fixtures');
+  useSettings.setState({
+    settings: { ...defaultSettings, sftp: { ...defaultSettings.sftp, editorMode: 'builtin' } },
+  });
+  render(<View />);
+  await screen.findByRole('row', { name: /a\.txt/ });
+  await userEvent.click(screen.getByRole('button', { name: 'Nouveau fichier' }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'Nom' }), 'notes.md{Enter}');
+  expect(sftpCreateFile).toHaveBeenCalledWith(4, '/home/me/notes.md');
+  await waitFor(() => {
+    const tab = useWorkspace.getState().tabs.find((t) => t.id === tabId);
+    const editor = tab && leaves(tab.root).find((l) => l.panel.kind === 'editor');
+    expect(editor?.panel).toMatchObject({
+      source: { kind: 'remote', linkedLeafId: sshLeaf, path: '/home/me/notes.md' },
+    });
+  });
+  useSettings.setState({ settings: defaultSettings });
+});
+
+test('a new file never takes the name of an existing entry', async () => {
+  vi.mocked(sftpCreateFile).mockClear();
+  render(<View />);
+  await screen.findByRole('row', { name: /a\.txt/ });
+  await userEvent.click(screen.getByRole('button', { name: 'Nouveau fichier' }));
+  await userEvent.type(screen.getByRole('textbox', { name: 'Nom' }), 'a.txt{Enter}');
+  expect(sftpCreateFile).not.toHaveBeenCalled();
 });

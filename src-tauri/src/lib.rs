@@ -144,6 +144,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::sftp::sftp_home,
         commands::sftp::sftp_list,
         commands::sftp::sftp_mkdir,
+        commands::sftp::sftp_create_file,
         commands::sftp::sftp_rename,
         commands::sftp::sftp_remove,
         commands::sftp::sftp_chmod,

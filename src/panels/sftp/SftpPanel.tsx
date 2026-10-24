@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Eye,
   EyeOff,
+  FilePlus,
   FolderPlus,
   Link2,
   Link2Off,
@@ -33,6 +34,7 @@ import {
   onTransfer,
   parentOf,
   sftpChmod,
+  sftpCreateFile,
   sftpDownload,
   sftpEdit,
   sftpHome,
@@ -55,6 +57,8 @@ import { ChmodDialog } from './ChmodDialog';
 import { FileList, sortEntries, type Sort } from './FileList';
 import { OSC7_SNIPPETS } from './osc7Snippet';
 import { PathBar } from './PathBar';
+
+const NAMING_TITLES = { mkdir: 'Nouveau dossier', file: 'Nouveau fichier', rename: 'Renommer' };
 
 /** How long to wait for the shell to report its directory before offering the snippet. */
 const OSC7_GRACE_MS = 3000;
@@ -202,7 +206,7 @@ export function SftpPanelView({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [anchor, setAnchor] = useState<string | null>(null);
   const [naming, setNaming] = useState<
-    { kind: 'mkdir' } | { kind: 'rename'; entry: RemoteEntry } | null
+    { kind: 'mkdir' } | { kind: 'file' } | { kind: 'rename'; entry: RemoteEntry } | null
   >(null);
   const [chmod, setChmod] = useState<RemoteEntry | null>(null);
   const [noOsc7, setNoOsc7] = useState(false);
@@ -354,6 +358,15 @@ export function SftpPanelView({
       (e: unknown) => toast.error(message(e)),
     );
   };
+  const edit = (target: string) => {
+    if (useSettings.getState().settings?.sftp.editorMode === 'builtin') {
+      useWorkspace.getState().openEditor(leafId, {
+        kind: 'remote',
+        linkedLeafId: panel.linkedLeafId,
+        path: target,
+      });
+    } else run(sftpEdit(sessionId, target));
+  };
   const open = (e: RemoteEntry) => {
     if (e.kind === 'dir' || e.kind === 'symlink') navigate(e.path);
     else run(sftpDownload(sessionId, [e.path], false));
@@ -391,13 +404,7 @@ export function SftpPanelView({
         ) : (
           <ContextMenuItem
             onSelect={() => {
-              if (useSettings.getState().settings?.sftp.editorMode === 'builtin') {
-                useWorkspace.getState().openEditor(leafId, {
-                  kind: 'remote',
-                  linkedLeafId: panel.linkedLeafId,
-                  path: e.path,
-                });
-              } else run(sftpEdit(sessionId, e.path));
+              edit(e.path);
             }}
           >
             Modifier
@@ -551,6 +558,16 @@ export function SftpPanelView({
         </button>
         <button
           type="button"
+          aria-label="Nouveau fichier"
+          className={tool}
+          onClick={() => {
+            setNaming({ kind: 'file' });
+          }}
+        >
+          <FilePlus className="size-4" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
           aria-label="Envoyer des fichiers"
           title="Envoyer des fichiers (ou glissez-les ici)"
           className={tool}
@@ -609,14 +626,24 @@ export function SftpPanelView({
 
       {naming && path !== null && (
         <NameDialog
-          title={naming.kind === 'mkdir' ? 'Nouveau dossier' : 'Renommer'}
+          title={NAMING_TITLES[naming.kind]}
           initial={naming.kind === 'rename' ? naming.entry.name : ''}
           onDone={(name) => {
             const current = naming;
             setNaming(null);
             if (!name) return;
-            if (current.kind === 'mkdir') run(sftpMkdir(sessionId, joinRemote(path, name)));
-            else run(sftpRename(sessionId, current.entry.path, joinRemote(path, name)));
+            const target = joinRemote(path, name);
+            // The server would only answer « Failure ».
+            if (current.kind !== 'rename' && entries?.some((e) => e.name === name)) {
+              toast.error(`« ${name} » existe déjà.`);
+            } else if (current.kind === 'mkdir') run(sftpMkdir(sessionId, target));
+            else if (current.kind === 'file') {
+              run(
+                sftpCreateFile(sessionId, target).then(() => {
+                  edit(target);
+                }),
+              );
+            } else run(sftpRename(sessionId, current.entry.path, target));
           }}
         />
       )}

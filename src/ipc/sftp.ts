@@ -39,6 +39,9 @@ export const sftpList = (sessionId: number, path: string) =>
   invoke<RemoteEntry[]>('sftp_list', { sessionId, path });
 export const sftpMkdir = (sessionId: number, path: string) =>
   invoke<undefined>('sftp_mkdir', { sessionId, path });
+/** An empty file; refused if `path` already exists. */
+export const sftpCreateFile = (sessionId: number, path: string) =>
+  invoke<undefined>('sftp_create_file', { sessionId, path });
 export const sftpRename = (sessionId: number, from: string, to: string) =>
   invoke<undefined>('sftp_rename', { sessionId, from, to });
 /** Resolves to the number of entries deleted. */
