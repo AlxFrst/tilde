@@ -129,9 +129,9 @@ export function ShortcutRecorder({
   return (
     <div
       aria-label={label}
-      className="flex flex-wrap items-center gap-2 rounded-md border border-accent/60 px-2 py-1.5 text-xs"
+      className="flex flex-wrap items-center gap-2 rounded-md border border-primary/60 px-2 py-1.5 text-xs"
     >
-      <Keyboard className="size-3.5 text-accent" strokeWidth={1.5} />
+      <Keyboard className="size-3.5 text-primary" strokeWidth={1.5} />
       <span>Appuyez sur la combinaison… (Échap pour annuler)</span>
       {error && (
         <span role="alert" className="text-warning">

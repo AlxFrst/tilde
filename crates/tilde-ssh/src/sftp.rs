@@ -10,7 +10,7 @@ use std::{
 
 use russh_sftp::{
     client::{SftpSession, error::Error as SessionError, fs::Metadata},
-    protocol::{FileAttributes, FileType},
+    protocol::{FileAttributes, FileType, OpenFlags},
 };
 use serde::Serialize;
 
@@ -243,6 +243,18 @@ impl SftpClient {
     /// The directory cannot be created.
     pub async fn mkdir(&self, path: &str) -> Result<(), SftpError> {
         self.session.create_dir(path).await.map_err(|e| self.fail(path, e))
+    }
+
+    /// Creates an empty file. An existing file is never overwritten: that is an error.
+    ///
+    /// # Errors
+    ///
+    /// The file already exists or cannot be created.
+    pub async fn create_file(&self, path: &str) -> Result<(), SftpError> {
+        let flags = OpenFlags::WRITE | OpenFlags::CREATE | OpenFlags::EXCLUDE;
+        let file =
+            self.session.open_with_flags(path, flags).await.map_err(|e| self.fail(path, e))?;
+        file.close().await.map_err(|e| io(path, e))
     }
 
     /// # Errors

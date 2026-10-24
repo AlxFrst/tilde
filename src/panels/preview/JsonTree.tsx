@@ -47,7 +47,7 @@ function Node({
   const container = value !== null && typeof value === 'object';
   const [open, setOpen] = useState(depth < openDepth);
   const [shown, setShown] = useState(PAGE);
-  const label = name === null ? null : <span className="text-accent">{name}</span>;
+  const label = name === null ? null : <span className="text-primary">{name}</span>;
   if (!container) {
     return (
       <div className="pl-4" style={{ marginLeft: depth * 12 }} title={path}>
@@ -99,7 +99,7 @@ function Node({
       {open && entries.length > shown && (
         <button
           type="button"
-          className="ml-6 text-accent hover:underline"
+          className="ml-6 text-primary hover:underline"
           style={{ marginLeft: (depth + 1) * 12 + 16 }}
           onClick={() => {
             setShown((n) => n + PAGE);

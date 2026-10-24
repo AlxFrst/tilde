@@ -57,6 +57,19 @@ async fn mkdir_rename_chmod_and_stat() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn create_file_never_overwrites() {
+    let _bench = BENCH.read().await;
+    let Some((shell, sftp, dir)) = setup().await else { return };
+    let f = format!("{dir}/notes.txt");
+    sftp.create_file(&f).await.unwrap();
+    let st = sftp.stat(&f).await.unwrap();
+    assert_eq!((st.kind, st.size), (EntryKind::File, 0));
+    sh(&shell, &format!("echo precious > {f}")).await;
+    assert!(sftp.create_file(&f).await.is_err(), "the file exists");
+    assert_eq!(sh(&shell, &format!("cat {f}")).await.trim(), "precious");
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn recursive_remove_does_not_follow_symlinks() {
     let _bench = BENCH.read().await;
     let Some((shell, sftp, dir)) = setup().await else { return };

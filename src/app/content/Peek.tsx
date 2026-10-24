@@ -66,7 +66,7 @@ export function Peek() {
         className="absolute top-3 right-3 bottom-3 z-30 flex w-[min(640px,calc(100%-1.5rem))] flex-col overflow-hidden rounded-xl border bg-surface-1 shadow-2xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4"
       >
         <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
-          <Activity className="size-4 text-accent" strokeWidth={1.75} />
+          <Activity className="size-4 text-primary" strokeWidth={1.75} />
           <span className="text-sm font-medium">Moniteur</span>
           <span className="min-w-0 truncate text-sm text-text-muted">· {owner}</span>
           <span className="flex-1" />

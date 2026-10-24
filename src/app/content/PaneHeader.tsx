@@ -40,7 +40,7 @@ export function PaneHeader({ tab, leaf, active }: { tab: Tab; leaf: LeafNode; ac
         active ? 'text-text' : 'text-text-muted',
       )}
     >
-      <Icon className={cn('size-3.5 shrink-0', active && 'text-accent')} strokeWidth={1.75} />
+      <Icon className={cn('size-3.5 shrink-0', active && 'text-primary')} strokeWidth={1.75} />
       <span className="shrink-0 font-medium">{title}</span>
       {owner && <span className="shrink-0 text-text-muted">· {owner}</span>}
       {detail && <span className="min-w-0 truncate font-mono text-text-muted">{detail}</span>}

@@ -135,7 +135,7 @@ export function ShortcutsSection() {
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {c.title}
                   {changed && (
-                    <span className="ml-2 rounded bg-accent/15 px-1 text-[10px] text-accent">
+                    <span className="ml-2 rounded bg-primary/15 px-1 text-[10px] text-primary">
                       modifié
                     </span>
                   )}

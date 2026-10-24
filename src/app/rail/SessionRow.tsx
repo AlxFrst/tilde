@@ -266,7 +266,15 @@ export function RowShell({
                 <span className="block truncate text-xs text-text-muted">{subtitle}</span>
               )}
             </span>
-            {status}
+            {/* The close button appears over this spot: the dot gives way to it. */}
+            <span
+              className={cn(
+                'flex shrink-0 empty:hidden',
+                onClose && 'transition-opacity group-focus-within:opacity-0 group-hover:opacity-0',
+              )}
+            >
+              {status}
+            </span>
             {accent && (
               <span
                 aria-hidden
