@@ -159,7 +159,7 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
           {name}
         </span>
         {dirty && (
-          <span aria-label="Modifié" title="Modifié" className="size-2 rounded-full bg-accent" />
+          <span aria-label="Modifié" title="Modifié" className="size-2 rounded-full bg-primary" />
         )}
         <span className="text-text-muted">{languageLabel(name)}</span>
         <span className="ml-auto flex items-center gap-1">

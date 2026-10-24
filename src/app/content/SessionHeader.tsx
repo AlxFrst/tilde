@@ -48,7 +48,7 @@ function HeaderButton({
       )}
       onClick={onClick}
     >
-      <Icon className={cn('size-3.5', pressed && 'text-accent')} strokeWidth={1.75} />
+      <Icon className={cn('size-3.5', pressed && 'text-primary')} strokeWidth={1.75} />
       <span>{label}</span>
     </button>
   );

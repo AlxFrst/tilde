@@ -79,7 +79,7 @@ export default function MonitorPane({ state, visible }: PanelProps<MonitorPanel>
   return (
     <div className="h-full overflow-auto bg-bg p-4">
       <header className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <Activity className="size-4 self-center text-accent" strokeWidth={1.5} />
+        <Activity className="size-4 self-center text-primary" strokeWidth={1.5} />
         <h2 className="text-base font-medium">
           {latest?.host ?? (remote ? 'Serveur' : 'Cette machine')}
         </h2>

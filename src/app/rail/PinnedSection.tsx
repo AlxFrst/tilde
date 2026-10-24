@@ -269,7 +269,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
             <button
               type="button"
               disabled={readOnly}
-              className="w-fit text-left text-accent hover:underline disabled:opacity-40"
+              className="w-fit text-left text-primary hover:underline disabled:opacity-40"
               onClick={() => {
                 setEditing(blankConnection({ spaceId: space }));
               }}
@@ -279,7 +279,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
             {onOpenLibrary && (
               <button
                 type="button"
-                className="flex w-fit items-center gap-1.5 text-left text-accent hover:underline"
+                className="flex w-fit items-center gap-1.5 text-left text-primary hover:underline"
                 onClick={onOpenLibrary}
               >
                 <Library className="size-3.5" strokeWidth={1.75} />
