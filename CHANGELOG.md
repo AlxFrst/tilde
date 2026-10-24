@@ -4,6 +4,20 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.0]
+
+### Added
+- Files: *Nouveau fichier* creates an empty file in the current folder and opens it in the
+  editor. An existing file is never overwritten.
+
+### Fixed
+- An empty space's *Nouvelle connexion…* and *Ouvrir la Bibliothèque* links were drawn in a
+  background colour and could not be read. The brand accent is back on them, and on the other
+  spots that had the same mistake: active pane and session header icons, the monitor icon, the
+  editor's unsaved dot, the shortcut recorder and JSON preview keys.
+- In the Rail, a session's status dot no longer shows under its close button: it gives way to
+  the button on hover.
+
 ## [0.1.0]
 
 The first public version.
@@ -66,4 +80,5 @@ The first public version.
   SHA-256 sums.
 - Built-in updates, signed and checked at startup (can be turned off).
 
+[0.2.0]: https://github.com/AlxFrst/tilde/releases/tag/v0.2.0
 [0.1.0]: https://github.com/AlxFrst/tilde/releases/tag/v0.1.0
