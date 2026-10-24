@@ -142,7 +142,10 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
           <button
             key={s.shell}
             type="button"
-            className={cn('rounded px-1.5', i === shell ? 'bg-primary/15 text-text' : 'text-text-muted')}
+            className={cn(
+              'rounded px-1.5',
+              i === shell ? 'bg-primary/15 text-text' : 'text-text-muted',
+            )}
             onClick={() => {
               setShell(i);
             }}

@@ -19,9 +19,7 @@ const rects = new Map<Element, DOMRect>();
 beforeEach(() => {
   vi.clearAllMocks();
   rects.clear();
-  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
-    this: Element,
-  ) {
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
     return rects.get(this) ?? new DOMRect(0, 0, 0, 0);
   });
   useWorkspace.setState({ tabs: [], activeTabId: null, activeSpaceId: MAIN_SPACE.id });
