@@ -1,19 +1,19 @@
-name: Fonctionnalité
-description: Proposer une idée
+name: Feature request
+description: Suggest an idea
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Quel problème cela résout-il ?
-      description: Décrivez la situation concrète où cela vous manque.
+      label: What problem does it solve?
+      description: Describe the actual situation where you miss it.
     validations:
       required: true
   - type: textarea
     id: idea
     attributes:
-      label: Ce que vous proposez
+      label: What you suggest
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives envisagées
+      label: Alternatives you considered
