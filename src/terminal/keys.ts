@@ -23,6 +23,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'ssh.quickConnect': 'Ctrl+Shift+K',
   'palette.toggle': 'Ctrl+Shift+P',
   'sftp.open': 'Ctrl+Shift+E',
+  'library.open': 'Ctrl+Shift+L',
   'space.next': 'Ctrl+Shift+PageDown',
   'space.prev': 'Ctrl+Shift+PageUp',
   ...Object.fromEntries(

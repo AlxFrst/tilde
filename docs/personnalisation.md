@@ -164,6 +164,7 @@ fait avec la touche `)`.
 | `space.1` … `space.9`                | Aller à l'espace 1 … 9     | Ctrl+Shift+1 … 9            |
 | `space.next` / `space.prev`          | Espace suivant / précédent | Ctrl+Shift+PageDown / PageUp |
 | `space.new`                          | Nouvel espace              | —                           |
+| `library.open`                       | Bibliothèque               | Ctrl+Shift+L                |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 

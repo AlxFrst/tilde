@@ -118,7 +118,11 @@ function HostRow({
   onTuck: () => void;
 }) {
   const readOnly = useConnections((s) => s.readOnly);
-  const adopt = useConnections((s) => s.adopt);
+  const adoptIn = useConnections((s) => s.adopt);
+  // Adopted in the space shown (none written while there is only the implicit one).
+  const space = useWorkspace((s) => s.activeSpaceId);
+  const written = useConnections((s) => s.file.spaces.length > 0);
+  const adopt = (alias: string) => adoptIn(alias, written ? space : null);
   const open = () => {
     useWorkspace.getState().openSshTab(h.alias);
   };

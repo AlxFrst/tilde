@@ -58,6 +58,14 @@ export function registerBuiltins(): () => void {
       },
     },
     {
+      id: 'library.open',
+      title: 'Bibliothèque',
+      group: 'Connexions',
+      run: () => {
+        useUi.getState().setLibraryOpen(true);
+      },
+    },
+    {
       id: 'space.next',
       title: 'Espace suivant',
       group: 'Espaces',

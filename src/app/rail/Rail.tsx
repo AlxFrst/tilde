@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Library, Search } from 'lucide-react';
 import { openConnectionsFile } from '@/ipc/connections';
 import { formatConfigError } from '@/ipc/errors';
 import type { Appearance } from '@/ipc/generated/settings';
@@ -22,6 +22,30 @@ export interface RailProps {
   onOpenSettings: () => void;
   /** Leaves room for macOS's traffic lights in the top-left corner. */
   macInset?: boolean;
+}
+
+/** Opens the Library; says how many ~/.ssh/config hosts wait there. */
+function LibraryButton() {
+  const hosts = useConnections((s) => s.sshHosts.length);
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
+      onClick={() => {
+        useUi.getState().setLibraryOpen(true);
+      }}
+    >
+      <Library className="size-4 shrink-0" strokeWidth={1.5} />
+      <span className="flex min-w-0 flex-col">
+        <span className="text-text">Bibliothèque</span>
+        {hosts > 0 && (
+          <span className="truncate text-xs">
+            ~/.ssh/config · {hosts} hôte{hosts > 1 ? 's' : ''}
+          </span>
+        )}
+      </span>
+    </button>
+  );
 }
 
 /** Opens the command palette; shows its shortcut so it is learnt by looking. */
@@ -127,11 +151,16 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
         className="flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-2 pb-2"
       >
         <FavoriteTiles />
-        <PinnedSection />
+        <PinnedSection
+          onOpenLibrary={() => {
+            useUi.getState().setLibraryOpen(true);
+          }}
+        />
         <TodaySection />
       </div>
 
       <RailFooter onOpenSettings={onOpenSettings}>
+        <LibraryButton />
         <SpaceSwitcher />
       </RailFooter>
     </aside>

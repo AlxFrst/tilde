@@ -15,6 +15,9 @@ interface UiState {
   setPaletteOpen: (open: boolean) => void;
   /** A shortcut is being recorded: app shortcuts are paused. */
   recordingShortcut: boolean;
+  /** Every connection, of every space, and the ~/.ssh/config hosts. */
+  libraryOpen: boolean;
+  setLibraryOpen: (open: boolean) => void;
   /** The space being created (`'new'`) or edited. */
   spaceDialog: Space | 'new' | null;
   setSpaceDialog: (s: Space | 'new' | null) => void;
@@ -34,6 +37,10 @@ export const useUi = create<UiState>()((set) => ({
     set({ paletteOpen });
   },
   recordingShortcut: false,
+  libraryOpen: false,
+  setLibraryOpen: (libraryOpen) => {
+    set({ libraryOpen });
+  },
   spaceDialog: null,
   setSpaceDialog: (spaceDialog) => {
     set({ spaceDialog });
