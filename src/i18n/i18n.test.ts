@@ -100,10 +100,10 @@ describe('t()', () => {
   });
 
   test('picks the plural form by language', () => {
-    expect(tn(0, '{count} panneau', '{count} panneaux')).toBe('0 panneau');
+    expect(tn(0, '{count} essai', '{count} essais')).toBe('0 essai');
     setLocale('en');
-    expect(tn(0, '{count} panneau', '{count} panneaux')).toBe('0 panneaux');
-    expect(tn(1, '{count} panneau', '{count} panneaux')).toBe('1 panneau');
+    expect(tn(0, '{count} essai', '{count} essais')).toBe('0 essais');
+    expect(tn(1, '{count} essai', '{count} essais')).toBe('1 essai');
   });
 
   test('msg() only marks text', () => {

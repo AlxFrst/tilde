@@ -1,4 +1,5 @@
 import { Component, useRef, type ReactNode } from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getPanelModule } from '@/panels/registry';
 import { PaneHeader } from './content/PaneHeader';
@@ -37,14 +38,16 @@ class PaneErrorBoundary extends Component<
         role="alert"
         className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm"
       >
-        <p className="font-medium">Le panneau « {this.props.title} » a rencontré une erreur.</p>
+        <p className="font-medium">
+          {t('Le panneau « {title} » a rencontré une erreur.', { title: this.props.title })}
+        </p>
         <p className="max-w-md break-words text-text-muted">{this.state.error.message}</p>
         <button
           type="button"
           className="rounded-md border px-3 py-1 hover:bg-surface-2"
           onClick={this.props.onClose}
         >
-          Fermer le panneau
+          {t('Fermer le panneau')}
         </button>
       </div>
     );
@@ -84,7 +87,7 @@ function Leaf({
         <div className="relative min-h-0 flex-1">
           {Module ? (
             <PaneErrorBoundary
-              title={module.title}
+              title={t(module.title)}
               onClose={() => {
                 ws().closeLeaf(tab.id, leaf.id);
               }}
@@ -105,7 +108,7 @@ function Leaf({
             </PaneErrorBoundary>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-text-muted">
-              Panneau inconnu : « {leaf.panel.kind} »
+              {t('Panneau inconnu : « {kind} »', { kind: leaf.panel.kind })}
             </div>
           )}
         </div>

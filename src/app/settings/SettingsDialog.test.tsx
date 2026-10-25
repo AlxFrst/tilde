@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { setLocale } from '@/i18n';
 import { useSettings } from '@/stores/settings';
 import { useUi } from '@/stores/ui';
 import { useWindowEffects } from '@/stores/windowEffects';
@@ -56,6 +57,21 @@ test('number fields refuse out-of-range values', async () => {
   await userEvent.clear(input);
   await userEvent.type(input, '16{Enter}');
   expect(update).toHaveBeenCalledWith({ terminal: { fontSize: 16 } });
+});
+
+test('shows the settings in English, numbers included', async () => {
+  setLocale('en');
+  useUi.setState({ settingsSection: 'terminal' });
+  render(<SettingsDialog open onOpenChange={vi.fn()} />);
+  expect(screen.getByRole('navigation', { name: 'Settings sections' })).toHaveTextContent(
+    'AppearanceThemesTerminalShortcutsSSHSFTPGeneral',
+  );
+  expect(screen.getByRole('radio', { name: 'Underline' })).toBeInTheDocument();
+  const input = screen.getByLabelText('Terminal line height');
+  await userEvent.clear(input);
+  await userEvent.type(input, '5{Enter}');
+  expect(screen.getByText('between 0.8 and 3')).toBeInTheDocument();
+  expect(update).not.toHaveBeenCalled();
 });
 
 test('choosing an effect at full opacity lowers it', async () => {

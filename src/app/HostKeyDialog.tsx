@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { t } from '@/i18n';
 import type { HostKeyChoice, SshPrompt } from '@/ipc/ssh';
 
 export type HostKeyPromptData = Extract<SshPrompt, { kind: 'hostKey' }>;
@@ -50,21 +51,22 @@ export function HostKeyDialog({
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-destructive">
                 <ShieldAlert className="size-5" strokeWidth={1.5} />
-                L’empreinte de {hostLabel(prompt)} a changé
+                {t('L’empreinte de {host} a changé', { host: hostLabel(prompt) })}
               </DialogTitle>
               <DialogDescription>
-                Le serveur ne présente plus la clé enregistrée. Quelqu’un intercepte peut-être la
-                connexion. Ne continuez que si vous savez que la clé du serveur a été changée.
+                {t(
+                  'Le serveur ne présente plus la clé enregistrée. Quelqu’un intercepte peut-être la connexion. Ne continuez que si vous savez que la clé du serveur a été changée.',
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-3 rounded-md border border-destructive/50 bg-destructive/10 p-3">
-              <Fingerprint label="Empreinte enregistrée" value={changed.oldFingerprint} />
+              <Fingerprint label={t('Empreinte enregistrée')} value={changed.oldFingerprint} />
               <Fingerprint
-                label={`Nouvelle empreinte (${prompt.keyType})`}
+                label={t('Nouvelle empreinte ({type})', { type: prompt.keyType })}
                 value={prompt.fingerprint}
               />
               <span className="text-xs text-text-muted">
-                Enregistrée dans{' '}
+                {t('Enregistrée dans')}{' '}
                 <code className="font-mono">{`${changed.file}:${String(changed.line)}`}</code>
               </span>
             </div>
@@ -76,7 +78,7 @@ export function HostKeyDialog({
                   setUnderstood(e.currentTarget.checked);
                 }}
               />
-              Je comprends le risque
+              {t('Je comprends le risque')}
             </label>
             <DialogFooter>
               <Button
@@ -86,7 +88,7 @@ export function HostKeyDialog({
                   onAnswer('reject');
                 }}
               >
-                Annuler
+                {t('Annuler')}
               </Button>
               <Button
                 variant="destructive"
@@ -95,19 +97,26 @@ export function HostKeyDialog({
                   onAnswer('replace');
                 }}
               >
-                Remplacer et continuer
+                {t('Remplacer et continuer')}
               </Button>
             </DialogFooter>
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Première connexion à {hostLabel(prompt)}</DialogTitle>
+              <DialogTitle>
+                {t('Première connexion à {host}', { host: hostLabel(prompt) })}
+              </DialogTitle>
               <DialogDescription>
-                Vérifiez que cette empreinte est bien celle du serveur avant de lui faire confiance.
+                {t(
+                  'Vérifiez que cette empreinte est bien celle du serveur avant de lui faire confiance.',
+                )}
               </DialogDescription>
             </DialogHeader>
-            <Fingerprint label={`Empreinte (${prompt.keyType})`} value={prompt.fingerprint} />
+            <Fingerprint
+              label={t('Empreinte ({type})', { type: prompt.keyType })}
+              value={prompt.fingerprint}
+            />
             <DialogFooter>
               <Button
                 variant="outline"
@@ -115,7 +124,7 @@ export function HostKeyDialog({
                   onAnswer('reject');
                 }}
               >
-                Annuler
+                {t('Annuler')}
               </Button>
               <Button
                 variant="outline"
@@ -123,7 +132,7 @@ export function HostKeyDialog({
                   onAnswer('acceptOnce');
                 }}
               >
-                Une seule fois
+                {t('Une seule fois')}
               </Button>
               <Button
                 autoFocus
@@ -131,7 +140,7 @@ export function HostKeyDialog({
                   onAnswer('acceptAndSave');
                 }}
               >
-                Faire confiance et enregistrer
+                {t('Faire confiance et enregistrer')}
               </Button>
             </DialogFooter>
           </>

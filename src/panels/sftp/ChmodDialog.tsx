@@ -9,16 +9,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { msg, t } from '@/i18n';
 
 const WHO = [
-  ['Propriétaire', 6],
-  ['Groupe', 3],
-  ['Autres', 0],
+  [msg('Propriétaire'), 6],
+  [msg('Groupe'), 3],
+  [msg('Autres'), 0],
 ] as const;
 const WHAT = [
-  ['lecture', 4],
-  ['écriture', 2],
-  ['exécution', 1],
+  [msg('lecture'), 4],
+  [msg('écriture'), 2],
+  [msg('exécution'), 1],
 ] as const;
 
 /** Permissions as an octal field and nine check boxes kept in sync. setuid/setgid/sticky
@@ -70,7 +71,7 @@ export function ChmodDialog({
                 <th />
                 {WHAT.map(([label]) => (
                   <th key={label} className="px-2 font-normal">
-                    {label}
+                    {t(label)}
                   </th>
                 ))}
               </tr>
@@ -78,14 +79,14 @@ export function ChmodDialog({
             <tbody>
               {WHO.map(([who, shift]) => (
                 <tr key={who}>
-                  <td className="pr-3">{who}</td>
+                  <td className="pr-3">{t(who)}</td>
                   {WHAT.map(([what, value]) => {
                     const bit = value << shift;
                     return (
                       <td key={what} className="text-center">
                         <input
                           type="checkbox"
-                          aria-label={`${who} : ${what}`}
+                          aria-label={t('{who} : {what}', { who: t(who), what: t(what) })}
                           checked={(bits & bit) !== 0}
                           onChange={() => {
                             toggle(bit);
@@ -99,9 +100,9 @@ export function ChmodDialog({
             </tbody>
           </table>
           <label className="grid gap-1 text-sm">
-            Mode octal
+            {t('Mode octal')}
             <Input
-              aria-label="Mode octal"
+              aria-label={t('Mode octal')}
               inputMode="numeric"
               maxLength={3}
               className="w-24 font-mono"
@@ -116,10 +117,10 @@ export function ChmodDialog({
           </label>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              Annuler
+              {t('Annuler')}
             </Button>
             <Button type="submit" disabled={!valid}>
-              Appliquer
+              {t('Appliquer')}
             </Button>
           </DialogFooter>
         </form>

@@ -1,4 +1,5 @@
 import { Activity } from 'lucide-react';
+import { msg, t } from '@/i18n';
 import type { PanelModule } from '@/panels/registry';
 import { useWorkspace } from '@/stores/workspace';
 import { findLeaf } from '@/workspace/tree';
@@ -8,7 +9,7 @@ import MonitorPane from './MonitorPane';
 /** « Moniteur système » : the server of the active SSH pane, otherwise this machine. */
 function openMonitorForActivePane(): void {
   const ws = useWorkspace.getState();
-  const tab = ws.tabs.find((t) => t.id === ws.activeTabId);
+  const tab = ws.tabs.find((x) => x.id === ws.activeTabId);
   const leaf = tab ? findLeaf(tab.root, tab.activeLeafId) : null;
   if (leaf?.panel.kind === 'ssh') {
     ws.openMonitor(leaf.id, { kind: 'remote', linkedLeafId: leaf.id });
@@ -20,10 +21,10 @@ function openMonitorForActivePane(): void {
 export const monitorModule: PanelModule<MonitorPanel> = {
   id: 'core.monitor',
   kind: 'monitor',
-  title: 'Moniteur',
+  title: msg('Moniteur'),
   icon: Activity,
   component: MonitorPane,
-  tabTitle: (s) => (s.source.kind === 'local' ? 'Moniteur' : 'Moniteur du serveur'),
+  tabTitle: (s) => (s.source.kind === 'local' ? t('Moniteur') : t('Moniteur du serveur')),
   // Kept across restarts: local as is, remote with its SSH pane (dropped without it).
   deserialize: (raw) => {
     const src = raw.source as { kind?: unknown; linkedLeafId?: unknown } | null | undefined;
@@ -43,7 +44,7 @@ export const monitorModule: PanelModule<MonitorPanel> = {
   commands: [
     {
       id: 'monitor.open',
-      title: 'Moniteur système',
+      title: msg('Moniteur système'),
       keywords: ['monitor', 'stats', 'cpu', 'ram', 'disk', 'charge'],
       group: 'Panneaux',
       run: openMonitorForActivePane,

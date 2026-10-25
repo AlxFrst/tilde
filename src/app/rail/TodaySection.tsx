@@ -10,9 +10,11 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 import { useMemo } from 'react';
+import { t } from '@/i18n';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
 import { isPinnedTab, spaceOfTab } from '@/workspace/spaces';
+import { bindingKeys } from '@/terminal/keyLabels';
 import type { Tab } from '@/workspace/types';
 import { openDefaultTab } from '../actions';
 import { NewTabMenu } from '../NewTabMenu';
@@ -39,7 +41,7 @@ export function TodaySection() {
   // Pins follow connections.json: re-read it so a deleted connection's session moves here.
   const file = useConnections((s) => s.file);
   const today = useMemo(
-    () => tabs.filter((t) => spaceOfTab(t) === space && !isPinnedTab(t)),
+    () => tabs.filter((x) => spaceOfTab(x) === space && !isPinnedTab(x)),
     // `file` changes the resolver's answers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tabs, space, file],
@@ -48,23 +50,23 @@ export function TodaySection() {
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const ids = useWorkspace.getState().tabs.map((t) => t.id);
+    const ids = useWorkspace.getState().tabs.map((x) => x.id);
     useWorkspace.getState().moveTab(ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
   };
 
   return (
-    <section role="group" aria-label="Aujourd’hui" className="grid gap-px">
+    <section role="group" aria-label={t('Aujourd’hui')} className="grid gap-px">
       <div className="flex items-center gap-2 px-2 pt-4 pb-1">
         <h3 className="text-[0.7rem] font-medium tracking-wider text-text-muted uppercase">
-          Aujourd’hui
+          {t('Aujourd’hui')}
         </h3>
         <span className="h-px flex-1 bg-border" />
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={today.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={today.map((x) => x.id)} strategy={verticalListSortingStrategy}>
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-px">
-            {today.map((t) => (
-              <SortableSession key={t.id} tab={t} />
+            {today.map((x) => (
+              <SortableSession key={x.id} tab={x} />
             ))}
           </ul>
         </SortableContext>
@@ -72,13 +74,13 @@ export function TodaySection() {
       <div className="mt-1 flex items-center gap-0.5">
         <button
           type="button"
-          aria-label="Nouvelle session"
-          title="Nouvelle session (Ctrl+Maj+T)"
+          aria-label={t('Nouvelle session')}
+          title={t('Nouvelle session ({keys})', { keys: bindingKeys('Ctrl+Shift+T').join('+') })}
           className="flex h-8 flex-1 items-center gap-2 rounded-lg border border-dashed border-border px-2 text-left text-sm text-text-muted hover:bg-surface-2 hover:text-text"
           onClick={openDefaultTab}
         >
           <Plus className="size-4" strokeWidth={1.75} />
-          Nouvelle session
+          {t('Nouvelle session')}
         </button>
         <NewTabMenu />
       </div>

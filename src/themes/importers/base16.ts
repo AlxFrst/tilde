@@ -1,6 +1,7 @@
 // base16 / base24 schemes (YAML). Only flat `key: value` lines are read, which covers
 // both the classic format and tinted-theming's `palette:` block.
 
+import { t } from '@/i18n';
 import { ANSI_KEYS, fail, normalizeHex, type RawScheme } from './common';
 
 /** Standard base16-shell mapping of base00–base0F onto the 16 ANSI colors. */
@@ -40,7 +41,11 @@ export function parseBase16(text: string): RawScheme {
   }
   const base = (n: string) => {
     const hex = normalizeHex(values.get(`base${n.toLowerCase()}`));
-    if (!hex) fail(`base${n} : couleur manquante ou invalide (fichier base16 attendu)`);
+    if (!hex) {
+      fail(
+        t('{key} : couleur manquante ou invalide (fichier base16 attendu)', { key: `base${n}` }),
+      );
+    }
     return hex;
   };
   const name = values.get('scheme') || values.get('name') || 'base16';

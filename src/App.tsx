@@ -12,6 +12,7 @@ import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
 import { resolveLocale, setLocale, useLocale } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useConnections } from '@/stores/connections';
@@ -197,12 +198,12 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     if (quake) return;
     quakeStatus().then(
       (status) => {
-        if (status) toast.error(status);
+        if (status) toast.error(tRust(status));
       },
       () => undefined,
     );
     const off = listen<string>('quake://error', (e) => {
-      toast.error(e.payload);
+      toast.error(tRust(e.payload));
     });
     return () => {
       void off.then((f) => {

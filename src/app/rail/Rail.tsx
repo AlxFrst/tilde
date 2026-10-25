@@ -1,4 +1,6 @@
 import { Library, PanelLeftClose, Search } from 'lucide-react';
+import { t, tn } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { openConnectionsFile } from '@/ipc/connections';
 import { formatConfigError } from '@/ipc/errors';
 import type { Appearance } from '@/ipc/generated/settings';
@@ -37,10 +39,10 @@ function LibraryButton() {
     >
       <Library className="size-4 shrink-0" strokeWidth={1.5} />
       <span className="flex min-w-0 flex-col">
-        <span className="text-text">Bibliothèque</span>
+        <span className="text-text">{t('Bibliothèque')}</span>
         {hosts > 0 && (
           <span className="truncate text-xs">
-            ~/.ssh/config · {hosts} hôte{hosts > 1 ? 's' : ''}
+            ~/.ssh/config · {tn(hosts, '{count} hôte', '{count} hôtes')}
           </span>
         )}
       </span>
@@ -60,7 +62,7 @@ function SearchButton() {
       }}
     >
       <Search className="size-4 shrink-0" strokeWidth={1.75} />
-      <span className="min-w-0 flex-1 truncate">Rechercher, se connecter, agir…</span>
+      <span className="min-w-0 flex-1 truncate">{t('Rechercher, se connecter, agir…')}</span>
       {binding && (
         <span className="flex shrink-0 gap-0.5">
           {bindingKeys(binding).map((k) => (
@@ -87,7 +89,7 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
   const tint = listSpaces(file).find((s) => s.id === activeSpace)?.color ?? null;
   return (
     <aside
-      aria-label="Barre latérale"
+      aria-label={t('Barre latérale')}
       data-side={side}
       // Arc's signature: the Rail takes a hint of the space's colour.
       style={
@@ -115,8 +117,10 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
         </span>
         <button
           type="button"
-          aria-label="Masquer la barre latérale"
-          title="Masquer la barre latérale (Ctrl+Maj+B)"
+          aria-label={t('Masquer la barre latérale')}
+          title={t('Masquer la barre latérale ({keys})', {
+            keys: bindingKeys('Ctrl+Shift+B').join('+'),
+          })}
           className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
           onClick={() => {
             useUi.getState().setRailHidden(true);
@@ -140,7 +144,7 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
             className="mt-1 underline"
             onClick={() => void openConnectionsFile()}
           >
-            Ouvrir le fichier
+            {t('Ouvrir le fichier')}
           </button>
         </div>
       )}
@@ -149,10 +153,10 @@ export function Rail({ side, width, onOpenSettings, macInset = false }: RailProp
           role="status"
           className="mx-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs"
         >
-          <p className="font-medium">À corriger avant de pouvoir s’y connecter :</p>
+          <p className="font-medium">{t('À corriger avant de pouvoir s’y connecter :')}</p>
           <ul className="mt-1 list-disc pl-4">
             {warnings.map((w) => (
-              <li key={w}>{w}</li>
+              <li key={w}>{tRust(w)}</li>
             ))}
           </ul>
         </div>

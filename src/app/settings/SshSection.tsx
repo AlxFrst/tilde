@@ -1,3 +1,4 @@
+import { t } from '@/i18n';
 import type { Settings } from '@/ipc/generated/settings';
 import { useSettings } from '@/stores/settings';
 import { NumberField, Row, Section, SwitchField } from './fields';
@@ -12,11 +13,11 @@ export function SshSection() {
 
   return (
     <div className="grid gap-6">
-      <Section title="Connexion">
-        <Row label="Keepalive" hint="Intervalle des messages de maintien ; 0 = désactivé.">
+      <Section title={t('Connexion')}>
+        <Row label="Keepalive" hint={t('Intervalle des messages de maintien ; 0 = désactivé.')}>
           <NumberField
             setting="ssh.keepaliveIntervalSecs"
-            label="Intervalle keepalive"
+            label={t('Intervalle keepalive')}
             value={s.keepaliveIntervalSecs}
             min={0}
             max={3600}
@@ -27,10 +28,10 @@ export function SshSection() {
             }}
           />
         </Row>
-        <Row label="Réponses manquées" hint="Avant de considérer la connexion perdue.">
+        <Row label={t('Réponses manquées')} hint={t('Avant de considérer la connexion perdue.')}>
           <NumberField
             setting="ssh.keepaliveCountMax"
-            label="Keepalive sans réponse"
+            label={t('Keepalive sans réponse')}
             value={s.keepaliveCountMax}
             min={1}
             max={100}
@@ -40,10 +41,13 @@ export function SshSection() {
             }}
           />
         </Row>
-        <Row label="Reconnexion automatique" hint="Un nouveau shell est ouvert après une coupure.">
+        <Row
+          label={t('Reconnexion automatique')}
+          hint={t('Un nouveau shell est ouvert après une coupure.')}
+        >
           <SwitchField
             setting="ssh.autoReconnect"
-            label="Reconnexion automatique"
+            label={t('Reconnexion automatique')}
             checked={s.autoReconnect}
             disabled={readOnly}
             onChange={(autoReconnect) => {
@@ -51,10 +55,10 @@ export function SshSection() {
             }}
           />
         </Row>
-        <Row label="Confirmer la fermeture d’un onglet SSH">
+        <Row label={t('Confirmer la fermeture d’un onglet SSH')}>
           <SwitchField
             setting="ssh.confirmCloseSsh"
-            label="Confirmer la fermeture d’un onglet SSH"
+            label={t('Confirmer la fermeture d’un onglet SSH')}
             checked={s.confirmCloseSsh}
             disabled={readOnly}
             onChange={(confirmCloseSsh) => {
@@ -63,12 +67,14 @@ export function SshSection() {
           />
         </Row>
         <Row
-          label="Bandeau d’état du serveur"
-          hint="Sous chaque terminal SSH : processeur, mémoire, disque et réseau de la machine."
+          label={t('Bandeau d’état du serveur')}
+          hint={t(
+            'Sous chaque terminal SSH : processeur, mémoire, disque et réseau de la machine.',
+          )}
         >
           <SwitchField
             setting="ssh.statusBar"
-            label="Bandeau d’état du serveur"
+            label={t('Bandeau d’état du serveur')}
             checked={s.statusBar}
             disabled={readOnly}
             onChange={(statusBar) => {

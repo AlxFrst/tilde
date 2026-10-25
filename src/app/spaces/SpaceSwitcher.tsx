@@ -8,7 +8,8 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { connectionIcon } from '@/connections/icons';
-import { listSpaces } from '@/connections/spaces';
+import { listSpaces, spaceName } from '@/connections/spaces';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useKeybindings } from '@/stores/keybindings';
@@ -22,8 +23,8 @@ function NewSpaceButton({ compact }: { compact: boolean }) {
   return (
     <button
       type="button"
-      aria-label="Nouvel espace"
-      title="Nouvel espace (Pro, Perso, Homelab…)"
+      aria-label={t('Nouvel espace')}
+      title={t('Nouvel espace (Pro, Perso, Homelab…)')}
       disabled={readOnly}
       className={cn(
         'flex shrink-0 items-center justify-center gap-2 rounded-lg text-text-muted transition-colors hover:bg-surface-2 hover:text-text disabled:opacity-40',
@@ -34,7 +35,7 @@ function NewSpaceButton({ compact }: { compact: boolean }) {
       }}
     >
       <Plus className="size-4" strokeWidth={1.5} />
-      {!compact && <span>Nouvel espace</span>}
+      {!compact && <span>{t('Nouvel espace')}</span>}
     </button>
   );
 }
@@ -51,10 +52,11 @@ export function SpaceSwitcher() {
   const spaces = listSpaces(file);
   if (spaces.length < 2) return <NewSpaceButton compact={false} />;
   return (
-    <div role="group" aria-label="Espaces" className="flex flex-wrap items-center gap-1">
+    <div role="group" aria-label={t('Espaces')} className="flex flex-wrap items-center gap-1">
       {spaces.map((space, i) => {
         const Icon = connectionIcon(space.icon);
         const current = space.id === active;
+        const name = spaceName(space);
         const binding = effective[`space.${String(i + 1)}`];
         const keys = binding ? ` (${bindingKeys(binding).join('+')})` : '';
         return (
@@ -62,9 +64,9 @@ export function SpaceSwitcher() {
             <ContextMenuTrigger asChild>
               <button
                 type="button"
-                aria-label={space.name}
+                aria-label={name}
                 aria-pressed={current}
-                title={`${space.name}${keys}`}
+                title={`${name}${keys}`}
                 // The current space wears its own colour: border and tint.
                 style={{ '--chip': space.color ?? 'var(--tilde-accent)' } as CSSProperties}
                 className={cn(
@@ -89,7 +91,7 @@ export function SpaceSwitcher() {
                   useUi.getState().setSpaceDialog(space);
                 }}
               >
-                Modifier l’espace…
+                {t('Modifier l’espace…')}
               </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
@@ -97,7 +99,7 @@ export function SpaceSwitcher() {
                 disabled={readOnly}
                 onSelect={() => void deleteSpace(space)}
               >
-                Supprimer l’espace…
+                {t('Supprimer l’espace…')}
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>

@@ -14,6 +14,7 @@ import {
   type OpenedText,
   type Stamp,
 } from '@/ipc/editor';
+import { t } from '@/i18n';
 import type { FileSource } from '@/workspace/types';
 
 /** Local documents just opened through the dialog: their text is already here. */
@@ -91,7 +92,9 @@ export function useDocument(source: FileSource, sessionId: number | null): Docum
   const save = useCallback(
     async (next: string, force = false): Promise<SaveOutcome> => {
       if (remotePath !== null && sessionId === null) {
-        toast.error('Connexion SSH perdue : reconnectez l’onglet SSH pour enregistrer ce fichier.');
+        toast.error(
+          t('Connexion SSH perdue : reconnectez l’onglet SSH pour enregistrer ce fichier.'),
+        );
         return 'error';
       }
       try {
@@ -109,7 +112,7 @@ export function useDocument(source: FileSource, sessionId: number | null): Docum
           setConflict(true);
           return 'conflict';
         }
-        toast.error(`Enregistrement impossible : ${e.message}`);
+        toast.error(t('Enregistrement impossible : {error}', { error: e.message }));
         return 'error';
       }
     },

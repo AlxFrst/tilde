@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { t } from '@/i18n';
 import { answerCloseGuard, useCloseGuard } from './closeGuard';
 
 export function ConfirmCloseDialog() {
@@ -22,11 +23,13 @@ export function ConfirmCloseDialog() {
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Fermer quand même ?</DialogTitle>
+          <DialogTitle>{t('Fermer quand même ?')}</DialogTitle>
           <DialogDescription>
             {unsaved.length > 0
-              ? `Modifications non enregistrées dans ${unsaved.join(', ')} : elles seront perdues.`
-              : 'Un programme est en cours dans ce terminal.'}
+              ? t('Modifications non enregistrées dans {files} : elles seront perdues.', {
+                  files: unsaved.join(', '),
+                })
+              : t('Un programme est en cours dans ce terminal.')}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -37,7 +40,7 @@ export function ConfirmCloseDialog() {
               answerCloseGuard(false);
             }}
           >
-            Annuler
+            {t('Annuler')}
           </Button>
           <Button
             variant="destructive"
@@ -45,7 +48,7 @@ export function ConfirmCloseDialog() {
               answerCloseGuard(true);
             }}
           >
-            Fermer
+            {t('Fermer')}
           </Button>
         </DialogFooter>
       </DialogContent>

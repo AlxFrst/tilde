@@ -12,7 +12,7 @@ import {
   Unplug,
   Upload,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { confirmAction } from '@/app/confirm';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { msg, t, tn } from '@/i18n';
 import {
   joinRemote,
   onTransfer,
@@ -58,10 +59,23 @@ import { FileList, sortEntries, type Sort } from './FileList';
 import { OSC7_SNIPPETS } from './osc7Snippet';
 import { PathBar } from './PathBar';
 
-const NAMING_TITLES = { mkdir: 'Nouveau dossier', file: 'Nouveau fichier', rename: 'Renommer' };
+const NAMING_TITLES = {
+  mkdir: msg('Nouveau dossier'),
+  file: msg('Nouveau fichier'),
+  rename: msg('Renommer'),
+};
 
 /** How long to wait for the shell to report its directory before offering the snippet. */
 const OSC7_GRACE_MS = 3000;
+
+/** `text` with each `{name}` replaced by `codes[name]` set as code. */
+function withCode(text: string, codes: Readonly<Record<string, string>>): ReactNode[] {
+  return text.split(/(\{\w+\})/).map((part, i) => {
+    const name = /^\{(\w+)\}$/.exec(part)?.[1];
+    const code = name === undefined ? undefined : codes[name];
+    return code === undefined ? part : <code key={i}>{code}</code>;
+  });
+}
 
 function message(err: unknown): string {
   if (typeof err === 'object' && err !== null && 'message' in err) {
@@ -102,7 +116,7 @@ function NameDialog({
           </DialogHeader>
           <Input
             autoFocus
-            aria-label="Nom"
+            aria-label={t('Nom')}
             value={name}
             onChange={(e) => {
               setName(e.currentTarget.value);
@@ -120,10 +134,10 @@ function NameDialog({
                 onDone(null);
               }}
             >
-              Annuler
+              {t('Annuler')}
             </Button>
             <Button type="submit" disabled={!valid}>
-              Valider
+              {t('Valider')}
             </Button>
           </DialogFooter>
         </form>
@@ -138,8 +152,12 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
   return (
     <div className="m-2 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs">
       <p>
-        Le shell distant ne signale pas son dossier courant : le panneau reste sur votre dossier
-        personnel. Pour qu’il suive vos <code>cd</code>, ajoutez à <code>{snippet.file}</code> :
+        {withCode(
+          t(
+            'Le shell distant ne signale pas son dossier courant : le panneau reste sur votre dossier personnel. Pour qu’il suive vos {cd}, ajoutez à {file} :',
+          ),
+          { cd: 'cd', file: snippet.file },
+        )}
       </p>
       <div className="mt-1 flex gap-1">
         {OSC7_SNIPPETS.map((s, i) => (
@@ -166,13 +184,13 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
           type="button"
           className="underline"
           onClick={() => {
-            void writeText(snippet.code).then(() => toast.success('Copié'));
+            void writeText(snippet.code).then(() => toast.success(t('Copié')));
           }}
         >
-          Copier
+          {t('Copier')}
         </button>
         <button type="button" className="underline" onClick={onDetach}>
-          Ne pas suivre le terminal
+          {t('Ne pas suivre le terminal')}
         </button>
       </div>
     </div>
@@ -193,7 +211,7 @@ export function SftpPanelView({
 }) {
   const sessionId = useSessionId(panel.linkedLeafId);
   const linkedCwd = useWorkspace((s) => {
-    const tab = s.tabs.find((t) => t.id === tabId);
+    const tab = s.tabs.find((x) => x.id === tabId);
     const linked = tab ? findLeaf(tab.root, panel.linkedLeafId) : null;
     return linked?.panel.kind === 'ssh' ? linked.panel.cwd : null;
   });
@@ -284,13 +302,13 @@ export function SftpPanelView({
 
   // Uploads landing in this folder show up as they finish.
   useEffect(() => {
-    const off = onTransfer((t) => {
+    const off = onTransfer((transfer) => {
       if (
-        t.session === sessionId &&
-        t.direction === 'upload' &&
-        t.state.kind === 'done' &&
+        transfer.session === sessionId &&
+        transfer.direction === 'upload' &&
+        transfer.state.kind === 'done' &&
         path !== null &&
-        parentOf(t.remote) === path
+        parentOf(transfer.remote) === path
       ) {
         setReload((r) => r + 1);
       }
@@ -344,7 +362,7 @@ export function SftpPanelView({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 bg-background p-6 text-center text-text-muted">
         <Unplug className="size-5" strokeWidth={1.5} />
-        <p>Déconnecté — reconnectez l’onglet SSH pour voir ses fichiers.</p>
+        <p>{t('Déconnecté — reconnectez l’onglet SSH pour voir ses fichiers.')}</p>
       </div>
     );
   }
@@ -375,17 +393,23 @@ export function SftpPanelView({
     const targets = targetsOf(e);
     const one = targets.length === 1 ? targets[0] : undefined;
     void confirmAction({
-      title: one ? `Supprimer « ${one.name} » ?` : `Supprimer ${String(targets.length)} éléments ?`,
+      title: one
+        ? t('Supprimer « {name} » ?', { name: one.name })
+        : tn(targets.length, 'Supprimer {count} élément ?', 'Supprimer {count} éléments ?'),
       description: !one
-        ? 'Les dossiers sont supprimés avec tout leur contenu ; les liens symboliques, sans toucher à leur cible.'
+        ? t(
+            'Les dossiers sont supprimés avec tout leur contenu ; les liens symboliques, sans toucher à leur cible.',
+          )
         : one.kind === 'dir'
-          ? 'Le dossier sera supprimé du serveur, et tout son contenu. Les liens symboliques qu’il contient sont supprimés sans toucher à leur cible.'
-          : 'Le fichier sera supprimé du serveur.',
-      confirmLabel: 'Supprimer',
+          ? t(
+              'Le dossier sera supprimé du serveur, et tout son contenu. Les liens symboliques qu’il contient sont supprimés sans toucher à leur cible.',
+            )
+          : t('Le fichier sera supprimé du serveur.'),
+      confirmLabel: t('Supprimer'),
       destructive: true,
     }).then((ok) => {
       if (!ok) return;
-      run(Promise.all(targets.map((t) => sftpRemove(sessionId, t.path))));
+      run(Promise.all(targets.map((target) => sftpRemove(sessionId, target.path))));
     });
   };
 
@@ -399,7 +423,7 @@ export function SftpPanelView({
               navigate(e.path);
             }}
           >
-            Ouvrir
+            {t('Ouvrir')}
           </ContextMenuItem>
         ) : (
           <ContextMenuItem
@@ -407,7 +431,7 @@ export function SftpPanelView({
               edit(e.path);
             }}
           >
-            Modifier
+            {t('Modifier')}
           </ContextMenuItem>
         )}
         {e.kind !== 'dir' && previewKind(e.name) && (
@@ -420,7 +444,7 @@ export function SftpPanelView({
               });
             }}
           >
-            Aperçu
+            {t('Aperçu')}
           </ContextMenuItem>
         )}
         <ContextMenuItem
@@ -428,26 +452,26 @@ export function SftpPanelView({
             run(
               sftpDownload(
                 sessionId,
-                targets.map((t) => t.path),
+                targets.map((target) => target.path),
                 false,
               ),
             );
           }}
         >
-          Télécharger
+          {t('Télécharger')}
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
             run(
               sftpDownload(
                 sessionId,
-                targets.map((t) => t.path),
+                targets.map((target) => target.path),
                 true,
               ),
             );
           }}
         >
-          Télécharger vers…
+          {t('Télécharger vers…')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -455,7 +479,7 @@ export function SftpPanelView({
             setNaming({ kind: 'rename', entry: e });
           }}
         >
-          Renommer…
+          {t('Renommer…')}
         </ContextMenuItem>
         {/* SETSTAT follows links: changing a link's « mode » would change its target. */}
         {e.kind !== 'symlink' && (
@@ -473,7 +497,7 @@ export function SftpPanelView({
             void writeText(e.path);
           }}
         >
-          Copier le chemin
+          {t('Copier le chemin')}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
@@ -482,7 +506,7 @@ export function SftpPanelView({
             remove(e);
           }}
         >
-          Supprimer
+          {t('Supprimer')}
         </ContextMenuItem>
       </ContextMenuContent>
     );
@@ -503,8 +527,8 @@ export function SftpPanelView({
       <div className="flex items-center gap-1 border-b px-2 py-1">
         <button
           type="button"
-          aria-label="Dossier parent"
-          title="Dossier parent (Retour arrière)"
+          aria-label={t('Dossier parent')}
+          title={t('Dossier parent (Retour arrière)')}
           className={tool}
           onClick={() => {
             if (path) navigate(parentOf(path));
@@ -513,14 +537,14 @@ export function SftpPanelView({
           <ArrowUp className="size-4" strokeWidth={1.5} />
         </button>
         {path !== null && <PathBar path={path} onNavigate={navigate} />}
-        <button type="button" aria-label="Actualiser" className={tool} onClick={refresh}>
+        <button type="button" aria-label={t('Actualiser')} className={tool} onClick={refresh}>
           <RotateCw className="size-4" strokeWidth={1.5} />
         </button>
         <button
           type="button"
-          aria-label={panel.follow ? 'Ne pas suivre le terminal' : 'Suivre le terminal'}
+          aria-label={panel.follow ? t('Ne pas suivre le terminal') : t('Suivre le terminal')}
           aria-pressed={panel.follow}
-          title={panel.follow ? 'Suit le dossier du terminal' : 'Ne suit pas le terminal'}
+          title={panel.follow ? t('Suit le dossier du terminal') : t('Ne suit pas le terminal')}
           className={cn(tool, panel.follow && 'bg-primary/15 text-primary')}
           onClick={() => {
             update({ follow: !panel.follow });
@@ -534,7 +558,9 @@ export function SftpPanelView({
         </button>
         <button
           type="button"
-          aria-label={showHidden ? 'Masquer les fichiers cachés' : 'Afficher les fichiers cachés'}
+          aria-label={
+            showHidden ? t('Masquer les fichiers cachés') : t('Afficher les fichiers cachés')
+          }
           className={tool}
           onClick={() => {
             setShowHidden((v) => !v);
@@ -548,7 +574,7 @@ export function SftpPanelView({
         </button>
         <button
           type="button"
-          aria-label="Nouveau dossier"
+          aria-label={t('Nouveau dossier')}
           className={tool}
           onClick={() => {
             setNaming({ kind: 'mkdir' });
@@ -558,7 +584,7 @@ export function SftpPanelView({
         </button>
         <button
           type="button"
-          aria-label="Nouveau fichier"
+          aria-label={t('Nouveau fichier')}
           className={tool}
           onClick={() => {
             setNaming({ kind: 'file' });
@@ -568,8 +594,8 @@ export function SftpPanelView({
         </button>
         <button
           type="button"
-          aria-label="Envoyer des fichiers"
-          title="Envoyer des fichiers (ou glissez-les ici)"
+          aria-label={t('Envoyer des fichiers')}
+          title={t('Envoyer des fichiers (ou glissez-les ici)')}
           className={tool}
           onClick={() => {
             if (path) run(sftpUpload(sessionId, null, path));
@@ -626,7 +652,7 @@ export function SftpPanelView({
 
       {naming && path !== null && (
         <NameDialog
-          title={NAMING_TITLES[naming.kind]}
+          title={t(NAMING_TITLES[naming.kind])}
           initial={naming.kind === 'rename' ? naming.entry.name : ''}
           onDone={(name) => {
             const current = naming;
@@ -635,7 +661,7 @@ export function SftpPanelView({
             const target = joinRemote(path, name);
             // The server would only answer « Failure ».
             if (current.kind !== 'rename' && entries?.some((e) => e.name === name)) {
-              toast.error(`« ${name} » existe déjà.`);
+              toast.error(t('« {name} » existe déjà.', { name }));
             } else if (current.kind === 'mkdir') run(sftpMkdir(sessionId, target));
             else if (current.kind === 'file') {
               run(

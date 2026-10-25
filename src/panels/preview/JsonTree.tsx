@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { t, tn } from '@/i18n';
 
 /** Beyond this many values, only the root level starts open. */
 const OPEN_LIMIT = 5000;
@@ -62,8 +63,8 @@ function Node({
     ? (value as unknown[]).map((v, i) => [String(i), v] as const)
     : Object.entries(value as Record<string, unknown>);
   const summary = isArray
-    ? `[${String(entries.length)} élément${entries.length === 1 ? '' : 's'}]`
-    : `{${String(entries.length)} clé${entries.length === 1 ? '' : 's'}}`;
+    ? `[${tn(entries.length, '{count} élément', '{count} éléments')}]`
+    : `{${tn(entries.length, '{count} clé', '{count} clés')}}`;
   return (
     <div>
       <button
@@ -80,7 +81,7 @@ function Node({
         ) : (
           <ChevronRight className="size-3.5 shrink-0" strokeWidth={1.5} />
         )}
-        {label ?? <span className="text-text-muted">racine</span>}
+        {label ?? <span className="text-text-muted">{t('racine')}</span>}
         {!open && <span className="ml-1 text-text-muted">{summary}</span>}
       </button>
       {open &&
@@ -105,8 +106,10 @@ function Node({
             setShown((n) => n + PAGE);
           }}
         >
-          Afficher {Math.min(PAGE, entries.length - shown)} de plus ({entries.length - shown}{' '}
-          restants)
+          {t('Afficher {count} de plus ({remaining} restants)', {
+            count: Math.min(PAGE, entries.length - shown),
+            remaining: entries.length - shown,
+          })}
         </button>
       )}
     </div>

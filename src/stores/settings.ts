@@ -1,5 +1,6 @@
 import { toast } from 'sonner';
 import { create } from 'zustand';
+import { t } from '@/i18n';
 import { formatConfigError, isConfigError, type ConfigErrorDto } from '@/ipc/errors';
 import type { Settings } from '@/ipc/generated/settings';
 import {
@@ -32,7 +33,7 @@ const LOCKING_KINDS = new Set<ConfigErrorDto['kind']>([
 
 function describe(err: unknown): string {
   if (isConfigError(err)) return formatConfigError(err);
-  return typeof err === 'string' ? err : 'Erreur inattendue lors de la mise à jour des réglages';
+  return typeof err === 'string' ? err : t('Erreur inattendue lors de la mise à jour des réglages');
 }
 
 export const useSettings = create<SettingsState>()((set) => ({

@@ -1,5 +1,6 @@
 import { Settings2 } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { t } from '@/i18n';
 
 /** The bottom of the Rail: always visible, whatever the list above holds. */
 export function RailFooter({
@@ -15,12 +16,12 @@ export function RailFooter({
       {children}
       <button
         type="button"
-        aria-label="Réglages"
+        aria-label={t('Réglages')}
         onClick={onOpenSettings}
         className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
       >
         <Settings2 className="size-4" strokeWidth={1.5} />
-        <span>Réglages</span>
+        <span>{t('Réglages')}</span>
       </button>
     </div>
   );

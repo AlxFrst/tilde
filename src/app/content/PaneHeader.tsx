@@ -1,4 +1,5 @@
 import { Columns2, Rows2, X, type LucideIcon } from 'lucide-react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { LeafNode, Tab } from '@/workspace/types';
 import { closePane, splitPane } from '../actions';
@@ -34,7 +35,7 @@ export function PaneHeader({ tab, leaf, active }: { tab: Tab; leaf: LeafNode; ac
   return (
     <div
       role="toolbar"
-      aria-label={`Panneau ${name}`}
+      aria-label={t('Panneau {name}', { name })}
       className={cn(
         'flex h-7 shrink-0 items-center gap-2 border-b border-border px-2 text-xs',
         active ? 'text-text' : 'text-text-muted',
@@ -46,21 +47,21 @@ export function PaneHeader({ tab, leaf, active }: { tab: Tab; leaf: LeafNode; ac
       {detail && <span className="min-w-0 truncate font-mono text-text-muted">{detail}</span>}
       <span className="flex-1" />
       <PaneAction
-        label="Diviser à droite"
+        label={t('Diviser à droite')}
         Icon={Columns2}
         onClick={() => {
           splitPane(tab.id, leaf.id, 'row');
         }}
       />
       <PaneAction
-        label="Diviser en bas"
+        label={t('Diviser en bas')}
         Icon={Rows2}
         onClick={() => {
           splitPane(tab.id, leaf.id, 'column');
         }}
       />
       <PaneAction
-        label="Fermer ce panneau"
+        label={t('Fermer ce panneau')}
         Icon={X}
         onClick={() => void closePane(tab.id, leaf.id)}
       />

@@ -10,8 +10,9 @@ import {
 } from '@/components/ui/dialog';
 import { connectionIcon } from '@/connections/icons';
 import { search, type SearchItem } from '@/connections/search';
-import { connectionSpace, listSpaces } from '@/connections/spaces';
+import { connectionSpace, listSpaces, spaceName } from '@/connections/spaces';
 import { exportWithToast, importWithReport } from '@/connections/transfer';
+import { t } from '@/i18n';
 import type { Connection } from '@/ipc/connections';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useUi } from '@/stores/ui';
@@ -40,39 +41,39 @@ function ConnectionLine({ c, here, Icon }: { c: Connection; here: boolean; Icon:
         </span>
       </span>
       <RowAction
-        label={`Ouvrir ${c.name}`}
+        label={t('Ouvrir {name}', { name: c.name })}
         onClick={() => {
           useUi.getState().setLibraryOpen(false);
           openConnection(c);
         }}
       >
-        Ouvrir
+        {t('Ouvrir')}
       </RowAction>
       {!here && (
         <RowAction
-          label={`Ouvrir ${c.name} ici`}
+          label={t('Ouvrir {name} ici', { name: c.name })}
           onClick={() => {
             useUi.getState().setLibraryOpen(false);
             useWorkspace.getState().openSshTab(c.host, c.id);
           }}
         >
-          Ouvrir ici
+          {t('Ouvrir ici')}
         </RowAction>
       )}
       {!here && (
         <RowAction
-          label={`Déplacer ${c.name} ici`}
+          label={t('Déplacer {name} ici', { name: c.name })}
           disabled={readOnly}
           onClick={() => {
             void save({ ...c, spaceId: active });
           }}
         >
-          Déplacer ici
+          {t('Déplacer ici')}
         </RowAction>
       )}
       <button
         type="button"
-        aria-label={`Modifier ${c.name}`}
+        aria-label={t('Modifier {name}', { name: c.name })}
         disabled={readOnly}
         className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text disabled:opacity-40"
         onClick={() => {
@@ -136,8 +137,8 @@ function LibraryBody() {
         <input
           type="search"
           autoFocus
-          aria-label="Rechercher dans la Bibliothèque"
-          placeholder="Nom, hôte, utilisateur, tag…"
+          aria-label={t('Rechercher dans la Bibliothèque')}
+          placeholder={t('Nom, hôte, utilisateur, tag…')}
           spellCheck={false}
           value={query}
           className="h-9 w-full rounded-lg border bg-background pr-2 pl-8 text-sm outline-none placeholder:text-text-muted focus-visible:ring-1 focus-visible:ring-ring"
@@ -152,16 +153,19 @@ function LibraryBody() {
           const mine = connections.filter((c) => connectionSpace(c, file) === space.id);
           if (mine.length === 0) return null;
           const Icon = connectionIcon(space.icon);
+          const name = spaceName(space);
           return (
-            <section key={space.id} role="group" aria-label={space.name} className="mb-3">
+            <section key={space.id} role="group" aria-label={name} className="mb-3">
               <h3 className="flex items-center gap-2 px-2 pb-1 text-xs font-medium tracking-wide text-text-muted uppercase">
                 <Icon
                   className="size-3.5"
                   strokeWidth={1.6}
                   style={{ color: space.color ?? undefined }}
                 />
-                <span className="normal-case">{space.name}</span>
-                {space.id === active && <span className="normal-case">· espace affiché</span>}
+                <span className="normal-case">{name}</span>
+                {space.id === active && (
+                  <span className="normal-case">· {t('espace affiché')}</span>
+                )}
               </h3>
               <ul className="grid gap-px">
                 {mine.map((c) => (
@@ -177,7 +181,7 @@ function LibraryBody() {
           );
         })}
         {connections.length === 0 && query.trim() === '' && (
-          <p className="px-2 pb-3 text-sm text-text-muted">Aucune connexion enregistrée.</p>
+          <p className="px-2 pb-3 text-sm text-text-muted">{t('Aucune connexion enregistrée.')}</p>
         )}
         {hosts.length > 0 && (
           <div data-sidebar-list>
@@ -185,7 +189,7 @@ function LibraryBody() {
           </div>
         )}
         {connections.length === 0 && hosts.length === 0 && query.trim() !== '' && (
-          <p className="px-2 text-sm text-text-muted">Aucun résultat.</p>
+          <p className="px-2 text-sm text-text-muted">{t('Aucun résultat.')}</p>
         )}
       </div>
 
@@ -197,13 +201,13 @@ function LibraryBody() {
             setEditing(blankConnection({ spaceId: file.spaces.length > 0 ? active : null }));
           }}
         >
-          <ServerCog strokeWidth={1.5} /> Nouvelle connexion
+          <ServerCog strokeWidth={1.5} /> {t('Nouvelle connexion')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => void importWithReport()}>
-          <FileDown strokeWidth={1.5} /> Importer…
+          <FileDown strokeWidth={1.5} /> {t('Importer…')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => void exportWithToast()}>
-          <FileUp strokeWidth={1.5} /> Exporter…
+          <FileUp strokeWidth={1.5} /> {t('Exporter…')}
         </Button>
       </div>
     </div>
@@ -217,9 +221,9 @@ export function LibraryDialog() {
     <Dialog open={open} onOpenChange={useUi.getState().setLibraryOpen}>
       <DialogContent className="flex h-[80vh] max-h-[760px] flex-col gap-3 sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Bibliothèque</DialogTitle>
+          <DialogTitle>{t('Bibliothèque')}</DialogTitle>
           <DialogDescription>
-            Toutes vos connexions, de tous les espaces, et les hôtes de ~/.ssh/config.
+            {t('Toutes vos connexions, de tous les espaces, et les hôtes de ~/.ssh/config.')}
           </DialogDescription>
         </DialogHeader>
         {open && <LibraryBody />}

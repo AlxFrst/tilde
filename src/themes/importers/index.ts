@@ -1,5 +1,6 @@
 // Imports color schemes from other terminals into Tilde themes.
 
+import { t } from '@/i18n';
 import { parseThemeFile, ThemeError } from '../parse';
 import type { ThemeDefinition } from '../types';
 import { parseBase16, looksLikeBase16 } from './base16';
@@ -39,7 +40,7 @@ function detect(fileName: string, text: string): Format {
   if (head.startsWith('<')) return 'iterm';
   if (head.startsWith('{') || head.startsWith('//')) return 'wt';
   if (looksLikeBase16(text)) return 'base16';
-  fail('Format non reconnu : .itermcolors, JSON Windows Terminal ou YAML base16 attendus');
+  fail(t('Format non reconnu : .itermcolors, JSON Windows Terminal ou YAML base16 attendus'));
 }
 
 /** A Tilde theme file (what « Exporter » writes), if `text` is one. */
@@ -67,13 +68,13 @@ function toTheme(raw: RawScheme): ThemeDefinition {
  * @throws {ThemeError} when nothing usable is found.
  */
 export function importTheme(fileName: string, text: string): ImportResult {
-  if (text.length > MAX_IMPORT_CHARS) fail('Fichier trop volumineux (1 Mio au plus)');
+  if (text.length > MAX_IMPORT_CHARS) fail(t('Fichier trop volumineux (1 Mio au plus)'));
   const format = detect(fileName, text);
   if (format === 'wt') {
     const own = tildeTheme(text);
     if (own) return { themes: [own], warnings: [] };
   }
-  const baseName = fileName.replace(/^.*[/\\]/, '').replace(/\.[^.]*$/, '') || 'Importé';
+  const baseName = fileName.replace(/^.*[/\\]/, '').replace(/\.[^.]*$/, '') || t('Importé');
   const schemes =
     format === 'iterm'
       ? [parseIterm(text, baseName)]
@@ -88,9 +89,9 @@ export function importTheme(fileName: string, text: string): ImportResult {
     } catch (e) {
       if (!(e instanceof ThemeError)) throw e;
       if (schemes.length === 1) throw e;
-      warnings.push(`${s.name} : ${e.message}`);
+      warnings.push(t('{name} : {message}', { name: s.name, message: e.message }));
     }
   }
-  if (themes.length === 0) fail('Aucun thème utilisable dans ce fichier');
+  if (themes.length === 0) fail(t('Aucun thème utilisable dans ce fichier'));
   return { themes, warnings };
 }

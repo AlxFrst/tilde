@@ -14,6 +14,7 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view';
+import { useLocale } from '@/i18n';
 
 export interface EditorHandle {
   view: EditorView;
@@ -43,6 +44,41 @@ export interface EditorOptions {
 const language = new Compartment();
 const theme = new Compartment();
 
+/** CodeMirror's own words (search panel, folding…) in French; English is its default. */
+const FRENCH_PHRASES: Record<string, string> = {
+  // @codemirror/view, @codemirror/commands
+  'Control character': 'Caractère de contrôle',
+  'Selection deleted': 'Sélection supprimée',
+  // @codemirror/language
+  'Folded lines': 'Lignes repliées',
+  'Unfolded lines': 'Lignes dépliées',
+  to: 'à',
+  'folded code': 'code replié',
+  unfold: 'déplier',
+  'Fold line': 'Replier la ligne',
+  'Unfold line': 'Déplier la ligne',
+  // @codemirror/search
+  'Go to line': 'Aller à la ligne',
+  go: 'OK',
+  Find: 'Rechercher',
+  Replace: 'Remplacer',
+  next: 'suivant',
+  previous: 'précédent',
+  all: 'tout',
+  'match case': 'respecter la casse',
+  'by word': 'mot entier',
+  regexp: 'expression régulière',
+  replace: 'remplacer',
+  'replace all': 'tout remplacer',
+  close: 'fermer',
+  'current match': 'occurrence courante',
+  'on line': 'à la ligne',
+  'replaced match on line $': 'occurrence remplacée à la ligne $',
+  'replaced $ matches': '$ occurrences remplacées',
+  // @codemirror/autocomplete
+  Completions: 'Complétions',
+};
+
 /**
  * The editor state. The file's own line ending is kept: CodeMirror would otherwise
  * write every line back with `\n` (rewriting a Windows file on save).
@@ -52,6 +88,8 @@ export function createEditorState(opts: EditorOptions): EditorState {
     doc: opts.doc,
     extensions: [
       EditorState.lineSeparator.of(detectLineEnding(opts.doc)),
+      // The interface's language when the editor is created.
+      useLocale.getState().locale === 'fr' ? EditorState.phrases.of(FRENCH_PHRASES) : [],
       lineNumbers(),
       highlightActiveLineGutter(),
       foldGutter(),

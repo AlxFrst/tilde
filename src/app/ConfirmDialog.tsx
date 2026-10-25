@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { t } from '@/i18n';
 import { answerConfirm, useConfirm } from './confirm';
 
 /** The single dialog behind `confirmAction`. Cancel has the focus. */
@@ -32,7 +33,7 @@ export function ConfirmDialog() {
               answerConfirm(false);
             }}
           >
-            Annuler
+            {t('Annuler')}
           </Button>
           <Button
             variant={pending?.destructive ? 'destructive' : 'default'}

@@ -1,19 +1,20 @@
+import { msg, t } from '@/i18n';
 import type { Settings } from '@/ipc/generated/settings';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { TERMINAL_FONT_SUGGESTIONS } from '@/themes/fonts';
-import { Choice, NumberField, Row, Section, SelectField, SwitchField } from './fields';
+import { Choice, NumberField, Row, Section, SelectField, SwitchField, translated } from './fields';
 import { FontField } from './FontField';
 
 const CURSORS = [
-  ['block', 'Bloc'],
-  ['bar', 'Barre'],
-  ['underline', 'Souligné'],
+  ['block', msg('Bloc')],
+  ['bar', msg('Barre')],
+  ['underline', msg('Souligné')],
 ] as const;
 const RIGHT_CLICK = [
-  ['menu', 'Menu'],
-  ['paste', 'Coller'],
-  ['copyPaste', 'Copier / coller'],
+  ['menu', msg('Menu')],
+  ['paste', msg('Coller')],
+  ['copyPaste', msg('Copier / coller')],
 ] as const;
 /** Radix Select forbids an empty value; this one stands for « no default profile ». */
 const AUTO = '__auto__';
@@ -24,27 +25,27 @@ export function TerminalSection() {
   const update = useSettings((s) => s.update);
   const profiles = useProfiles((s) => s.profiles);
   if (!settings) return null;
-  const t = settings.terminal;
+  const term = settings.terminal;
   const set = (patch: Partial<Settings['terminal']>) => void update({ terminal: patch });
 
   return (
     <div className="grid gap-6">
-      <Section title="Texte">
+      <Section title={t('Texte')}>
         <FontField
           setting="terminal.fontFamily"
-          label="Police du terminal"
-          value={t.fontFamily}
+          label={t('Police du terminal')}
+          value={term.fontFamily}
           suggestions={TERMINAL_FONT_SUGGESTIONS}
           disabled={readOnly}
           onChange={(fontFamily) => {
             set({ fontFamily });
           }}
         />
-        <Row label="Taille">
+        <Row label={t('Taille')}>
           <NumberField
             setting="terminal.fontSize"
-            label="Taille de police du terminal"
-            value={t.fontSize}
+            label={t('Taille de police du terminal')}
+            value={term.fontSize}
             min={6}
             max={72}
             unit="px"
@@ -54,11 +55,11 @@ export function TerminalSection() {
             }}
           />
         </Row>
-        <Row label="Interligne">
+        <Row label={t('Interligne')}>
           <NumberField
             setting="terminal.lineHeight"
-            label="Interligne du terminal"
-            value={t.lineHeight}
+            label={t('Interligne du terminal')}
+            value={term.lineHeight}
             min={0.8}
             max={3}
             step={0.1}
@@ -68,11 +69,14 @@ export function TerminalSection() {
             }}
           />
         </Row>
-        <Row label="Ligatures" hint="=> != === … dessinés comme un seul signe (rendu WebGL)">
+        <Row
+          label={t('Ligatures')}
+          hint={t('=> != === … dessinés comme un seul signe (rendu WebGL)')}
+        >
           <SwitchField
             setting="terminal.ligatures"
-            label="Ligatures"
-            checked={t.ligatures}
+            label={t('Ligatures')}
+            checked={term.ligatures}
             disabled={readOnly}
             onChange={(ligatures) => {
               set({ ligatures });
@@ -81,24 +85,24 @@ export function TerminalSection() {
         </Row>
       </Section>
 
-      <Section title="Curseur">
-        <Row label="Forme">
+      <Section title={t('Curseur')}>
+        <Row label={t('Forme')}>
           <Choice
             setting="terminal.cursorStyle"
-            label="Forme du curseur"
-            value={t.cursorStyle}
-            options={CURSORS}
+            label={t('Forme du curseur')}
+            value={term.cursorStyle}
+            options={translated(CURSORS)}
             disabled={readOnly}
             onChange={(cursorStyle) => {
               set({ cursorStyle });
             }}
           />
         </Row>
-        <Row label="Clignotement">
+        <Row label={t('Clignotement')}>
           <SwitchField
             setting="terminal.cursorBlink"
-            label="Curseur clignotant"
-            checked={t.cursorBlink}
+            label={t('Curseur clignotant')}
+            checked={term.cursorBlink}
             disabled={readOnly}
             onChange={(cursorBlink) => {
               set({ cursorBlink });
@@ -107,50 +111,50 @@ export function TerminalSection() {
         </Row>
       </Section>
 
-      <Section title="Comportement">
-        <Row label="Profil par défaut" hint="Ouvert par « Nouvel onglet ».">
+      <Section title={t('Comportement')}>
+        <Row label={t('Profil par défaut')} hint={t('Ouvert par « Nouvel onglet ».')}>
           <SelectField
             setting="terminal.defaultProfile"
-            label="Profil par défaut"
-            value={t.defaultProfile ?? AUTO}
-            options={[[AUTO, 'Automatique'], ...profiles.map((p) => [p.id, p.name] as const)]}
+            label={t('Profil par défaut')}
+            value={term.defaultProfile ?? AUTO}
+            options={[[AUTO, t('Automatique')], ...profiles.map((p) => [p.id, p.name] as const)]}
             disabled={readOnly}
             onChange={(v) => {
               set({ defaultProfile: v === AUTO ? null : v });
             }}
           />
         </Row>
-        <Row label="Historique" hint="Lignes gardées en mémoire par terminal.">
+        <Row label={t('Historique')} hint={t('Lignes gardées en mémoire par terminal.')}>
           <NumberField
             setting="terminal.scrollback"
-            label="Taille de l’historique"
-            value={t.scrollback}
+            label={t('Taille de l’historique')}
+            value={term.scrollback}
             min={0}
             max={1_000_000}
-            unit="lignes"
+            unit={t('lignes')}
             disabled={readOnly}
             onChange={(scrollback) => {
               set({ scrollback });
             }}
           />
         </Row>
-        <Row label="Copier à la sélection">
+        <Row label={t('Copier à la sélection')}>
           <SwitchField
             setting="terminal.copyOnSelect"
-            label="Copier à la sélection"
-            checked={t.copyOnSelect}
+            label={t('Copier à la sélection')}
+            checked={term.copyOnSelect}
             disabled={readOnly}
             onChange={(copyOnSelect) => {
               set({ copyOnSelect });
             }}
           />
         </Row>
-        <Row label="Clic droit">
+        <Row label={t('Clic droit')}>
           <Choice
             setting="terminal.rightClick"
-            label="Clic droit"
-            value={t.rightClick}
-            options={RIGHT_CLICK}
+            label={t('Clic droit')}
+            value={term.rightClick}
+            options={translated(RIGHT_CLICK)}
             disabled={readOnly}
             onChange={(rightClick) => {
               set({ rightClick });
@@ -158,13 +162,13 @@ export function TerminalSection() {
           />
         </Row>
         <Row
-          label="Confirmer la fermeture"
-          hint="Quand un programme tourne encore dans le terminal."
+          label={t('Confirmer la fermeture')}
+          hint={t('Quand un programme tourne encore dans le terminal.')}
         >
           <SwitchField
             setting="terminal.confirmClose"
-            label="Confirmer la fermeture"
-            checked={t.confirmClose}
+            label={t('Confirmer la fermeture')}
+            checked={term.confirmClose}
             disabled={readOnly}
             onChange={(confirmClose) => {
               set({ confirmClose });

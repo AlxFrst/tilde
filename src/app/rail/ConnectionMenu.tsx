@@ -6,7 +6,8 @@ import {
   ContextMenuSubContent,
   ContextMenuSubTrigger,
 } from '@/components/ui/context-menu';
-import { connectionSpace, listSpaces, spaceIdOf } from '@/connections/spaces';
+import { connectionSpace, listSpaces, spaceIdOf, spaceName } from '@/connections/spaces';
+import { t } from '@/i18n';
 import type { Connection } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
@@ -27,14 +28,14 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
           openConnection(c);
         }}
       >
-        {session ? 'Afficher la session' : 'Ouvrir'}
+        {session ? t('Afficher la session') : t('Ouvrir')}
       </ContextMenuItem>
       <ContextMenuItem
         onSelect={() => {
           useWorkspace.getState().openSshTab(c.host, c.id);
         }}
       >
-        Ouvrir une autre session
+        {t('Ouvrir une autre session')}
       </ContextMenuItem>
       {session && (
         <>
@@ -43,10 +44,10 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
               useWorkspace.getState().unpinTab(session.id);
             }}
           >
-            Désépingler la session
+            {t('Désépingler la session')}
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => void closeTab(session.id)}>
-            Fermer la session
+            {t('Fermer la session')}
           </ContextMenuItem>
         </>
       )}
@@ -57,15 +58,15 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
           setEditing(c);
         }}
       >
-        Modifier…
+        {t('Modifier…')}
       </ContextMenuItem>
       <ContextMenuItem
         disabled={readOnly}
         onSelect={() => {
-          void save({ ...c, id: '', name: `${c.name} (copie)`, favorite: false });
+          void save({ ...c, id: '', name: t('{name} (copie)', { name: c.name }), favorite: false });
         }}
       >
-        Dupliquer
+        {t('Dupliquer')}
       </ContextMenuItem>
       <ContextMenuItem
         disabled={readOnly}
@@ -73,10 +74,10 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
           void setFavorite(c.id, !c.favorite);
         }}
       >
-        {c.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+        {c.favorite ? t('Retirer des favoris') : t('Ajouter aux favoris')}
       </ContextMenuItem>
       <ContextMenuSub>
-        <ContextMenuSubTrigger disabled={readOnly}>Ranger dans</ContextMenuSubTrigger>
+        <ContextMenuSubTrigger disabled={readOnly}>{t('Ranger dans')}</ContextMenuSubTrigger>
         <ContextMenuSubContent>
           <ContextMenuItem
             disabled={c.folderId === null}
@@ -84,7 +85,7 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
               void save({ ...c, folderId: null, spaceId: space });
             }}
           >
-            Sans dossier
+            {t('Sans dossier')}
           </ContextMenuItem>
           {folders.map((f) => (
             <ContextMenuItem
@@ -101,7 +102,9 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
       </ContextMenuSub>
       {spaces.length > 1 && (
         <ContextMenuSub>
-          <ContextMenuSubTrigger disabled={readOnly}>Déplacer vers l’espace</ContextMenuSubTrigger>
+          <ContextMenuSubTrigger disabled={readOnly}>
+            {t('Déplacer vers l’espace')}
+          </ContextMenuSubTrigger>
           <ContextMenuSubContent>
             {spaces.map((s) => (
               <ContextMenuItem
@@ -111,7 +114,7 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
                   void save({ ...c, spaceId: s.id });
                 }}
               >
-                {s.name}
+                {spaceName(s)}
               </ContextMenuItem>
             ))}
           </ContextMenuSubContent>
@@ -123,14 +126,14 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
         disabled={readOnly}
         onSelect={() => {
           void confirmAction({
-            title: `Supprimer « ${c.name} » ?`,
-            description: 'Les sessions déjà ouvertes restent connectées.',
-            confirmLabel: 'Supprimer',
+            title: t('Supprimer « {name} » ?', { name: c.name }),
+            description: t('Les sessions déjà ouvertes restent connectées.'),
+            confirmLabel: t('Supprimer'),
             destructive: true,
           }).then((ok) => (ok ? remove(c.id) : undefined));
         }}
       >
-        Supprimer
+        {t('Supprimer')}
       </ContextMenuItem>
     </ContextMenuContent>
   );

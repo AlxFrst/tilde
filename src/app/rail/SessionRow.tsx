@@ -11,7 +11,8 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { listSpaces } from '@/connections/spaces';
+import { listSpaces, spaceName } from '@/connections/spaces';
+import { t, tn } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
@@ -30,6 +31,12 @@ import { PaneList } from './PaneList';
 import { useSessionStatus } from './sessionStatus';
 
 const ws = () => useWorkspace.getState();
+
+/**
+ * « 3 panneaux », under a session with several. Not `{count}`: the i18n test keeps
+ * « {count} panneau(x) » without English to check the French plural rule.
+ */
+export const paneCount = (n: number): string => tn(n, '{n} panneau', '{n} panneaux', { n });
 
 /** The saved connection a session's first SSH pane opened, if it still exists. */
 export function useSessionConnectionId(tab: Tab): string | null {
@@ -59,7 +66,7 @@ export function MoveToSpace({ tabId, current }: { tabId: string; current: string
   if (spaces.length < 2) return null;
   return (
     <ContextMenuSub>
-      <ContextMenuSubTrigger>Déplacer vers l’espace</ContextMenuSubTrigger>
+      <ContextMenuSubTrigger>{t('Déplacer vers l’espace')}</ContextMenuSubTrigger>
       <ContextMenuSubContent>
         {spaces.map((s) => (
           <ContextMenuItem
@@ -67,7 +74,7 @@ export function MoveToSpace({ tabId, current }: { tabId: string; current: string
             disabled={s.id === current}
             onSelect={() => void moveSessionToSpace(tabId, s.id)}
           >
-            {s.name}
+            {spaceName(s)}
           </ContextMenuItem>
         ))}
       </ContextMenuSubContent>
@@ -84,15 +91,15 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
   const first = leaves(tab.root)[0]?.panel;
   return (
     <>
-      <ContextMenuItem onSelect={onRename}>Renommer</ContextMenuItem>
+      <ContextMenuItem onSelect={onRename}>{t('Renommer')}</ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuLabel>Couleur</ContextMenuLabel>
+      <ContextMenuLabel>{t('Couleur')}</ContextMenuLabel>
       <div className="flex gap-1.5 px-2 pb-1.5">
         {TAB_COLORS.map(([name, color]) => (
           <button
             key={name}
             type="button"
-            aria-label={name}
+            aria-label={t(name)}
             className={cn(
               'size-4 rounded-full ring-offset-2 ring-offset-popover',
               tab.color === color && 'ring-2 ring-ring',
@@ -105,7 +112,7 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
         ))}
         <button
           type="button"
-          aria-label="Aucune couleur"
+          aria-label={t('Aucune couleur')}
           className="size-4 rounded-full border"
           onClick={() => {
             ws().setTabColor(tab.id, null);
@@ -119,7 +126,7 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
           else if (first?.kind === 'terminal') ws().openTab(first.profileId, first.cwd);
         }}
       >
-        Dupliquer
+        {t('Dupliquer')}
       </ContextMenuItem>
       {pinned ? (
         <ContextMenuItem
@@ -127,7 +134,7 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
             ws().unpinTab(tab.id);
           }}
         >
-          Désépingler la session
+          {t('Désépingler la session')}
         </ContextMenuItem>
       ) : (
         connectionId && (
@@ -136,25 +143,25 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
               ws().pinTab(tab.id, connectionId);
             }}
           >
-            Épingler
+            {t('Épingler')}
           </ContextMenuItem>
         )
       )}
       <MoveToSpace tabId={tab.id} current={spaceOfTab(tab)} />
       <ContextMenuSeparator />
-      <ContextMenuItem onSelect={() => void closeTab(tab.id)}>Fermer</ContextMenuItem>
+      <ContextMenuItem onSelect={() => void closeTab(tab.id)}>{t('Fermer')}</ContextMenuItem>
       <ContextMenuItem
         disabled={others === 0}
         onSelect={() => void closeTabs(ws().otherTabs(tab.id))}
       >
-        Fermer les autres
+        {t('Fermer les autres')}
       </ContextMenuItem>
       {!pinned && (
         <ContextMenuItem
           disabled={below === 0}
           onSelect={() => void closeTabs(ws().tabsAfter(tab.id))}
         >
-          Fermer celles en dessous
+          {t('Fermer celles en dessous')}
         </ContextMenuItem>
       )}
     </>
@@ -169,7 +176,7 @@ function RenameField({ tab, title, onDone }: { tab: Tab; title: string; onDone: 
   };
   return (
     <input
-      aria-label="Nom de la session"
+      aria-label={t('Nom de la session')}
       autoFocus
       defaultValue={title}
       className="h-8 w-full min-w-0 rounded-md bg-surface-2 px-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -286,7 +293,7 @@ export function RowShell({
           {onClose && (
             <button
               type="button"
-              aria-label={closeLabel ?? `Fermer ${title}`}
+              aria-label={closeLabel ?? t('Fermer {name}', { name: title })}
               className="absolute right-1.5 flex size-5 items-center justify-center rounded text-text-muted opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-surface-1 hover:text-text"
               onClick={onClose}
             >
@@ -333,7 +340,7 @@ export function SessionRow({
         <RowShell
           label={title}
           title={title}
-          subtitle={shells > 1 ? `${String(shells)} panneaux` : detail}
+          subtitle={shells > 1 ? paneCount(shells) : detail}
           Icon={Icon}
           active={active}
           status={<StatusDot state={status} />}

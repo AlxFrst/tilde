@@ -4,6 +4,7 @@ import { ExternalLink, Eye, RotateCcw, Save, TriangleAlert } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import { editorCloseLocal } from '@/ipc/editor';
 import { sftpEdit } from '@/ipc/sftp';
 import { previewKind } from '@/panels/preview/previewKind';
@@ -83,14 +84,14 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
   useEffect(() => {
     const parent = container.current;
     if (!ready || !parent || editor.current) return;
-    const { doc: d, fontSpec: f, theme: t } = latest.current;
+    const { doc: d, fontSpec: f, theme: th } = latest.current;
     saved.current = d.text;
     markText(d.text);
     editor.current = createEditor({
       parent,
       doc: d.text,
       language: null,
-      theme: editorTheme(t, f),
+      theme: editorTheme(th, f),
       onChange: markText,
       onSave: () => void saveRef.current(),
     });
@@ -114,7 +115,7 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
       setTimeout(() => {
         const open = useWorkspace
           .getState()
-          .tabs.some((t) => leaves(t.root).some((l) => l.id === leafId));
+          .tabs.some((tab) => leaves(tab.root).some((l) => l.id === leafId));
         if (docId !== null && !open) void editorCloseLocal(docId).catch(() => undefined);
       }, 0);
     },
@@ -159,7 +160,11 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
           {name}
         </span>
         {dirty && (
-          <span aria-label="Modifié" title="Modifié" className="size-2 rounded-full bg-primary" />
+          <span
+            aria-label={t('Modifié')}
+            title={t('Modifié')}
+            className="size-2 rounded-full bg-primary"
+          />
         )}
         <span className="text-text-muted">{languageLabel(name)}</span>
         <span className="ml-auto flex items-center gap-1">
@@ -174,15 +179,15 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
               }}
             >
               <Eye strokeWidth={1.5} />
-              Aperçu
+              {t('Aperçu')}
             </Button>
           )}
           {source.kind === 'remote' && (
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label="Ouvrir dans l’éditeur externe"
-              title="Ouvrir dans l’éditeur externe"
+              aria-label={t('Ouvrir dans l’éditeur externe')}
+              title={t('Ouvrir dans l’éditeur externe')}
               onClick={openExternal}
             >
               <ExternalLink strokeWidth={1.5} />
@@ -196,7 +201,7 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
             title="Ctrl+S"
           >
             <Save strokeWidth={1.5} />
-            Enregistrer
+            {t('Enregistrer')}
           </Button>
         </span>
       </div>
@@ -207,13 +212,13 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
           className="flex flex-wrap items-center gap-2 border-b border-warning/40 bg-warning/10 px-3 py-1.5 text-xs text-warning"
         >
           <TriangleAlert className="size-3.5" strokeWidth={1.5} />
-          Le fichier a changé sur le serveur depuis son ouverture.
+          {t('Le fichier a changé sur le serveur depuis son ouverture.')}
           <Button size="xs" variant="outline" onClick={() => void save(true)}>
-            Écraser
+            {t('Écraser')}
           </Button>
           <Button size="xs" variant="outline" onClick={() => void reload()}>
             <RotateCcw strokeWidth={1.5} />
-            Recharger
+            {t('Recharger')}
           </Button>
         </div>
       )}
@@ -225,7 +230,7 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
             (doc.error.kind === 'binary' || doc.error.kind === 'tooLarge') && (
               <Button variant="outline" size="sm" onClick={openExternal}>
                 <ExternalLink strokeWidth={1.5} />
-                Ouvrir dans l’éditeur externe
+                {t('Ouvrir dans l’éditeur externe')}
               </Button>
             )}
         </div>
@@ -233,8 +238,8 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
       {doc.status === 'loading' && (
         <div className="flex flex-1 items-center justify-center text-sm text-text-muted">
           {source.kind === 'remote' && sessionId === null
-            ? 'En attente de la connexion SSH…'
-            : 'Ouverture…'}
+            ? t('En attente de la connexion SSH…')
+            : t('Ouverture…')}
         </div>
       )}
       <div

@@ -1,0 +1,300 @@
+// Settings, spaces and the Library (src/app/settings, src/app/spaces, src/app/library).
+export default {
+  // src/app/settings/SettingsDialog.tsx
+  Apparence: 'Appearance',
+  Thèmes: 'Themes',
+  Terminal: 'Terminal',
+  Raccourcis: 'Shortcuts',
+  Général: 'General',
+  'Sections des réglages': 'Settings sections',
+  Réglages: 'Settings',
+  'Tout est aussi modifiable dans les fichiers de réglages, rechargés à chaud.':
+    'Everything can also be edited in the settings files, which reload live.',
+  'settings.json est invalide.': 'settings.json is invalid.',
+  'Corrigez le fichier pour modifier les réglages.': 'Fix the file to change settings.',
+
+  // src/app/settings/fields.tsx
+  'Non pris en charge sur ce système': 'Not supported on this system',
+  'entre {min} et {max}': 'between {min} and {max}',
+  'nombre entier attendu': 'whole number expected',
+
+  // src/app/settings/AppearanceSection.tsx
+  Système: 'System',
+  Sombre: 'Dark',
+  Clair: 'Light',
+  Compacte: 'Compact',
+  Confortable: 'Comfortable',
+  Aérée: 'Spacious',
+  Gauche: 'Left',
+  Droite: 'Right',
+  Aucun: 'None',
+  'Opacité de la fenêtre': 'Window opacity',
+  '{percent} %': '{percent}%',
+  'Thème sombre': 'Dark theme',
+  'Thème clair': 'Light theme',
+  Thème: 'Theme',
+  Interface: 'Interface',
+  'Police de l’interface': 'Interface font',
+  'Taille du texte': 'Text size',
+  'Taille du texte de l’interface': 'Interface text size',
+  Densité: 'Density',
+  'Barre latérale': 'Sidebar',
+  'Position de la barre latérale': 'Sidebar position',
+  'Largeur de la barre latérale': 'Sidebar width',
+  'Hôtes de ~/.ssh/config masqués': 'Hidden ~/.ssh/config hosts',
+  'Rangés dans « Masqués » en bas de leur section : toujours ouvrables et adoptables.':
+    'Kept under “Hidden” at the bottom of their section, where you can still open and adopt them.',
+  '{count} masqué': '{count} hidden',
+  '{count} masqués': '{count} hidden',
+  'Tout réafficher': 'Unhide all',
+  Fenêtre: 'Window',
+  Effet: 'Effect',
+  'Non pris en charge sur ce système : {effects}.': 'Not supported on this system: {effects}.',
+  'Effet de fenêtre': 'Window effect',
+  Opacité: 'Opacity',
+  'L’effet n’a pas pu être appliqué : seule l’opacité est utilisée.':
+    'The effect could not be applied: only the opacity is used.',
+  'Fonds de la fenêtre et du terminal ; le texte reste opaque.':
+    'Window and terminal backgrounds; text stays opaque.',
+
+  // src/app/settings/FontField.tsx
+  'Police introuvable sur ce système : une police de repli est utilisée.':
+    'Font not found on this system: a fallback font is used.',
+
+  // src/app/settings/ThemesSection.tsx
+  'Import impossible': 'Import failed',
+  '{count} thème importé': '{count} theme imported',
+  '{count} thèmes importés': '{count} themes imported',
+  'Thèmes à importer': 'Themes to import',
+  'Ignoré — {warning}': 'Skipped — {warning}',
+  Annuler: 'Cancel',
+  'Importer la sélection': 'Import selected',
+  'Thème exporté': 'Theme exported',
+  'Supprimer « {name} » ?': 'Delete “{name}”?',
+  'Le fichier themes/{id}.json sera supprimé.': 'The file themes/{id}.json will be deleted.',
+  Supprimer: 'Delete',
+  'Importer…': 'Import…',
+  'Ouvrir le dossier des thèmes': 'Open themes folder',
+  'themes/{file} : {message}': 'themes/{file}: {message}',
+  personnel: 'custom',
+  'Utilisé en sombre': 'Used in dark mode',
+  'Utilisé en clair': 'Used in light mode',
+  'Utiliser en sombre': 'Use in dark mode',
+  'Utiliser en clair': 'Use in light mode',
+  'Dupliquer et modifier {name}': 'Duplicate and edit {name}',
+  'Dupliquer et modifier': 'Duplicate and edit',
+  '{name} (copie)': '{name} (copy)',
+  'Modifier {name}': 'Edit {name}',
+  Modifier: 'Edit',
+  'Exporter {name}': 'Export {name}',
+  Exporter: 'Export',
+  'Supprimer {name}': 'Delete {name}',
+
+  // src/app/settings/ThemeEditor.tsx
+  Fond: 'Background',
+  'Surface 1': 'Surface 1',
+  'Surface 2': 'Surface 2',
+  Bordure: 'Border',
+  Texte: 'Text',
+  'Texte secondaire': 'Secondary text',
+  Accent: 'Accent',
+  'Accent secondaire': 'Secondary accent',
+  Succès: 'Success',
+  Avertissement: 'Warning',
+  Erreur: 'Error',
+  'Texte du terminal': 'Terminal text',
+  'Fond du terminal': 'Terminal background',
+  Curseur: 'Cursor',
+  'Texte sous le curseur': 'Text under cursor',
+  Sélection: 'Selection',
+  Noir: 'Black',
+  Rouge: 'Red',
+  Vert: 'Green',
+  Jaune: 'Yellow',
+  Bleu: 'Blue',
+  Magenta: 'Magenta',
+  Cyan: 'Cyan',
+  Blanc: 'White',
+  'Noir vif': 'Bright black',
+  'Rouge vif': 'Bright red',
+  'Vert vif': 'Bright green',
+  'Jaune vif': 'Bright yellow',
+  'Bleu vif': 'Bright blue',
+  'Magenta vif': 'Bright magenta',
+  'Cyan vif': 'Bright cyan',
+  'Blanc vif': 'Bright white',
+  'Texte / fond': 'Text / background',
+  'Texte secondaire / fond': 'Secondary text / background',
+  'Contraste insuffisant ({checks}) : le texte sera difficile à lire.':
+    'Low contrast ({checks}): text will be hard to read.',
+  'Thème « {name} » enregistré': 'Theme “{name}” saved',
+  Nom: 'Name',
+  'Nom du thème': 'Theme name',
+  Type: 'Type',
+  'Type de thème': 'Theme type',
+  'Dériver l’interface du terminal': 'Derive interface from terminal',
+  'Couleurs ANSI': 'ANSI colors',
+  Enregistrer: 'Save',
+
+  // src/app/settings/TerminalSection.tsx
+  Bloc: 'Block',
+  Barre: 'Bar',
+  Souligné: 'Underline',
+  Menu: 'Menu',
+  Coller: 'Paste',
+  'Copier / coller': 'Copy / paste',
+  'Police du terminal': 'Terminal font',
+  Taille: 'Size',
+  'Taille de police du terminal': 'Terminal font size',
+  Interligne: 'Line height',
+  'Interligne du terminal': 'Terminal line height',
+  Ligatures: 'Ligatures',
+  '=> != === … dessinés comme un seul signe (rendu WebGL)':
+    '=> != === … drawn as a single glyph (WebGL rendering)',
+  Forme: 'Shape',
+  'Forme du curseur': 'Cursor shape',
+  Clignotement: 'Blink',
+  'Curseur clignotant': 'Blinking cursor',
+  Comportement: 'Behavior',
+  'Profil par défaut': 'Default profile',
+  'Ouvert par « Nouvel onglet ».': 'Opened by “New tab”.',
+  Automatique: 'Automatic',
+  Historique: 'Scrollback',
+  'Lignes gardées en mémoire par terminal.': 'Lines kept in memory per terminal.',
+  'Taille de l’historique': 'Scrollback size',
+  lignes: 'lines',
+  'Copier à la sélection': 'Copy on select',
+  'Clic droit': 'Right-click',
+  'Confirmer la fermeture': 'Confirm before closing',
+  'Quand un programme tourne encore dans le terminal.':
+    'When a program is still running in the terminal.',
+
+  // src/app/settings/ShortcutsSection.tsx
+  'Réinitialiser tous les raccourcis ?': 'Reset all shortcuts?',
+  'Vos changements dans keybindings.json seront effacés.':
+    'Your changes in keybindings.json will be erased.',
+  Réinitialiser: 'Reset',
+  'Filtrer les commandes': 'Filter commands',
+  'Filtrer…': 'Filter…',
+  'Tout réinitialiser': 'Reset all',
+  'Ouvrir keybindings.json': 'Open keybindings.json',
+  'keybindings.json contient une erreur : corrigez-le pour modifier les raccourcis.':
+    'keybindings.json has an error: fix it to change shortcuts.',
+  modifié: 'changed',
+  'Nouveau raccourci pour {name}': 'New shortcut for {name}',
+  'Retirer {name}': 'Remove {name}',
+  Retirer: 'Remove',
+  'Réinitialiser {name}': 'Reset {name}',
+
+  // src/app/settings/ShortcutRecorder.tsx
+  'Ajoutez Ctrl ou Alt : une touche seule casserait la saisie dans le terminal.':
+    'Add Ctrl or Alt: a key on its own would break typing in the terminal.',
+  'Déjà utilisé par « {title} »': 'Already used by “{title}”',
+  'Utilisé par le shell (interrompre, effacer un mot, rechercher…)':
+    'Used by the shell (interrupt, delete a word, search…)',
+  Remplacer: 'Replace',
+  'Utiliser quand même': 'Use anyway',
+  'Appuyez sur la combinaison… (Échap pour annuler)': 'Press a key combination… (Esc to cancel)',
+
+  // src/app/settings/SshSection.tsx
+  Connexion: 'Connection',
+  'Intervalle des messages de maintien ; 0 = désactivé.':
+    'Time between keepalive messages; 0 = off.',
+  'Intervalle keepalive': 'Keepalive interval',
+  'Réponses manquées': 'Missed replies',
+  'Avant de considérer la connexion perdue.': 'Before the connection is considered lost.',
+  'Keepalive sans réponse': 'Unanswered keepalives',
+  'Reconnexion automatique': 'Reconnect automatically',
+  'Un nouveau shell est ouvert après une coupure.': 'A new shell opens after the connection drops.',
+  'Confirmer la fermeture d’un onglet SSH': 'Confirm before closing an SSH tab',
+  'Bandeau d’état du serveur': 'Server status strip',
+  'Sous chaque terminal SSH : processeur, mémoire, disque et réseau de la machine.':
+    "Under each SSH terminal: the machine's CPU, memory, disk and network.",
+
+  // src/app/settings/SftpSection.tsx
+  'Éditeur externe': 'External editor',
+  'Éditeur intégré': 'Built-in editor',
+  Transferts: 'Transfers',
+  'Transferts simultanés': 'Concurrent transfers',
+  Édition: 'Editing',
+  'Ouvrir les fichiers avec': 'Open files with',
+  '« Modifier » dans le panneau Fichiers : l’éditeur de Tilde, ou le vôtre.':
+    "“Edit” in the Files pane: Tilde's editor, or your own.",
+  'Commande, par exemple « code --wait ». Vide : l’éditeur de texte du système.':
+    'A command, such as “code --wait”. Empty: the system text editor.',
+  'Éditeur de texte du système': 'System text editor',
+
+  // src/app/settings/GeneralSection.tsx (the « Langue » entries are in app.ts)
+  'Pour un raccourci global, choisissez une lettre, un chiffre ou une touche F : un symbole change de place selon la disposition du clavier.':
+    'For a global shortcut, pick a letter, a digit or an F key: symbols move around with the keyboard layout.',
+  Démarrage: 'Startup',
+  'Restaurer la session': 'Restore session',
+  'Onglets et panneaux rouverts au lancement ; les onglets SSH attendent Entrée.':
+    'Tabs and panes reopen at launch; SSH tabs wait for Enter.',
+  '« Ouvrir dans Tilde » dans l’Explorateur': '“Ouvrir dans Tilde” in Explorer',
+  'Windows : clic droit sur un dossier ou dans un dossier ouvre un terminal à cet endroit (sous Windows 11, dans « Afficher plus d’options »).':
+    'Windows: right-click a folder, or inside one, to open a terminal there (on Windows 11, under “Show more options”).',
+  'Mises à jour': 'Updates',
+  'Rechercher au démarrage': 'Check at startup',
+  'Une requête vers GitHub au plus une fois par jour ; rien d’autre n’est envoyé.':
+    'One request to GitHub at most once a day; nothing else is sent.',
+  'Rechercher les mises à jour au démarrage': 'Check for updates at startup',
+  'Rechercher maintenant': 'Check now',
+  'Mode Quake': 'Quake mode',
+  'Terminal déroulant': 'Drop-down terminal',
+  'Un raccourci global affiche ou masque un terminal en haut de l’écran.':
+    'A global shortcut shows or hides a terminal at the top of the screen.',
+  'Raccourci global': 'Global shortcut',
+  'Nouveau raccourci Quake': 'New Quake shortcut',
+  'Modifier le raccourci Quake': 'Edit Quake shortcut',
+  Fichiers: 'Files',
+  'Dossier des thèmes': 'Themes folder',
+  'Les fichiers sont rechargés à chaud : une modification s’applique sans redémarrer.':
+    'Files reload live: changes apply without a restart.',
+
+  // src/app/library/LibraryDialog.tsx
+  'Ouvrir {name}': 'Open {name}',
+  Ouvrir: 'Open',
+  'Ouvrir {name} ici': 'Open {name} here',
+  'Ouvrir ici': 'Open here',
+  'Déplacer {name} ici': 'Move {name} here',
+  'Déplacer ici': 'Move here',
+  'Rechercher dans la Bibliothèque': 'Search the Library',
+  'Nom, hôte, utilisateur, tag…': 'Name, host, user, tag…',
+  'espace affiché': 'current space',
+  'Aucune connexion enregistrée.': 'No saved connections.',
+  'Aucun résultat.': 'No results.',
+  'Nouvelle connexion': 'New connection',
+  'Exporter…': 'Export…',
+  Bibliothèque: 'Library',
+  'Toutes vos connexions, de tous les espaces, et les hôtes de ~/.ssh/config.':
+    'All your connections, from every space, and your ~/.ssh/config hosts.',
+
+  // src/app/spaces/SpaceSwitcher.tsx
+  'Nouvel espace': 'New space',
+  'Nouvel espace (Pro, Perso, Homelab…)': 'New space (Pro, Personal, Homelab…)',
+  Espaces: 'Spaces',
+  'Modifier l’espace…': 'Edit space…',
+  'Supprimer l’espace…': 'Delete space…',
+
+  // src/app/spaces/SpaceDialog.tsx
+  'Le nom est obligatoire': 'Name is required',
+  'Modifier l’espace': 'Edit space',
+  'Un espace regroupe ses connexions et ses sessions : Pro, Perso, Homelab…':
+    'A space groups its own connections and sessions: Pro, Personal, Homelab…',
+  'Nom de l’espace': 'Space name',
+  Couleur: 'Color',
+  'Couleur de l’espace': 'Space color',
+  Icône: 'Icon',
+  'Icône de l’espace': 'Space icon',
+  Créer: 'Create',
+
+  // src/app/spaces/spaceActions.ts
+  'Supprimer l’espace « {name} » ?': 'Delete space “{name}”?',
+  '{connections} et {sessions} passeront dans « {space} ». Rien n’est fermé.':
+    '{connections} and {sessions} will move to “{space}”. Nothing is closed.',
+  '{count} connexion': '{count} connection',
+  '{count} connexions': '{count} connections',
+  '{count} session': '{count} session',
+  '{count} sessions': '{count} sessions',
+} satisfies Record<string, string>;

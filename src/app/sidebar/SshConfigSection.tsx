@@ -1,5 +1,6 @@
 import { ChevronRight, FileCode2 } from 'lucide-react';
 import { useState } from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { Connection } from '@/ipc/connections';
 import type { SshHostEntry } from '@/ipc/ssh';
@@ -62,7 +63,6 @@ export function SshConfigSection({
         <HostRow
           key={h.alias}
           h={h}
-          tuckLabel="Masquer"
           onTuck={() => {
             setHidden([...hidden, h.alias]);
           }}
@@ -81,7 +81,7 @@ export function SshConfigSection({
             className={cn('size-3 transition-transform', showHidden && 'rotate-90')}
             strokeWidth={1.5}
           />
-          {`Masqués (${String(away.length)})`}
+          {t('Masqués ({count})', { count: away.length })}
         </button>
       )}
       {showHidden &&
@@ -90,7 +90,6 @@ export function SshConfigSection({
             key={h.alias}
             h={h}
             muted
-            tuckLabel="Ne plus masquer"
             onTuck={() => {
               setHidden(hidden.filter((a) => a !== h.alias));
             }}
@@ -106,12 +105,11 @@ const NO_HOSTS: string[] = [];
 function HostRow({
   h,
   muted,
-  tuckLabel,
   onTuck,
 }: {
   h: SshHostEntry;
+  /** A hidden host: its button brings it back. */
   muted?: boolean;
-  tuckLabel: string;
   onTuck: () => void;
 }) {
   const readOnly = useConnections((s) => s.readOnly);
@@ -137,19 +135,26 @@ function HostRow({
           {describeTarget({ host: h.hostname, user: h.user, port: h.port })}
         </span>
       </span>
-      <RowAction label={`Ouvrir ${h.alias}`} onClick={open}>
-        Ouvrir
+      <RowAction label={t('Ouvrir {name}', { name: h.alias })} onClick={open}>
+        {t('Ouvrir')}
       </RowAction>
       <RowAction
-        label={`Adopter ${h.alias}`}
-        title="Enregistrer dans Tilde (espace, dossier, couleur, tags…)"
+        label={t('Adopter {name}', { name: h.alias })}
+        title={t('Enregistrer dans Tilde (espace, dossier, couleur, tags…)')}
         disabled={readOnly}
         onClick={() => void adoptIn(h.alias, written ? space : null)}
       >
-        Adopter
+        {t('Adopter')}
       </RowAction>
-      <RowAction label={`${tuckLabel} ${h.alias}`} onClick={onTuck}>
-        {tuckLabel}
+      <RowAction
+        label={
+          muted
+            ? t('Ne plus masquer {name}', { name: h.alias })
+            : t('Masquer {name}', { name: h.alias })
+        }
+        onClick={onTuck}
+      >
+        {muted ? t('Ne plus masquer') : t('Masquer')}
       </RowAction>
     </div>
   );

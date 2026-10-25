@@ -1,6 +1,7 @@
 // iTerm2 `.itermcolors`: an XML property list of color dictionaries whose components
 // are reals between 0 and 1.
 
+import { t } from '@/i18n';
 import { ANSI_KEYS, fail, withDefaults, type RawScheme } from './common';
 import type { TerminalColors } from '../types';
 
@@ -33,12 +34,12 @@ function entries(dict: Element): Map<string, Element> {
 function component(color: Map<string, Element>, name: string, key: string): number {
   const el = color.get(`${name} Component`);
   const v = el ? Number(el.textContent.trim()) : NaN;
-  if (!Number.isFinite(v)) fail(`${key} : composante ${name} invalide`);
+  if (!Number.isFinite(v)) fail(t('{key} : composante {name} invalide', { key, name }));
   return v;
 }
 
 function toHex(el: Element, key: string, withAlpha: boolean): string {
-  if (el.tagName !== 'dict') fail(`${key} : couleur attendue`);
+  if (el.tagName !== 'dict') fail(t('{key} : couleur attendue', { key }));
   const color = entries(el);
   const [r, g, b] = ['Red', 'Green', 'Blue'].map((c) => component(color, c, key));
   const hex = `#${byte(r ?? 0)}${byte(g ?? 0)}${byte(b ?? 0)}`;
@@ -50,30 +51,32 @@ function toHex(el: Element, key: string, withAlpha: boolean): string {
 export function parseIterm(text: string, name: string): RawScheme {
   // A plist has no business declaring entities; refusing them rules out expansion bombs.
   if (/<!ENTITY/i.test(text) || /<!DOCTYPE[^>]*\[/i.test(text)) {
-    fail('Fichier iTerm2 refusé : il déclare des entités XML');
+    fail(t('Fichier iTerm2 refusé : il déclare des entités XML'));
   }
   let doc: Document;
   try {
     doc = new DOMParser().parseFromString(text, 'application/xml');
   } catch {
-    fail('Fichier iTerm2 illisible : XML invalide');
+    fail(t('Fichier iTerm2 illisible : XML invalide'));
   }
   if (doc.getElementsByTagName('parsererror').length > 0) {
-    fail('Fichier iTerm2 illisible : XML invalide');
+    fail(t('Fichier iTerm2 illisible : XML invalide'));
   }
   const root = doc.querySelector('plist > dict');
-  if (!root) fail('Fichier iTerm2 illisible : pas de dictionnaire de couleurs');
+  if (!root) fail(t('Fichier iTerm2 illisible : pas de dictionnaire de couleurs'));
   const colors = entries(root);
   const terminal: RawScheme['terminal'] = {};
   ANSI_KEYS.forEach((k, i) => {
     const el = colors.get(`Ansi ${i} Color`);
-    if (!el) fail(`Ansi ${i} Color : couleur manquante`);
+    if (!el) fail(t('{key} : couleur manquante', { key: `Ansi ${i} Color` }));
     terminal[k] = toHex(el, `Ansi ${i} Color`, false);
   });
   for (const [plistKey, k] of Object.entries(NAMED)) {
     const el = colors.get(plistKey);
     if (el) terminal[k] = toHex(el, plistKey, k === 'selectionBackground');
-    else if (k === 'foreground' || k === 'background') fail(`${plistKey} : couleur manquante`);
+    else if (k === 'foreground' || k === 'background') {
+      fail(t('{key} : couleur manquante', { key: plistKey }));
+    }
   }
   return { name, terminal: withDefaults(terminal) };
 }

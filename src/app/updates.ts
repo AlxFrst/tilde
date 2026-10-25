@@ -2,6 +2,7 @@
 // in Réglages → Général) and « Rechercher des mises à jour » in the palette.
 
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { onUpdateProgress, updateCheck, updateInstall, type UpdateInfo } from '@/ipc/updates';
 import { dirtyEditors } from '@/stores/editors';
 import { allSessions } from '@/terminal/sessionRegistry';
@@ -40,10 +41,14 @@ const errorText = (err: unknown) => (err instanceof Error ? err.message : String
 async function install(): Promise<void> {
   // Installing restarts Tilde: running programs and unsaved editors would be lost.
   if (!(await confirmClose(allSessions(), dirtyEditors()))) return;
-  const progress = toast.loading('Téléchargement de la mise à jour…');
+  const progress = toast.loading(t('Téléchargement de la mise à jour…'));
   const off = await onUpdateProgress((p) => {
-    const percent = p.total ? ` ${String(Math.round((p.downloaded / p.total) * 100))} %` : '';
-    toast.loading(`Téléchargement de la mise à jour…${percent}`, { id: progress });
+    const text = p.total
+      ? t('Téléchargement de la mise à jour… {percent} %', {
+          percent: Math.round((p.downloaded / p.total) * 100),
+        })
+      : t('Téléchargement de la mise à jour…');
+    toast.loading(text, { id: progress });
   });
   try {
     await updateInstall();
@@ -55,11 +60,11 @@ async function install(): Promise<void> {
 }
 
 function announce(update: UpdateInfo): void {
-  toast(`Tilde ${update.version} est disponible`, {
-    description: 'La mise à jour redémarre Tilde.',
+  toast(t('Tilde {version} est disponible', { version: update.version }), {
+    description: t('La mise à jour redémarre Tilde.'),
     duration: Infinity,
     action: {
-      label: 'Mettre à jour',
+      label: t('Mettre à jour'),
       onClick: () => void install(),
     },
   });
@@ -70,10 +75,11 @@ export async function checkForUpdates({ manual }: { manual: boolean }): Promise<
   try {
     const update = await updateCheck();
     if (update) announce(update);
-    else if (manual) toast.success('Tilde est à jour.');
+    else if (manual) toast.success(t('Tilde est à jour.'));
   } catch (err) {
-    if (manual) toast.error(`Recherche de mise à jour impossible : ${errorText(err)}`);
-    else console.info('update check failed', err);
+    if (manual) {
+      toast.error(t('Recherche de mise à jour impossible : {error}', { error: errorText(err) }));
+    } else console.info('update check failed', err);
   }
 }
 

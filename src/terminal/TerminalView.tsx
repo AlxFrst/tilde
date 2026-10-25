@@ -3,6 +3,7 @@ import type { SearchAddon } from '@xterm/addon-search';
 import { ClipboardPaste, Columns2, Copy, Rows2, Search } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { t, tn } from '@/i18n';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -39,6 +40,7 @@ import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { createTerminal, terminalOptions, type TerminalHandle } from './createTerminal';
 import { ExitOverlay } from './ExitOverlay';
 import { useKeybindings } from '@/stores/keybindings';
+import { bindingKeys } from './keyLabels';
 import { clipboardKey, matchShortcut } from './keys';
 import { enableLigatures } from './ligatures';
 import { parseOsc7 } from './osc7';
@@ -90,6 +92,9 @@ function safeFit(h: TerminalHandle, el: HTMLElement): boolean {
     return false; // not laid out yet
   }
 }
+
+/** A default binding as shown in the context menu (`Ctrl+Maj+C`). */
+const shortcut = (binding: string) => bindingKeys(binding).join('+');
 
 function errorText(err: unknown): string {
   if (isSessionError(err)) return err.message;
@@ -308,7 +313,10 @@ export function TerminalView(props: TerminalViewProps) {
         if (panel.kind === 'ssh') {
           // The banner says why and offers to retry.
           const cancelled = isSessionError(err) && err.kind === 'cancelled';
-          showState({ kind: 'failed', message: cancelled ? 'Connexion annulée' : errorText(err) });
+          showState({
+            kind: 'failed',
+            message: cancelled ? t('Connexion annulée') : errorText(err),
+          });
           return;
         }
         h.term.write(`\r\n\u001b[31m${errorText(err)}\u001b[0m\r\n`);
@@ -377,19 +385,20 @@ export function TerminalView(props: TerminalViewProps) {
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={copySelection}>
-            <Copy strokeWidth={1.5} /> Copier <ContextMenuShortcut>Ctrl+Maj+C</ContextMenuShortcut>
+            <Copy strokeWidth={1.5} /> {t('Copier')}{' '}
+            <ContextMenuShortcut>{shortcut('Ctrl+Shift+C')}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem onSelect={pasteFromClipboard}>
-            <ClipboardPaste strokeWidth={1.5} /> Coller{' '}
-            <ContextMenuShortcut>Ctrl+Maj+V</ContextMenuShortcut>
+            <ClipboardPaste strokeWidth={1.5} /> {t('Coller')}{' '}
+            <ContextMenuShortcut>{shortcut('Ctrl+Shift+V')}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={() => {
               setSearchOpen(true);
             }}
           >
-            <Search strokeWidth={1.5} /> Rechercher{' '}
-            <ContextMenuShortcut>Ctrl+Maj+F</ContextMenuShortcut>
+            <Search strokeWidth={1.5} /> {t('Rechercher')}{' '}
+            <ContextMenuShortcut>{shortcut('Ctrl+Shift+F')}</ContextMenuShortcut>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
@@ -399,7 +408,7 @@ export function TerminalView(props: TerminalViewProps) {
               ws.splitActive('row');
             }}
           >
-            <Columns2 strokeWidth={1.5} /> Diviser à droite
+            <Columns2 strokeWidth={1.5} /> {t('Diviser à droite')}
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={() => {
@@ -408,7 +417,7 @@ export function TerminalView(props: TerminalViewProps) {
               ws.splitActive('column');
             }}
           >
-            <Rows2 strokeWidth={1.5} /> Diviser en bas
+            <Rows2 strokeWidth={1.5} /> {t('Diviser en bas')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -427,8 +436,8 @@ export function TerminalView(props: TerminalViewProps) {
       {props.panel.kind === 'ssh' &&
         (dormant ? (
           <ConnectionBanner
-            state={{ kind: 'failed', message: 'Déconnecté — Entrée pour reconnecter' }}
-            retryLabel="Se connecter"
+            state={{ kind: 'failed', message: t('Déconnecté — Entrée pour reconnecter') }}
+            retryLabel={t('Se connecter')}
             onRetry={wake}
           />
         ) : (
@@ -447,8 +456,14 @@ export function TerminalView(props: TerminalViewProps) {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Coller {pasteText ? pastedLineCount(pasteText) : 0} lignes ?</DialogTitle>
-            <DialogDescription>Chaque ligne sera exécutée par le shell.</DialogDescription>
+            <DialogTitle>
+              {tn(
+                pasteText ? pastedLineCount(pasteText) : 0,
+                'Coller {count} ligne ?',
+                'Coller {count} lignes ?',
+              )}
+            </DialogTitle>
+            <DialogDescription>{t('Chaque ligne sera exécutée par le shell.')}</DialogDescription>
           </DialogHeader>
           <pre className="max-h-40 overflow-auto rounded-md bg-surface-2 p-2 font-mono text-xs select-text">
             {pasteText}
@@ -460,7 +475,7 @@ export function TerminalView(props: TerminalViewProps) {
                 setPasteText(null);
               }}
             >
-              Annuler
+              {t('Annuler')}
             </Button>
             <Button
               onClick={() => {
@@ -469,7 +484,7 @@ export function TerminalView(props: TerminalViewProps) {
                 handle.current?.term.focus();
               }}
             >
-              Coller
+              {t('Coller')}
             </Button>
           </DialogFooter>
         </DialogContent>

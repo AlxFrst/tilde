@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { t } from '@/i18n';
 import { monitorRemote } from '@/ipc/monitor';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/stores/settings';
@@ -67,7 +68,7 @@ export function ServerStatusBar({ leafId, visible }: { leafId: string; visible: 
   return (
     <div
       role="status"
-      aria-label="État du serveur"
+      aria-label={t('État du serveur')}
       className="flex h-6 shrink-0 items-center gap-3 overflow-hidden border-t bg-surface-1 px-2 text-[11px] whitespace-nowrap text-text-muted"
     >
       <span className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
@@ -76,55 +77,65 @@ export function ServerStatusBar({ leafId, visible }: { leafId: string; visible: 
             <span className="max-w-[40%] shrink-0 truncate font-medium text-text">
               {latest.host}
             </span>
-            <Item Icon={Cpu} label="Processeur" busy={(latest.cpuPercent ?? 0) >= BUSY_PERCENT}>
-              {latest.cpuPercent === null ? '—' : `${String(Math.round(latest.cpuPercent))} %`}
+            <Item
+              Icon={Cpu}
+              label={t('Processeur')}
+              busy={(latest.cpuPercent ?? 0) >= BUSY_PERCENT}
+            >
+              {latest.cpuPercent === null
+                ? '—'
+                : t('{percent} %', { percent: Math.round(latest.cpuPercent) })}
             </Item>
-            <Item Icon={MemoryStick} label="Mémoire" busy={mem >= BUSY_PERCENT}>
+            <Item Icon={MemoryStick} label={t('Mémoire')} busy={mem >= BUSY_PERCENT}>
               {formatBytes(latest.memUsed)} / {formatBytes(latest.memTotal)}
             </Item>
             {root && (
-              <Item Icon={HardDrive} label={`Disque ${root.mount}`} busy={disk >= BUSY_PERCENT}>
-                {root.mount} {Math.round(disk)} %
+              <Item
+                Icon={HardDrive}
+                label={t('Disque {mount}', { mount: root.mount })}
+                busy={disk >= BUSY_PERCENT}
+              >
+                {root.mount} {t('{percent} %', { percent: Math.round(disk) })}
               </Item>
             )}
             {latest.netRxPerSec !== null && (
-              <Item Icon={ArrowDown} label="Réseau, reçu">
+              <Item Icon={ArrowDown} label={t('Réseau, reçu')}>
                 {formatRate(latest.netRxPerSec)}
               </Item>
             )}
             {latest.netTxPerSec !== null && (
-              <Item Icon={ArrowUp} label="Réseau, envoyé">
+              <Item Icon={ArrowUp} label={t('Réseau, envoyé')}>
                 {formatRate(latest.netTxPerSec)}
               </Item>
             )}
           </>
         ) : (
           <span title={error?.message}>
-            {error ? 'Statistiques du serveur indisponibles' : 'Statistiques du serveur…'}
+            {error ? t('Statistiques du serveur indisponibles') : t('Statistiques du serveur…')}
           </span>
         )}
       </span>
       <span className="flex shrink-0 items-center gap-0.5">
         <button
           type="button"
-          aria-label="Détails"
-          title="Moniteur détaillé du serveur"
+          aria-label={t('Détails')}
+          title={t('Moniteur détaillé du serveur')}
           className="flex h-5 items-center gap-1 rounded px-1 hover:bg-surface-2 hover:text-text"
           onClick={() => {
             useUi.getState().setPeek({ sshLeafId: leafId });
           }}
         >
           <Activity className="size-3" strokeWidth={1.5} />
-          <span>Détails</span>
+          <span>{t('Détails')}</span>
         </button>
         <button
           type="button"
-          aria-label="Masquer le bandeau"
-          title="Masquer le bandeau (réactivable dans Réglages → SSH)"
+          aria-label={t('Masquer le bandeau')}
+          title={t('Masquer le bandeau (réactivable dans Réglages → SSH)')}
           className="flex size-5 items-center justify-center rounded hover:bg-surface-2 hover:text-text"
           onClick={() => {
             void useSettings.getState().update({ ssh: { statusBar: false } });
-            toast('Bandeau masqué', { description: 'Réactivable dans Réglages → SSH.' });
+            toast(t('Bandeau masqué'), { description: t('Réactivable dans Réglages → SSH.') });
           }}
         >
           <X className="size-3" strokeWidth={1.5} />

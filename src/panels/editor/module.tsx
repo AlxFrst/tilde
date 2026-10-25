@@ -1,6 +1,7 @@
 import { FileCode } from 'lucide-react';
 import { lazy, Suspense } from 'react';
 import { toast } from 'sonner';
+import { msg, t } from '@/i18n';
 import { editorOpenLocal, isEditorError } from '@/ipc/editor';
 import type { PanelModule, PanelProps } from '@/panels/registry';
 import { useWorkspace } from '@/stores/workspace';
@@ -16,7 +17,7 @@ function EditorLoader(props: PanelProps<EditorPanel>) {
     <Suspense
       fallback={
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
-          Chargement de l’éditeur…
+          {t('Chargement de l’éditeur…')}
         </div>
       }
     >
@@ -32,7 +33,7 @@ async function openLocalFile(): Promise<void> {
     if (!opened) return;
     primeLocal(opened);
     const { tabs, activeTabId } = useWorkspace.getState();
-    const beside = tabs.find((t) => t.id === activeTabId)?.activeLeafId ?? null;
+    const beside = tabs.find((tab) => tab.id === activeTabId)?.activeLeafId ?? null;
     useWorkspace
       .getState()
       .openEditor(beside, { kind: 'local', docId: opened.docId, name: opened.name });
@@ -44,7 +45,7 @@ async function openLocalFile(): Promise<void> {
 export const editorModule: PanelModule<EditorPanel> = {
   id: 'core.editor',
   kind: 'editor',
-  title: 'Éditeur',
+  title: msg('Éditeur'),
   icon: FileCode,
   component: EditorLoader,
   tabTitle: (s) => fileName(s.source),
@@ -54,7 +55,7 @@ export const editorModule: PanelModule<EditorPanel> = {
   commands: [
     {
       id: 'editor.openFile',
-      title: 'Ouvrir un fichier…',
+      title: msg('Ouvrir un fichier…'),
       group: 'Panneaux',
       run: () => void openLocalFile(),
     },

@@ -1,5 +1,6 @@
 import { Ban, Check } from 'lucide-react';
 import { CONNECTION_COLORS } from '@/connections/colors';
+import { t } from '@/i18n';
 import { cn, SELECTED } from '@/lib/utils';
 import { contrastRatio } from '@/themes';
 
@@ -29,8 +30,8 @@ export function ColorPicker({
             type="button"
             role="radio"
             aria-checked={checked}
-            aria-label={name}
-            title={name}
+            aria-label={t(name)}
+            title={t(name)}
             className={cn(swatch, checked && 'ring-2 ring-ring')}
             style={{ background: color }}
             onClick={() => {
@@ -47,8 +48,8 @@ export function ColorPicker({
         type="button"
         role="radio"
         aria-checked={value === null}
-        aria-label="Aucune"
-        title="Aucune"
+        aria-label={t('Aucune')}
+        title={t('Aucune')}
         className={cn(
           swatch,
           'border text-text-muted',

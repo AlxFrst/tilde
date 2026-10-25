@@ -2,6 +2,7 @@
 // so opening a YAML file never downloads the SQL grammar.
 
 import type { Extension } from '@codemirror/state';
+import { msg, t } from '@/i18n';
 
 interface Language {
   label: string;
@@ -99,7 +100,7 @@ const LANGUAGES: Language[] = [
     load: () => legacy(import('@codemirror/legacy-modes/mode/nginx'), 'nginx'),
   },
   {
-    label: 'Propriétés',
+    label: msg('Propriétés'),
     matches: (name, ext) =>
       ['ini', 'conf', 'cfg', 'properties', 'env'].includes(ext) || name.startsWith('.env'),
     load: () => legacy(import('@codemirror/legacy-modes/mode/properties'), 'properties'),
@@ -116,7 +117,7 @@ function find(fileName: string): Language | undefined {
 
 /** The language shown in the editor's status bar. */
 export function languageLabel(fileName: string): string {
-  return find(fileName)?.label ?? 'Texte brut';
+  return t(find(fileName)?.label ?? msg('Texte brut'));
 }
 
 /** The highlighting for this file, loaded on demand; `null` for plain text. */

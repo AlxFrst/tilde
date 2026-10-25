@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { msg, t } from '@/i18n';
 import { useThemes } from '@/stores/themes';
 import {
   allThemes,
@@ -17,28 +18,47 @@ import { slugify } from '@/themes/importers';
 import { ColorField } from './ColorField';
 
 const UI_LABELS: [keyof UiTokens, string][] = [
-  ['bg', 'Fond'],
-  ['surface1', 'Surface 1'],
-  ['surface2', 'Surface 2'],
-  ['border', 'Bordure'],
-  ['text', 'Texte'],
-  ['textMuted', 'Texte secondaire'],
-  ['accent', 'Accent'],
-  ['accent2', 'Accent secondaire'],
-  ['success', 'Succès'],
-  ['warning', 'Avertissement'],
-  ['error', 'Erreur'],
+  ['bg', msg('Fond')],
+  ['surface1', msg('Surface 1')],
+  ['surface2', msg('Surface 2')],
+  ['border', msg('Bordure')],
+  ['text', msg('Texte')],
+  ['textMuted', msg('Texte secondaire')],
+  ['accent', msg('Accent')],
+  ['accent2', msg('Accent secondaire')],
+  ['success', msg('Succès')],
+  ['warning', msg('Avertissement')],
+  ['error', msg('Erreur')],
 ];
 
 const TERMINAL_LABELS: [keyof TerminalColors, string][] = [
-  ['foreground', 'Texte du terminal'],
-  ['background', 'Fond du terminal'],
-  ['cursor', 'Curseur'],
-  ['cursorAccent', 'Texte sous le curseur'],
-  ['selectionBackground', 'Sélection'],
+  ['foreground', msg('Texte du terminal')],
+  ['background', msg('Fond du terminal')],
+  ['cursor', msg('Curseur')],
+  ['cursorAccent', msg('Texte sous le curseur')],
+  ['selectionBackground', msg('Sélection')],
 ];
 
-const ANSI_NAMES = ['Noir', 'Rouge', 'Vert', 'Jaune', 'Bleu', 'Magenta', 'Cyan', 'Blanc'];
+const ANSI_NAMES = [
+  msg('Noir'),
+  msg('Rouge'),
+  msg('Vert'),
+  msg('Jaune'),
+  msg('Bleu'),
+  msg('Magenta'),
+  msg('Cyan'),
+  msg('Blanc'),
+];
+const BRIGHT_NAMES = [
+  msg('Noir vif'),
+  msg('Rouge vif'),
+  msg('Vert vif'),
+  msg('Jaune vif'),
+  msg('Bleu vif'),
+  msg('Magenta vif'),
+  msg('Cyan vif'),
+  msg('Blanc vif'),
+];
 const ANSI_KEYS = [
   'black',
   'red',
@@ -85,10 +105,10 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 function Contrast({ theme }: { theme: ThemeDefinition }) {
   const checks: [string, number, number][] = [
-    ['Texte / fond', contrastRatio(theme.ui.text, theme.ui.bg), 4.5],
-    ['Texte secondaire / fond', contrastRatio(theme.ui.textMuted, theme.ui.bg), 3],
+    [t('Texte / fond'), contrastRatio(theme.ui.text, theme.ui.bg), 4.5],
+    [t('Texte secondaire / fond'), contrastRatio(theme.ui.textMuted, theme.ui.bg), 3],
     [
-      'Terminal',
+      t('Terminal'),
       contrastRatio(theme.terminal.foreground, theme.terminal.background.slice(0, 7)),
       4.5,
     ],
@@ -109,8 +129,9 @@ function Contrast({ theme }: { theme: ThemeDefinition }) {
       {failing.length > 0 && (
         <p role="alert" className="flex items-center gap-2 text-xs text-warning">
           <TriangleAlert className="size-3.5 shrink-0" strokeWidth={1.5} />
-          Contraste insuffisant ({failing.map(([l]) => l).join(', ')}) : le texte sera difficile à
-          lire.
+          {t('Contraste insuffisant ({checks}) : le texte sera difficile à lire.', {
+            checks: failing.map(([l]) => l).join(', '),
+          })}
         </p>
       )}
     </div>
@@ -163,14 +184,14 @@ export function ThemeEditor({
     const { user, save: write } = useThemes.getState();
     let id = draft.id;
     if (isNew) {
-      const taken = new Set(allThemes(user).map((t) => t.id));
+      const taken = new Set(allThemes(user).map((theme) => theme.id));
       id = uniqueThemeId(slugify(name), taken);
     }
     setSaving(true);
     const ok = await write({ ...draft, id, name });
     setSaving(false);
     if (!ok) return;
-    toast.success(`Thème « ${name} » enregistré`);
+    toast.success(t('Thème « {name} » enregistré', { name }));
     setPreview(null);
     onClose();
   };
@@ -185,9 +206,9 @@ export function ThemeEditor({
     >
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid flex-1 gap-1 text-sm">
-          Nom
+          {t('Nom')}
           <Input
-            aria-label="Nom du thème"
+            aria-label={t('Nom du thème')}
             maxLength={80}
             value={draft.name}
             onChange={(e) => {
@@ -197,9 +218,9 @@ export function ThemeEditor({
           />
         </label>
         <label className="grid gap-1 text-sm">
-          Type
+          {t('Type')}
           <select
-            aria-label="Type de thème"
+            aria-label={t('Type de thème')}
             className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
             value={draft.kind}
             onChange={(e) => {
@@ -207,8 +228,8 @@ export function ThemeEditor({
               setDraft((d) => ({ ...d, kind }));
             }}
           >
-            <option value="dark">Sombre</option>
-            <option value="light">Clair</option>
+            <option value="dark">{t('Sombre')}</option>
+            <option value="light">{t('Clair')}</option>
           </select>
         </label>
         <Button
@@ -220,7 +241,7 @@ export function ThemeEditor({
           }}
         >
           <Wand2 strokeWidth={1.5} />
-          Dériver l’interface du terminal
+          {t('Dériver l’interface du terminal')}
         </Button>
       </div>
 
@@ -230,11 +251,11 @@ export function ThemeEditor({
           narrower than the screen). */}
       <div className="grid gap-6 @xl:grid-cols-2">
         <div className="grid content-start gap-6">
-          <Group title="Interface">
+          <Group title={t('Interface')}>
             {UI_LABELS.map(([key, label]) => (
               <ColorField
                 key={key}
-                label={label}
+                label={t(label)}
                 value={draft.ui[key]}
                 onChange={(v) => {
                   setUi(key, v);
@@ -242,11 +263,11 @@ export function ThemeEditor({
               />
             ))}
           </Group>
-          <Group title="Terminal">
+          <Group title={t('Terminal')}>
             {TERMINAL_LABELS.map(([key, label]) => (
               <ColorField
                 key={key}
-                label={label}
+                label={t(label)}
                 alpha={key === 'selectionBackground'}
                 value={draft.terminal[key]}
                 onChange={(v) => {
@@ -256,11 +277,11 @@ export function ThemeEditor({
             ))}
           </Group>
         </div>
-        <Group title="Couleurs ANSI">
+        <Group title={t('Couleurs ANSI')}>
           {ANSI_KEYS.map((key, i) => (
             <ColorField
               key={key}
-              label={ANSI_NAMES[i] ?? key}
+              label={t(ANSI_NAMES[i] ?? key)}
               value={draft.terminal[key]}
               onChange={(v) => {
                 setTerminal(key, v);
@@ -270,7 +291,7 @@ export function ThemeEditor({
           {BRIGHT_KEYS.map((key, i) => (
             <ColorField
               key={key}
-              label={`${ANSI_NAMES[i] ?? key} vif`}
+              label={t(BRIGHT_NAMES[i] ?? key)}
               value={draft.terminal[key]}
               onChange={(v) => {
                 setTerminal(key, v);
@@ -282,10 +303,10 @@ export function ThemeEditor({
 
       <div className="flex justify-end gap-2 border-t pt-4">
         <Button type="button" variant="outline" onClick={cancel}>
-          Annuler
+          {t('Annuler')}
         </Button>
         <Button type="submit" disabled={!name || saving}>
-          Enregistrer
+          {t('Enregistrer')}
         </Button>
       </div>
     </form>

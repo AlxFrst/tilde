@@ -1,5 +1,7 @@
 import { toast } from 'sonner';
 import { create } from 'zustand';
+import { t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { onTransfer, transferReveal, transfersList, type TransferInfo } from '@/ipc/sftp';
 
 interface TransfersState {
@@ -31,8 +33,8 @@ function announce(changes: { previous?: TransferInfo; next: TransferInfo }[], al
     if (previous?.state.kind === next.state.kind) continue;
     if (next.state.kind === 'failed') failed.push(next);
     else if (next.state.kind === 'conflict') {
-      toast.warning(`« ${transferName(next)} » a été modifié sur le serveur`, {
-        description: 'Ouvrez les transferts pour choisir la version à garder.',
+      toast.warning(t('« {name} » a été modifié sur le serveur', { name: transferName(next) }), {
+        description: t('Ouvrez les transferts pour choisir la version à garder.'),
       });
     } else if (next.state.kind === 'done' && next.direction === 'download') {
       finishedDownloads.push(next.id);
@@ -42,23 +44,23 @@ function announce(changes: { previous?: TransferInfo; next: TransferInfo }[], al
   if (first && first.state.kind === 'failed') {
     const title =
       failed.length === 1
-        ? `Échec du transfert « ${transferName(first)} »`
-        : `${String(failed.length)} transferts ont échoué`;
-    toast.error(title, { description: first.state.message });
+        ? t('Échec du transfert « {name} »', { name: transferName(first) })
+        : t('{count} transferts ont échoué', { count: failed.length });
+    toast.error(title, { description: tRust(first.state.message) });
   }
   // One toast per batch of downloads: when none is still going.
   const last = finishedDownloads.at(-1);
   if (last !== undefined && !all.some((o) => o.direction === 'download' && isActive(o))) {
     const count = finishedDownloads.length;
-    const one = all.find((t) => t.id === last);
+    const one = all.find((o) => o.id === last);
     finishedDownloads = [];
     toast.success(
       count === 1 && one
-        ? `« ${transferName(one)} » téléchargé`
-        : `${String(count)} fichiers téléchargés`,
+        ? t('« {name} » téléchargé', { name: transferName(one) })
+        : t('{count} fichiers téléchargés', { count }),
       {
         action: {
-          label: 'Ouvrir le dossier',
+          label: t('Ouvrir le dossier'),
           onClick: () => void transferReveal(last).catch(() => undefined),
         },
       },

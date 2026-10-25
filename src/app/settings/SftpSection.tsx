@@ -1,9 +1,10 @@
+import { msg, t } from '@/i18n';
 import { useSettings } from '@/stores/settings';
-import { Choice, NumberField, Row, Section, TextField } from './fields';
+import { Choice, NumberField, Row, Section, TextField, translated } from './fields';
 
 const EDITOR_MODES = [
-  ['external', 'Éditeur externe'],
-  ['builtin', 'Éditeur intégré'],
+  ['external', msg('Éditeur externe')],
+  ['builtin', msg('Éditeur intégré')],
 ] as const;
 
 export function SftpSection() {
@@ -15,11 +16,11 @@ export function SftpSection() {
 
   return (
     <div className="grid gap-6">
-      <Section title="Transferts">
-        <Row label="Transferts simultanés">
+      <Section title={t('Transferts')}>
+        <Row label={t('Transferts simultanés')}>
           <NumberField
             setting="sftp.concurrency"
-            label="Transferts simultanés"
+            label={t('Transferts simultanés')}
             value={s.concurrency}
             min={1}
             max={16}
@@ -28,29 +29,29 @@ export function SftpSection() {
           />
         </Row>
       </Section>
-      <Section title="Édition">
+      <Section title={t('Édition')}>
         <Row
-          label="Ouvrir les fichiers avec"
-          hint="« Modifier » dans le panneau Fichiers : l’éditeur de Tilde, ou le vôtre."
+          label={t('Ouvrir les fichiers avec')}
+          hint={t('« Modifier » dans le panneau Fichiers : l’éditeur de Tilde, ou le vôtre.')}
         >
           <Choice
             setting="sftp.editorMode"
-            label="Ouvrir les fichiers avec"
+            label={t('Ouvrir les fichiers avec')}
             value={s.editorMode}
-            options={EDITOR_MODES}
+            options={translated(EDITOR_MODES)}
             disabled={readOnly}
             onChange={(editorMode) => void update({ sftp: { editorMode } })}
           />
         </Row>
         <Row
-          label="Éditeur externe"
-          hint="Commande, par exemple « code --wait ». Vide : l’éditeur de texte du système."
+          label={t('Éditeur externe')}
+          hint={t('Commande, par exemple « code --wait ». Vide : l’éditeur de texte du système.')}
         >
           <TextField
             setting="sftp.externalEditor"
-            label="Éditeur externe"
+            label={t('Éditeur externe')}
             value={s.externalEditor ?? ''}
-            placeholder="Éditeur de texte du système"
+            placeholder={t('Éditeur de texte du système')}
             disabled={readOnly}
             onChange={(v) => void update({ sftp: { externalEditor: v || null } })}
           />

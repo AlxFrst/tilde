@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { msg, t, tn } from '@/i18n';
 import type { Appearance } from '@/ipc/generated/settings';
 import type { WindowEffect } from '@/ipc/window';
 import { useSettings } from '@/stores/settings';
@@ -7,25 +8,25 @@ import { useThemes } from '@/stores/themes';
 import { useWindowEffects } from '@/stores/windowEffects';
 import { allThemes, type ThemeKind } from '@/themes';
 import { UI_FONT_SUGGESTIONS } from '@/themes/fonts';
-import { Choice, NumberField, Row, Section, SelectField } from './fields';
+import { Choice, NumberField, Row, Section, SelectField, translated } from './fields';
 import { FontField } from './FontField';
 
 const SCHEMES = [
-  ['system', 'Système'],
-  ['dark', 'Sombre'],
-  ['light', 'Clair'],
+  ['system', msg('Système')],
+  ['dark', msg('Sombre')],
+  ['light', msg('Clair')],
 ] as const;
 const DENSITIES = [
-  ['compact', 'Compacte'],
-  ['comfortable', 'Confortable'],
-  ['spacious', 'Aérée'],
+  ['compact', msg('Compacte')],
+  ['comfortable', msg('Confortable')],
+  ['spacious', msg('Aérée')],
 ] as const;
 const SIDES = [
-  ['left', 'Gauche'],
-  ['right', 'Droite'],
+  ['left', msg('Gauche')],
+  ['right', msg('Droite')],
 ] as const;
 const EFFECTS = [
-  ['none', 'Aucun'],
+  ['none', msg('Aucun')],
   ['mica', 'Mica'],
   ['acrylic', 'Acrylic'],
   ['vibrancy', 'Vibrancy'],
@@ -61,7 +62,7 @@ function OpacitySlider({
       <input
         type="range"
         data-setting="appearance.window.opacity"
-        aria-label="Opacité de la fenêtre"
+        aria-label={t('Opacité de la fenêtre')}
         min={0.3}
         max={1}
         step={0.05}
@@ -79,7 +80,9 @@ function OpacitySlider({
           }, 250);
         }}
       />
-      <span className="w-10 text-right text-xs text-text-muted">{Math.round(local * 100)} %</span>
+      <span className="w-10 text-right text-xs text-text-muted">
+        {t('{percent} %', { percent: Math.round(local * 100) })}
+      </span>
     </span>
   );
 }
@@ -97,12 +100,12 @@ function ThemeSelect({
 }) {
   const user = useThemes((s) => s.user);
   const options = allThemes(user)
-    .filter((t) => t.kind === kind)
-    .map((t) => [t.id, t.name] as const);
+    .filter((theme) => theme.kind === kind)
+    .map((theme) => [theme.id, theme.name] as const);
   return (
     <SelectField
       setting={kind === 'dark' ? 'appearance.themeDark' : 'appearance.themeLight'}
-      label={`Thème ${kind === 'dark' ? 'sombre' : 'clair'}`}
+      label={kind === 'dark' ? t('Thème sombre') : t('Thème clair')}
       value={value}
       options={options}
       disabled={disabled}
@@ -126,20 +129,20 @@ export function AppearanceSection() {
 
   return (
     <div className="grid gap-6">
-      <Section title="Thème">
-        <Row label="Apparence">
+      <Section title={t('Thème')}>
+        <Row label={t('Apparence')}>
           <Choice
             setting="appearance.colorScheme"
-            label="Apparence"
+            label={t('Apparence')}
             value={a.colorScheme}
-            options={SCHEMES}
+            options={translated(SCHEMES)}
             disabled={readOnly}
             onChange={(colorScheme) => {
               set({ colorScheme });
             }}
           />
         </Row>
-        <Row label="Thème sombre">
+        <Row label={t('Thème sombre')}>
           <ThemeSelect
             kind="dark"
             value={a.themeDark}
@@ -149,7 +152,7 @@ export function AppearanceSection() {
             }}
           />
         </Row>
-        <Row label="Thème clair">
+        <Row label={t('Thème clair')}>
           <ThemeSelect
             kind="light"
             value={a.themeLight}
@@ -161,10 +164,10 @@ export function AppearanceSection() {
         </Row>
       </Section>
 
-      <Section title="Interface">
+      <Section title={t('Interface')}>
         <FontField
           setting="appearance.uiFontFamily"
-          label="Police de l’interface"
+          label={t('Police de l’interface')}
           value={a.uiFontFamily}
           suggestions={UI_FONT_SUGGESTIONS}
           disabled={readOnly}
@@ -172,10 +175,10 @@ export function AppearanceSection() {
             set({ uiFontFamily });
           }}
         />
-        <Row label="Taille du texte">
+        <Row label={t('Taille du texte')}>
           <NumberField
             setting="appearance.uiFontSize"
-            label="Taille du texte de l’interface"
+            label={t('Taille du texte de l’interface')}
             value={a.uiFontSize}
             min={10}
             max={20}
@@ -186,24 +189,24 @@ export function AppearanceSection() {
             }}
           />
         </Row>
-        <Row label="Densité">
+        <Row label={t('Densité')}>
           <Choice
             setting="appearance.density"
-            label="Densité"
+            label={t('Densité')}
             value={a.density}
-            options={DENSITIES}
+            options={translated(DENSITIES)}
             disabled={readOnly}
             onChange={(density) => {
               set({ density });
             }}
           />
         </Row>
-        <Row label="Barre latérale">
+        <Row label={t('Barre latérale')}>
           <Choice
             setting="appearance.sidebarPosition"
-            label="Position de la barre latérale"
+            label={t('Position de la barre latérale')}
             value={a.sidebarPosition}
-            options={SIDES}
+            options={translated(SIDES)}
             disabled={readOnly}
             onChange={(sidebarPosition) => {
               set({ sidebarPosition });
@@ -211,7 +214,7 @@ export function AppearanceSection() {
           />
           <NumberField
             setting="appearance.sidebarWidth"
-            label="Largeur de la barre latérale"
+            label={t('Largeur de la barre latérale')}
             value={a.sidebarWidth}
             min={180}
             max={480}
@@ -223,14 +226,16 @@ export function AppearanceSection() {
           />
         </Row>
         <Row
-          label="Hôtes de ~/.ssh/config masqués"
-          hint="Rangés dans « Masqués » en bas de leur section : toujours ouvrables et adoptables."
+          label={t('Hôtes de ~/.ssh/config masqués')}
+          hint={t(
+            'Rangés dans « Masqués » en bas de leur section : toujours ouvrables et adoptables.',
+          )}
         >
           <div data-setting="appearance.sshConfigHosts.hidden" className="flex items-center gap-2">
             <span className="text-sm text-text-muted">
               {a.sshConfigHosts.hidden.length === 0
-                ? 'Aucun'
-                : `${String(a.sshConfigHosts.hidden.length)} masqué(s)`}
+                ? t('Aucun')
+                : tn(a.sshConfigHosts.hidden.length, '{count} masqué', '{count} masqués')}
             </span>
             {a.sshConfigHosts.hidden.length > 0 && (
               <Button
@@ -241,29 +246,31 @@ export function AppearanceSection() {
                   set({ sshConfigHosts: { hidden: [] } });
                 }}
               >
-                Tout réafficher
+                {t('Tout réafficher')}
               </Button>
             )}
           </div>
         </Row>
       </Section>
 
-      <Section title="Fenêtre">
+      <Section title={t('Fenêtre')}>
         <Row
-          label="Effet"
+          label={t('Effet')}
           hint={
             unavailable.length > 0
-              ? `Non pris en charge sur ce système : ${unavailable
-                  .map((v) => EFFECTS.find(([e]) => e === v)?.[1])
-                  .join(', ')}.`
+              ? t('Non pris en charge sur ce système : {effects}.', {
+                  effects: unavailable
+                    .map((v) => t(EFFECTS.find(([e]) => e === v)?.[1] ?? v))
+                    .join(', '),
+                })
               : undefined
           }
         >
           <Choice<WindowEffect>
             setting="appearance.window.effect"
-            label="Effet de fenêtre"
+            label={t('Effet de fenêtre')}
             value={a.window.effect}
-            options={EFFECTS}
+            options={translated(EFFECTS)}
             unavailable={unavailable}
             disabled={readOnly}
             onChange={(effect) => {
@@ -275,11 +282,11 @@ export function AppearanceSection() {
           />
         </Row>
         <Row
-          label="Opacité"
+          label={t('Opacité')}
           hint={
             a.window.effect !== 'none' && applied === 'none'
-              ? 'L’effet n’a pas pu être appliqué : seule l’opacité est utilisée.'
-              : 'Fonds de la fenêtre et du terminal ; le texte reste opaque.'
+              ? t('L’effet n’a pas pu être appliqué : seule l’opacité est utilisée.')
+              : t('Fonds de la fenêtre et du terminal ; le texte reste opaque.')
           }
         >
           <OpacitySlider

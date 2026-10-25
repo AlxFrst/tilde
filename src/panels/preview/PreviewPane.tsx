@@ -4,6 +4,7 @@
 import { RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import {
   editorOpenRemote,
   editorReadLocal,
@@ -142,7 +143,8 @@ function onPreviewClick(e: MouseEvent<HTMLDivElement>) {
 }
 
 function MarkdownView({ text }: { text: string }) {
-  const html = useMemo(() => renderMarkdown(text), [text]);
+  const imageTitle = t('Image non chargée');
+  const html = useMemo(() => renderMarkdown(text, imageTitle), [text, imageTitle]);
   return (
     <div
       className="tilde-prose mx-auto max-w-3xl px-6 py-4 select-text"
@@ -164,7 +166,7 @@ function JsonView({ text }: { text: string }) {
   if (parsed.error !== null) {
     return (
       <p role="alert" className="p-4 text-sm text-warning">
-        JSON invalide : {parsed.error}
+        {t('JSON invalide : {error}', { error: parsed.error })}
       </p>
     );
   }
@@ -188,8 +190,8 @@ export default function PreviewPane({ state }: PanelProps<PreviewPanel>) {
   return (
     <div className="flex h-full flex-col bg-bg">
       <div className="flex h-8 shrink-0 items-center gap-2 border-b px-2 text-xs">
-        <span className="truncate font-medium">Aperçu — {name}</span>
-        {source.kind === 'editor' && <span className="text-text-muted">en direct</span>}
+        <span className="truncate font-medium">{t('Aperçu — {name}', { name })}</span>
+        {source.kind === 'editor' && <span className="text-text-muted">{t('en direct')}</span>}
         {source.kind !== 'editor' && (
           <Button
             variant="ghost"
@@ -201,13 +203,15 @@ export default function PreviewPane({ state }: PanelProps<PreviewPanel>) {
             }}
           >
             <RotateCcw strokeWidth={1.5} />
-            Actualiser
+            {t('Actualiser')}
           </Button>
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-auto">
         {kind === null && (
-          <p className="p-4 text-sm text-text-muted">Pas d’aperçu pour ce type de fichier.</p>
+          <p className="p-4 text-sm text-text-muted">
+            {t('Pas d’aperçu pour ce type de fichier.')}
+          </p>
         )}
         {error !== null && <p className="p-4 text-sm text-warning">{error}</p>}
         {error === null && kind === 'markdown' && text.text !== null && (

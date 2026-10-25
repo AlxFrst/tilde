@@ -1,3 +1,4 @@
+import { t } from '@/i18n';
 import { useWorkspace } from '@/stores/workspace';
 import { cn } from '@/lib/utils';
 import { leaves } from '@/workspace/tree';
@@ -13,7 +14,7 @@ export function PaneList({ tab }: { tab: Tab }) {
   if (all.length < 2) return null;
   return (
     <ul
-      aria-label={`Panneaux de ${sessionTitle(tab, names)}`}
+      aria-label={t('Panneaux de {name}', { name: sessionTitle(tab, names) })}
       className="ml-[15px] grid grid-cols-[minmax(0,1fr)] gap-px border-l border-border py-0.5 pl-2"
     >
       {all.map((leaf) => {
