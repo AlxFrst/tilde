@@ -1,6 +1,7 @@
 // What the user does with spaces: switch, move a session, delete.
 
-import { connectionSpace, listSpaces } from '@/connections/spaces';
+import { connectionSpace, listSpaces, spaceName } from '@/connections/spaces';
+import { t, tn } from '@/i18n';
 import type { Space } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
@@ -50,11 +51,14 @@ export async function deleteSpace(space: Space): Promise<void> {
   if (!first) return;
   const connections = file.connections.filter((c) => connectionSpace(c, file) === space.id).length;
   const sessions = useWorkspace.getState().spaceTabs(space.id).length;
-  const count = (n: number, word: string) => `${String(n)} ${word}${n > 1 ? 's' : ''}`;
   const ok = await confirmAction({
-    title: `Supprimer l’espace « ${space.name} » ?`,
-    description: `${count(connections, 'connexion')} et ${count(sessions, 'session')} passeront dans « ${first.name} ». Rien n’est fermé.`,
-    confirmLabel: 'Supprimer',
+    title: t('Supprimer l’espace « {name} » ?', { name: spaceName(space) }),
+    description: t('{connections} et {sessions} passeront dans « {space} ». Rien n’est fermé.', {
+      connections: tn(connections, '{count} connexion', '{count} connexions'),
+      sessions: tn(sessions, '{count} session', '{count} sessions'),
+      space: spaceName(first),
+    }),
+    confirmLabel: t('Supprimer'),
     destructive: true,
   });
   if (ok) await removeSpace(space.id);

@@ -8,6 +8,7 @@ import {
   Waypoints,
   type LucideIcon,
 } from 'lucide-react';
+import { t } from '@/i18n';
 import type { Platform } from '@/ipc/app';
 import { cn, SELECTED } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
@@ -81,7 +82,7 @@ function IconButton({
  * with it, and the window's own controls. The whole bar moves the window.
  */
 export function SessionHeader({ platform }: { platform: Platform }) {
-  const tab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
+  const tab = useWorkspace((s) => s.tabs.find((x) => x.id === s.activeTabId));
   const tabs = useWorkspace((s) => s.tabs);
   const file = useConnections((s) => s.file);
   const names = useLabelNames();
@@ -117,7 +118,7 @@ export function SessionHeader({ platform }: { platform: Platform }) {
     >
       {railHidden && (
         <IconButton
-          label="Afficher la barre latérale"
+          label={t('Afficher la barre latérale')}
           Icon={PanelLeftOpen}
           onClick={() => {
             useUi.getState().setRailHidden(false);
@@ -146,26 +147,26 @@ export function SessionHeader({ platform }: { platform: Platform }) {
       )}
       {jumps && (
         <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[0.7rem] text-text-muted">
-          via {jumps}
+          {t('via {hosts}', { hosts: jumps })}
         </span>
       )}
       <span data-tauri-drag-region className="h-full min-w-4 flex-1" />
       {sshLeafId && (
         <>
           <HeaderButton
-            label="Fichiers"
+            label={t('Fichiers')}
             Icon={FolderTree}
             pressed={filesOpen}
-            title={filesOpen ? 'Masquer les fichiers' : 'Afficher les fichiers (SFTP)'}
+            title={filesOpen ? t('Masquer les fichiers') : t('Afficher les fichiers (SFTP)')}
             onClick={() => {
               useWorkspace.getState().toggleSftp(sshLeafId);
             }}
           />
           <HeaderButton
-            label="Moniteur"
+            label={t('Moniteur')}
             Icon={Activity}
             pressed={monitorDocked || peeking}
-            title="Processeur, mémoire, disque et réseau du serveur"
+            title={t('Processeur, mémoire, disque et réseau du serveur')}
             onClick={() => {
               // A docked monitor closes; otherwise the monitor shows over the session.
               if (monitorDocked) useWorkspace.getState().toggleRemoteMonitor(sshLeafId);
@@ -173,18 +174,18 @@ export function SessionHeader({ platform }: { platform: Platform }) {
             }}
           />
           <HeaderButton
-            label="Tunnels"
+            label={t('Tunnels')}
             Icon={Waypoints}
-            title="Redirections de ports de cette session"
+            title={t('Redirections de ports de cette session')}
             onClick={() => {
               const [sessionId] = sessionsFor([sshLeafId]);
               if (sessionId !== undefined) useSsh.getState().setTunnels({ sessionId, title });
             }}
           />
           <HeaderButton
-            label="Nouveau shell"
+            label={t('Nouveau shell')}
             Icon={Plus}
-            title="Un autre shell sur ce serveur"
+            title={t('Un autre shell sur ce serveur')}
             onClick={() => {
               useWorkspace.getState().addShellBeside(sshLeafId);
             }}
@@ -195,14 +196,14 @@ export function SessionHeader({ platform }: { platform: Platform }) {
       {tab && (
         <>
           <IconButton
-            label="Diviser à droite"
+            label={t('Diviser à droite')}
             Icon={Columns2}
             onClick={() => {
               split('row');
             }}
           />
           <IconButton
-            label="Diviser en bas"
+            label={t('Diviser en bas')}
             Icon={Rows2}
             onClick={() => {
               split('column');

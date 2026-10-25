@@ -1,6 +1,8 @@
 import { Server } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { msg, t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
@@ -9,14 +11,15 @@ import { bindingKeys, resolveKeyLabels } from '@/terminal/keyLabels';
 import { Logo } from './Logo';
 import { profileIcon } from './profileIcon';
 
+/** Command id and label (shown with t()). */
 const SHORTCUTS: [string, string][] = [
-  ['tab.new', 'Nouvel onglet'],
-  ['ssh.quickConnect', 'Connexion SSH'],
-  ['palette.toggle', 'Palette de commandes'],
-  ['pane.splitRight', 'Diviser à droite'],
-  ['pane.splitDown', 'Diviser en bas'],
-  ['pane.focusLeft', 'Changer de panneau'],
-  ['terminal.search', 'Rechercher'],
+  ['tab.new', msg('Nouvel onglet')],
+  ['ssh.quickConnect', msg('Connexion SSH')],
+  ['palette.toggle', msg('Palette de commandes')],
+  ['pane.splitRight', msg('Diviser à droite')],
+  ['pane.splitDown', msg('Diviser en bas')],
+  ['pane.focusLeft', msg('Changer de panneau')],
+  ['terminal.search', msg('Rechercher')],
 ];
 
 /** Keycaps shown for each shortcut (none when unbound), labelled for the keyboard layout. */
@@ -67,11 +70,13 @@ export function Welcome({ version }: { version: string }) {
               }}
             >
               <Icon strokeWidth={1.5} style={p.color ? { color: p.color } : undefined} />
-              {p.name}
+              {tRust(p.name)}
             </Button>
           );
         })}
-        {loaded && profiles.length === 0 && <p className="text-text-muted">Aucun shell détecté</p>}
+        {loaded && profiles.length === 0 && (
+          <p className="text-text-muted">{t('Aucun shell détecté')}</p>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -80,7 +85,7 @@ export function Welcome({ version }: { version: string }) {
           }}
         >
           <Server strokeWidth={1.5} />
-          Connexion SSH
+          {t('Connexion SSH')}
         </Button>
       </div>
       <dl className="grid grid-cols-[auto_auto] gap-x-6 gap-y-2 text-text-muted">
@@ -96,7 +101,7 @@ export function Welcome({ version }: { version: string }) {
                 </kbd>
               ))}
             </dt>
-            <dd>{label}</dd>
+            <dd>{t(label)}</dd>
           </div>
         ))}
       </dl>

@@ -1,6 +1,7 @@
 // Windows Terminal color schemes: a single scheme object, or a whole settings.json
 // (JSON with comments and trailing commas) whose `schemes` array is read.
 
+import { t } from '@/i18n';
 import { ANSI_KEYS, fail, normalizeHex, withDefaults, type RawScheme } from './common';
 
 /** Removes `//` and `/* *\/` comments and trailing commas, leaving strings untouched. */
@@ -54,7 +55,7 @@ const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
 function scheme(raw: Record<string, unknown>): RawScheme {
-  const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : 'Sans nom';
+  const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : t('Sans nom');
   const terminal: RawScheme['terminal'] = {
     foreground: normalizeHex(raw.foreground),
     background: normalizeHex(raw.background),
@@ -73,10 +74,10 @@ export function parseWindowsTerminal(text: string): RawScheme[] {
   try {
     data = JSON.parse(stripJsonc(text));
   } catch {
-    fail('JSON invalide');
+    fail(t('JSON invalide'));
   }
-  if (!isObject(data)) fail('JSON invalide : objet attendu');
+  if (!isObject(data)) fail(t('JSON invalide : objet attendu'));
   if (Array.isArray(data.schemes)) return data.schemes.filter(isObject).map(scheme);
   if ('background' in data || 'foreground' in data) return [scheme(data)];
-  fail('Aucun jeu de couleurs Windows Terminal dans ce fichier');
+  fail(t('Aucun jeu de couleurs Windows Terminal dans ce fichier'));
 }

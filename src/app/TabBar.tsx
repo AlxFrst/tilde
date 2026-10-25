@@ -18,6 +18,8 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { getPanelModule } from '@/panels/registry';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
@@ -57,7 +59,7 @@ function useTabLabel(tab: Tab) {
   }
   if (panel?.kind === 'sftp') {
     return {
-      title: tab.customTitle ?? 'Fichiers',
+      title: tab.customTitle ?? t('Fichiers'),
       Icon: FolderTree,
       profileColor: null,
       leaf,
@@ -70,7 +72,7 @@ function useTabLabel(tab: Tab) {
   if (panel && kind !== 'terminal') {
     const module = getPanelModule(kind);
     return {
-      title: tab.customTitle ?? module?.tabTitle?.(panel) ?? module?.title ?? kind,
+      title: tab.customTitle ?? module?.tabTitle?.(panel) ?? (module ? t(module.title) : kind),
       Icon: module?.icon ?? FolderTree,
       profileColor: null,
       leaf,
@@ -80,7 +82,9 @@ function useTabLabel(tab: Tab) {
   }
   const term = panel?.kind === 'terminal' ? panel : undefined;
   const profile = profiles.find((p) => p.id === term?.profileId);
-  const title = tab.customTitle ?? term?.title ?? profile?.name ?? term?.profileId ?? '';
+  // A profile's name comes from Rust (detected shells).
+  const profileName = profile ? tRust(profile.name) : undefined;
+  const title = tab.customTitle ?? term?.title ?? profileName ?? term?.profileId ?? '';
   return {
     title,
     Icon: profileIcon(profile?.icon),
@@ -139,7 +143,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
           />
           {editing ? (
             <input
-              aria-label="Nom de l’onglet"
+              aria-label={t('Nom de l’onglet')}
               autoFocus
               defaultValue={title}
               className="w-full min-w-0 rounded bg-surface-2 px-1 outline-none"
@@ -162,7 +166,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
           {!editing && (
             <button
               type="button"
-              aria-label="Fermer l’onglet"
+              aria-label={t('Fermer l’onglet')}
               className="ml-auto rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-surface-2"
               onPointerDown={(e) => {
                 e.stopPropagation();
@@ -186,16 +190,16 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
             setEditing(true);
           }}
         >
-          Renommer
+          {t('Renommer')}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuLabel>Couleur</ContextMenuLabel>
+        <ContextMenuLabel>{t('Couleur')}</ContextMenuLabel>
         <div className="flex gap-1.5 px-2 pb-1.5">
           {TAB_COLORS.map(([name, color]) => (
             <button
               key={name}
               type="button"
-              aria-label={name}
+              aria-label={t(name)}
               className={cn(
                 'size-4 rounded-full ring-offset-2 ring-offset-popover',
                 tab.color === color && 'ring-2 ring-ring',
@@ -208,7 +212,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
           ))}
           <button
             type="button"
-            aria-label="Aucune couleur"
+            aria-label={t('Aucune couleur')}
             className="size-4 rounded-full border"
             onClick={() => {
               ws().setTabColor(tab.id, null);
@@ -222,7 +226,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
               ws().openSftpBeside(leaf.id);
             }}
           >
-            Fichiers…
+            {t('Fichiers…')}
           </ContextMenuItem>
         )}
         {panel?.kind === 'ssh' && leaf && (
@@ -232,7 +236,7 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
               if (sessionId !== undefined) useSsh.getState().setTunnels({ sessionId, title });
             }}
           >
-            Tunnels…
+            {t('Tunnels…')}
           </ContextMenuItem>
         )}
         <ContextMenuItem
@@ -241,9 +245,9 @@ function TabItem({ tab, active }: { tab: Tab; active: boolean }) {
             else if (panel?.kind === 'terminal') ws().openTab(panel.profileId, panel.cwd);
           }}
         >
-          Dupliquer
+          {t('Dupliquer')}
         </ContextMenuItem>
-        <ContextMenuItem onSelect={() => void closeTab(tab.id)}>Fermer</ContextMenuItem>
+        <ContextMenuItem onSelect={() => void closeTab(tab.id)}>{t('Fermer')}</ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -256,21 +260,21 @@ export function TabBar() {
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return;
-    const ids = useWorkspace.getState().tabs.map((t) => t.id);
+    const ids = useWorkspace.getState().tabs.map((x) => x.id);
     useWorkspace.getState().moveTab(ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
   };
 
   return (
     <div className="flex h-9 shrink-0 items-end gap-1 border-b bg-surface-1 px-2">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <SortableContext items={tabs.map((t) => t.id)} strategy={horizontalListSortingStrategy}>
+        <SortableContext items={tabs.map((x) => x.id)} strategy={horizontalListSortingStrategy}>
           <div
             role="tablist"
-            aria-label="Onglets"
+            aria-label={t('Onglets')}
             className="flex h-full min-w-0 items-end gap-1 overflow-x-auto [scrollbar-width:none]"
           >
-            {tabs.map((t) => (
-              <TabItem key={t.id} tab={t} active={t.id === activeTabId} />
+            {tabs.map((item) => (
+              <TabItem key={item.id} tab={item} active={item.id === activeTabId} />
             ))}
           </div>
         </SortableContext>
@@ -278,8 +282,8 @@ export function TabBar() {
       <div className="mb-1 flex items-center self-center">
         <button
           type="button"
-          aria-label="Nouvel onglet"
-          title="Nouvel onglet (Ctrl+Maj+T)"
+          aria-label={t('Nouvel onglet')}
+          title={t('Nouvel onglet (Ctrl+Maj+T)')}
           className="flex size-6 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
           onClick={openDefaultTab}
         >

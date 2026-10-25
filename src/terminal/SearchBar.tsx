@@ -2,6 +2,7 @@ import type { ISearchOptions, SearchAddon } from '@xterm/addon-search';
 import { ArrowDown, ArrowUp, CaseSensitive, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { ThemeDefinition } from '@/themes';
 
@@ -55,8 +56,8 @@ export function SearchBar({
       <Input
         ref={input}
         value={query}
-        placeholder="Rechercher"
-        aria-label="Rechercher dans le terminal"
+        placeholder={t('Rechercher')}
+        aria-label={t('Rechercher dans le terminal')}
         className={cn('h-7 w-56', !found && 'border-error')}
         onChange={(e) => {
           setQuery(e.target.value);
@@ -71,7 +72,7 @@ export function SearchBar({
       />
       <button
         type="button"
-        aria-label="Respecter la casse"
+        aria-label={t('Respecter la casse')}
         aria-pressed={caseSensitive}
         className={cn(iconButton, caseSensitive && 'bg-primary/15 text-primary')}
         onClick={() => {
@@ -82,7 +83,7 @@ export function SearchBar({
       </button>
       <button
         type="button"
-        aria-label="Précédent"
+        aria-label={t('Précédent')}
         className={iconButton}
         onClick={() => {
           find(true);
@@ -92,7 +93,7 @@ export function SearchBar({
       </button>
       <button
         type="button"
-        aria-label="Suivant"
+        aria-label={t('Suivant')}
         className={iconButton}
         onClick={() => {
           find(false);
@@ -102,7 +103,7 @@ export function SearchBar({
       </button>
       <button
         type="button"
-        aria-label="Fermer la recherche"
+        aria-label={t('Fermer la recherche')}
         className={iconButton}
         onClick={onClose}
       >

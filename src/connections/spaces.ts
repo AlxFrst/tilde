@@ -1,10 +1,19 @@
 // Spaces (« Pro », « Perso »…) group folders, connections and sessions. While the user has
 // created none, everything is in one implicit space that connections.json does not list.
 
+import { msg, t } from '@/i18n';
 import type { Connection, ConnectionsFile, Space } from '@/ipc/connections';
 
-/** The implicit space (mirrors `MAIN_SPACE_ID` in crates/tilde-config). */
-export const MAIN_SPACE: Space = { id: 'main', name: 'Principal', color: null, icon: null };
+/** The implicit space (mirrors `MAIN_SPACE_ID` and `MAIN_SPACE_NAME` in crates/tilde-config). */
+export const MAIN_SPACE: Space = { id: 'main', name: msg('Principal'), color: null, icon: null };
+
+/**
+ * The name to show for a space. The main space's default name (written by Rust in
+ * French) is translated while the user has not renamed it; any other name is the user's.
+ */
+export function spaceName(space: Pick<Space, 'id' | 'name'>): string {
+  return space.id === MAIN_SPACE.id && space.name === MAIN_SPACE.name ? t(space.name) : space.name;
+}
 
 /** The spaces, in order; never empty. */
 export function listSpaces(file: Pick<ConnectionsFile, 'spaces'>): Space[] {

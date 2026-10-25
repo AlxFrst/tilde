@@ -35,6 +35,6 @@ body:
     attributes:
       label: Logs
       description: >-
-        *Réglages* (Settings) → *Général* → *Logs* opens the log folder. Check that nothing
+        *Settings* (*Réglages*) → *General* → *Logs* opens the log folder. Check that nothing
         sensitive is in what you paste.
       render: json

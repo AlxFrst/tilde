@@ -1,8 +1,10 @@
-/** Colours a session can be tagged with (name, CSS value). */
+import { msg } from '@/i18n';
+
+/** Colours a session can be tagged with (name, shown with t(); CSS value). */
 export const TAB_COLORS = [
-  ['Pervenche', 'var(--tilde-accent)'],
-  ['Turquoise', 'var(--tilde-accent-2)'],
-  ['Vert', 'var(--tilde-success)'],
-  ['Ambre', 'var(--tilde-warning)'],
-  ['Rouge', 'var(--tilde-error)'],
+  [msg('Pervenche'), 'var(--tilde-accent)'],
+  [msg('Turquoise'), 'var(--tilde-accent-2)'],
+  [msg('Vert'), 'var(--tilde-success)'],
+  [msg('Ambre'), 'var(--tilde-warning)'],
+  [msg('Rouge'), 'var(--tilde-error)'],
 ] as const;

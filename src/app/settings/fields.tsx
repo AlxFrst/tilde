@@ -11,7 +11,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { localeTag, t } from '@/i18n';
 import { cn } from '@/lib/utils';
+
+/** Option labels kept in constants (marked with msg()), in the interface's language. */
+export function translated<T extends string>(
+  options: readonly (readonly [T, string])[],
+): (readonly [T, string])[] {
+  return options.map(([value, label]) => [value, t(label)] as const);
+}
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -82,7 +90,7 @@ export function Choice<T extends string>({
             value={v}
             aria-label={text}
             disabled={disabled || off}
-            title={off ? 'Non pris en charge sur ce système' : undefined}
+            title={off ? t('Non pris en charge sur ce système') : undefined}
             className="px-3"
           >
             {text}
@@ -165,13 +173,13 @@ export function NumberField({
   }
   const commit = () => {
     const n = Number(text.replace(',', '.'));
-    const fmt = (x: number) => x.toLocaleString('fr-FR');
+    const fmt = (x: number) => x.toLocaleString(localeTag());
     if (text.trim() === '' || !Number.isFinite(n) || n < min || n > max) {
-      setError(`entre ${fmt(min)} et ${fmt(max)}`);
+      setError(t('entre {min} et {max}', { min: fmt(min), max: fmt(max) }));
       return;
     }
     if (step === 1 && !Number.isInteger(n)) {
-      setError('nombre entier attendu');
+      setError(t('nombre entier attendu'));
       return;
     }
     setError(null);

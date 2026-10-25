@@ -1,6 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { registerCommands } from '@/commands/registry';
+import { setLocale } from '@/i18n';
 import { useConnections } from '@/stores/connections';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
@@ -123,5 +124,20 @@ test('closing the palette with its shortcut gives the focus back to the terminal
     useUi.setState({ paletteOpen: false }); // what palette.toggle does
   });
   expect(focus).toHaveBeenCalled();
+  off();
+});
+
+test('in English, commands are shown and found by their English title', async () => {
+  const run = vi.fn();
+  const off = registerCommands([
+    { id: 'test.splitRight', title: 'Diviser à droite', group: 'Panneaux', run },
+  ]);
+  setLocale('en');
+  render(<CommandPalette />);
+  expect(screen.getByRole('group', { name: 'Commands' })).toBeInTheDocument();
+  await userEvent.type(screen.getByRole('combobox'), 'split rig');
+  expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Split right']);
+  await userEvent.keyboard('{Enter}');
+  expect(run).toHaveBeenCalledTimes(1);
   off();
 });

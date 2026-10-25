@@ -1,6 +1,7 @@
 import { Keyboard } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { t } from '@/i18n';
 import { useUi } from '@/stores/ui';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { eventToBinding, parseBinding, requiresModifier, type Binding } from '@/terminal/keys';
@@ -12,13 +13,9 @@ function isShellKey(b: Binding): boolean {
   return !isMac() && b.ctrl && !b.alt && !b.shift && /^[A-Z]$/.test(b.key);
 }
 
-interface Pending {
-  binding: string;
-  message: string;
-  confirm: string;
-  /** `shell`: confirming goes on to the conflict check. */
-  stage: 'shell' | 'conflict';
-}
+/** A binding waiting for a confirmation. `shell`: confirming goes on to the conflict check. */
+type Pending =
+  { binding: string; stage: 'shell' } | { binding: string; stage: 'conflict'; title: string };
 
 /**
  * Records the next key combination. App shortcuts are paused meanwhile, and the keys
@@ -51,14 +48,8 @@ export function ShortcutRecorder({
   const afterShellCheck = useCallback(
     (binding: string) => {
       const title = conflictOf?.(binding) ?? null;
-      if (title) {
-        setPending({
-          binding,
-          message: `Déjà utilisé par « ${title} »`,
-          confirm: 'Remplacer',
-          stage: 'conflict',
-        });
-      } else onRecord(binding);
+      if (title) setPending({ binding, stage: 'conflict', title });
+      else onRecord(binding);
     },
     [conflictOf, onRecord],
   );
@@ -77,7 +68,7 @@ export function ShortcutRecorder({
       const parsed = binding ? parseBinding(binding) : null;
       if (!binding || !parsed) return;
       if (requiresModifier(parsed) && !parsed.ctrl && !parsed.alt) {
-        setError('Ajoutez Ctrl ou Alt : une touche seule casserait la saisie dans le terminal.');
+        setError(t('Ajoutez Ctrl ou Alt : une touche seule casserait la saisie dans le terminal.'));
         return;
       }
       const refused = validate?.(parsed) ?? null;
@@ -86,12 +77,7 @@ export function ShortcutRecorder({
         return;
       }
       if (isShellKey(parsed)) {
-        setPending({
-          binding,
-          message: 'Utilisé par le shell (interrompre, effacer un mot, rechercher…)',
-          confirm: 'Utiliser quand même',
-          stage: 'shell',
-        });
+        setPending({ binding, stage: 'shell' });
         return;
       }
       afterShellCheck(binding);
@@ -106,7 +92,10 @@ export function ShortcutRecorder({
     return (
       <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs">
         <span>
-          {bindingKeys(pending.binding).join(' + ')} — {pending.message}
+          {bindingKeys(pending.binding).join(' + ')} —{' '}
+          {pending.stage === 'conflict'
+            ? t('Déjà utilisé par « {title} »', { title: pending.title })
+            : t('Utilisé par le shell (interrompre, effacer un mot, rechercher…)')}
         </span>
         <Button
           size="xs"
@@ -117,10 +106,10 @@ export function ShortcutRecorder({
             else onRecord(binding);
           }}
         >
-          {pending.confirm}
+          {pending.stage === 'conflict' ? t('Remplacer') : t('Utiliser quand même')}
         </Button>
         <Button size="xs" variant="outline" onClick={onCancel}>
-          Annuler
+          {t('Annuler')}
         </Button>
       </div>
     );
@@ -132,7 +121,7 @@ export function ShortcutRecorder({
       className="flex flex-wrap items-center gap-2 rounded-md border border-primary/60 px-2 py-1.5 text-xs"
     >
       <Keyboard className="size-3.5 text-primary" strokeWidth={1.5} />
-      <span>Appuyez sur la combinaison… (Échap pour annuler)</span>
+      <span>{t('Appuyez sur la combinaison… (Échap pour annuler)')}</span>
       {error && (
         <span role="alert" className="text-warning">
           {error}

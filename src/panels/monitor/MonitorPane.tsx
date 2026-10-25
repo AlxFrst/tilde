@@ -1,5 +1,7 @@
 import { Activity, ArrowDown, ArrowUp, Cpu, HardDrive, MemoryStick, Network } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
+import { t, tn } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { monitorLocal, monitorRemote } from '@/ipc/monitor';
 import type { PanelProps } from '@/panels/registry';
 import { useSessionId } from '@/terminal/sessionRegistry';
@@ -81,23 +83,23 @@ export default function MonitorPane({ state, visible }: PanelProps<MonitorPanel>
       <header className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <Activity className="size-4 self-center text-primary" strokeWidth={1.5} />
         <h2 className="text-base font-medium">
-          {latest?.host ?? (remote ? 'Serveur' : 'Cette machine')}
+          {latest ? tRust(latest.host) : remote ? t('Serveur') : t('Cette machine')}
         </h2>
         {latest && (
           <>
             <span className="text-xs text-text-muted">
-              en marche depuis <span>{formatUptime(latest.uptimeSecs)}</span>
+              {t('en marche depuis')} <span>{formatUptime(latest.uptimeSecs)}</span>
             </span>
             {latest.load && (
               <span className="text-xs text-text-muted">
-                charge {latest.load.map((l) => l.toFixed(2)).join(' · ')}
+                {t('charge {load}', { load: latest.load.map((l) => l.toFixed(2)).join(' · ') })}
               </span>
             )}
           </>
         )}
       </header>
 
-      {waiting && <p className="text-sm text-text-muted">En attente de la connexion SSH…</p>}
+      {waiting && <p className="text-sm text-text-muted">{t('En attente de la connexion SSH…')}</p>}
       {error && (
         <p
           role="status"
@@ -109,19 +111,23 @@ export default function MonitorPane({ state, visible }: PanelProps<MonitorPanel>
 
       {latest && (
         <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))]">
-          <Card icon={Cpu} title="Processeur">
+          <Card icon={Cpu} title={t('Processeur')}>
             <div className="flex items-end justify-between gap-2">
               <div>
                 <div className="text-2xl font-semibold tabular-nums">
-                  {latest.cpuPercent === null ? '—' : `${String(Math.round(latest.cpuPercent))} %`}
+                  {latest.cpuPercent === null
+                    ? '—'
+                    : t('{percent} %', { percent: Math.round(latest.cpuPercent) })}
                 </div>
-                <div className="text-xs text-text-muted">{latest.cores} cœurs</div>
+                <div className="text-xs text-text-muted">
+                  {tn(latest.cores, '{count} cœur', '{count} cœurs')}
+                </div>
               </div>
-              <Sparkline values={cpu} max={100} label="Processeur, 2 dernières minutes" />
+              <Sparkline values={cpu} max={100} label={t('Processeur, 2 dernières minutes')} />
             </div>
           </Card>
 
-          <Card icon={MemoryStick} title="Mémoire">
+          <Card icon={MemoryStick} title={t('Mémoire')}>
             <div className="grid gap-2">
               <Bar label="RAM" used={latest.memUsed} total={latest.memTotal} />
               {latest.swapTotal > 0 && (
@@ -130,29 +136,29 @@ export default function MonitorPane({ state, visible }: PanelProps<MonitorPanel>
             </div>
           </Card>
 
-          <Card icon={Network} title="Réseau">
+          <Card icon={Network} title={t('Réseau')}>
             <div className="grid gap-1 text-sm tabular-nums">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1">
                   <ArrowDown className="size-3.5 text-success" strokeWidth={1.5} />
                   {latest.netRxPerSec === null ? '—' : formatRate(latest.netRxPerSec)}
                 </span>
-                <Sparkline values={rx} label="Réception" />
+                <Sparkline values={rx} label={t('Réception')} />
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1">
                   <ArrowUp className="size-3.5 text-accent-2" strokeWidth={1.5} />
                   {latest.netTxPerSec === null ? '—' : formatRate(latest.netTxPerSec)}
                 </span>
-                <Sparkline values={tx} label="Émission" />
+                <Sparkline values={tx} label={t('Émission')} />
               </div>
             </div>
           </Card>
 
-          <Card icon={HardDrive} title="Disques">
+          <Card icon={HardDrive} title={t('Disques')}>
             <div className="grid gap-2">
               {latest.disks.length === 0 && (
-                <p className="text-xs text-text-muted">Aucun disque à afficher.</p>
+                <p className="text-xs text-text-muted">{t('Aucun disque à afficher.')}</p>
               )}
               {latest.disks.map((d) => (
                 <Bar key={d.mount} label={d.mount} used={d.used} total={d.total} />

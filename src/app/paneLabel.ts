@@ -1,6 +1,9 @@
-// How sessions and their panes are named, in the Rail and in the pane headers.
+// How sessions and their panes are named, in the Rail and in the pane headers. Labels are
+// read while rendering, so they come out in the interface's language.
 
 import { Activity, FolderTree, Terminal, type LucideIcon } from 'lucide-react';
+import { t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { getPanelModule } from '@/panels/registry';
@@ -10,7 +13,7 @@ import type { LeafNode, Tab } from '@/workspace/types';
 export interface LabelNames {
   /** A saved connection's name. */
   connectionName: (id: string | null) => string | null;
-  /** A shell profile's name. */
+  /** A shell profile's name (detected by Rust: shown with tRust()). */
   profileName: (id: string) => string | null;
 }
 
@@ -49,25 +52,25 @@ export function paneLabel(tab: Tab, leaf: LeafNode, names: LabelNames): PaneLabe
     }
     case 'sftp':
       return {
-        title: 'Fichiers',
+        title: t('Fichiers'),
         owner: hostName(tab, panel.linkedLeafId, names),
         detail: panel.path,
         Icon: FolderTree,
       };
     case 'monitor':
       return {
-        title: 'Moniteur',
+        title: t('Moniteur'),
         owner:
           panel.source.kind === 'remote'
             ? hostName(tab, panel.source.linkedLeafId, names)
-            : 'cette machine',
+            : t('cette machine'),
         detail: null,
         Icon: Activity,
       };
     default: {
       const module = getPanelModule(panel.kind);
       return {
-        title: module?.tabTitle?.(panel) ?? module?.title ?? panel.kind,
+        title: module?.tabTitle?.(panel) ?? (module ? t(module.title) : panel.kind),
         owner: null,
         detail: null,
         Icon: module?.icon ?? Terminal,
@@ -97,6 +100,9 @@ export function useLabelNames(): LabelNames {
   const profiles = useProfiles((s) => s.profiles);
   return {
     connectionName: (id) => (id ? (connections.find((c) => c.id === id)?.name ?? null) : null),
-    profileName: (id) => profiles.find((p) => p.id === id)?.name ?? null,
+    profileName: (id) => {
+      const name = profiles.find((p) => p.id === id)?.name;
+      return name ? tRust(name) : null;
+    },
   };
 }

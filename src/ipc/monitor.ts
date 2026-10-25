@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 
 /** Mirrors `Disk` in crates/tilde-monitor (bytes). */
 export interface Disk {

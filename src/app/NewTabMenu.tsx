@@ -6,6 +6,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
@@ -19,7 +21,7 @@ export function NewTabMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label="Choisir un profil"
+          aria-label={t('Choisir un profil')}
           className="flex h-6 w-4 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
         >
           <ChevronDown className="size-3.5" strokeWidth={1.5} />
@@ -36,11 +38,13 @@ export function NewTabMenu() {
               }}
             >
               <Icon strokeWidth={1.5} style={p.color ? { color: p.color } : undefined} />
-              {p.name}
+              {tRust(p.name)}
             </DropdownMenuItem>
           );
         })}
-        {profiles.length === 0 && <DropdownMenuItem disabled>Aucun shell détecté</DropdownMenuItem>}
+        {profiles.length === 0 && (
+          <DropdownMenuItem disabled>{t('Aucun shell détecté')}</DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onSelect={() => {
@@ -48,7 +52,7 @@ export function NewTabMenu() {
           }}
         >
           <Server strokeWidth={1.5} />
-          Connexion SSH…
+          {t('Connexion SSH…')}
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {
@@ -56,7 +60,7 @@ export function NewTabMenu() {
           }}
         >
           <RefreshCw strokeWidth={1.5} />
-          Rechercher à nouveau les shells
+          {t('Rechercher à nouveau les shells')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

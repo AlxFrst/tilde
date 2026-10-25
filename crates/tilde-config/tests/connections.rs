@@ -145,6 +145,48 @@ fn removing_a_folder_keeps_its_connections() {
 }
 
 #[test]
+fn moving_a_connection_reorders_it_and_changes_its_folder() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    let space = store.upsert_space(Space { name: "Pro".into(), ..Space::default() }).unwrap();
+    let f = store
+        .upsert_folder(Folder {
+            name: "Prod".into(),
+            space_id: Some(space.id.clone()),
+            ..Folder::default()
+        })
+        .unwrap();
+    let a = store.upsert_connection(conn("a", "h")).unwrap();
+    let b = store.upsert_connection(conn("b", "h")).unwrap();
+    let c = store.upsert_connection(conn("c", "h")).unwrap();
+    let names = |s: &ConnectionsStore| -> Vec<String> {
+        s.file().connections.iter().map(|c| c.name.clone()).collect()
+    };
+
+    store.move_connection(&c.id, None, Some(&a.id)).unwrap();
+    assert_eq!(names(&store), ["c", "a", "b"]);
+    store.move_connection(&c.id, None, None).unwrap();
+    assert_eq!(names(&store), ["a", "b", "c"]);
+
+    // Into a folder: it takes the folder's space, as everywhere else.
+    store.move_connection(&a.id, Some(&f.id), Some(&c.id)).unwrap();
+    assert_eq!(names(&store), ["b", "a", "c"]);
+    let moved = &store.file().connections[1];
+    assert_eq!(moved.folder_id.as_deref(), Some(f.id.as_str()));
+    assert_eq!(moved.space_id.as_deref(), Some(space.id.as_str()));
+
+    let (again, _) = ConnectionsStore::load(paths);
+    assert_eq!(names(&again), ["b", "a", "c"]);
+
+    assert!(matches!(store.move_connection("nope", None, None), Err(ConfigError::Invalid(_))));
+    assert!(matches!(
+        store.move_connection(&b.id, Some("nope"), None),
+        Err(ConfigError::Invalid(_))
+    ));
+    assert_eq!(names(&store), ["b", "a", "c"], "a refused move changes nothing");
+}
+
+#[test]
 fn recents_are_capped_deduplicated_and_most_recent_first() {
     let (_d, paths) = setup(None);
     let (mut store, _) = ConnectionsStore::load(paths);

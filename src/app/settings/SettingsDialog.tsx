@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { msg, t } from '@/i18n';
 import { formatConfigError } from '@/ipc/errors';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/stores/settings';
@@ -24,13 +25,13 @@ import { TerminalSection } from './TerminalSection';
 import { ThemesSection } from './ThemesSection';
 
 const SECTIONS: [SettingsSectionId, string, LucideIcon, ComponentType][] = [
-  ['appearance', 'Apparence', Paintbrush, AppearanceSection],
-  ['themes', 'Thèmes', Palette, ThemesSection],
-  ['terminal', 'Terminal', SquareTerminal, TerminalSection],
-  ['shortcuts', 'Raccourcis', Keyboard, ShortcutsSection],
+  ['appearance', msg('Apparence'), Paintbrush, AppearanceSection],
+  ['themes', msg('Thèmes'), Palette, ThemesSection],
+  ['terminal', msg('Terminal'), SquareTerminal, TerminalSection],
+  ['shortcuts', msg('Raccourcis'), Keyboard, ShortcutsSection],
   ['ssh', 'SSH', Cable, SshSection],
   ['sftp', 'SFTP', FolderSync, SftpSection],
-  ['general', 'Général', Settings2, GeneralSection],
+  ['general', msg('Général'), Settings2, GeneralSection],
 ];
 
 /** Every setting, by section. Everything is also editable in the JSON files. */
@@ -52,10 +53,10 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[80vh] max-h-[720px] flex-row gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <nav
-          aria-label="Sections des réglages"
+          aria-label={t('Sections des réglages')}
           className="flex w-44 shrink-0 flex-col gap-0.5 border-r bg-surface-1 p-2"
         >
-          <DialogTitle className="px-2 pt-1 pb-3">Réglages</DialogTitle>
+          <DialogTitle className="px-2 pt-1 pb-3">{t('Réglages')}</DialogTitle>
           {SECTIONS.map(([id, label, Icon]) => (
             <button
               key={id}
@@ -71,15 +72,15 @@ export function SettingsDialog({
               )}
             >
               <Icon className="size-4" strokeWidth={1.5} />
-              {label}
+              {t(label)}
             </button>
           ))}
         </nav>
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="border-b px-6 py-4">
-            <h2 className="text-base font-medium">{title}</h2>
+            <h2 className="text-base font-medium">{t(title)}</h2>
             <DialogDescription>
-              Tout est aussi modifiable dans les fichiers de réglages, rechargés à chaud.
+              {t('Tout est aussi modifiable dans les fichiers de réglages, rechargés à chaud.')}
             </DialogDescription>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
@@ -90,8 +91,8 @@ export function SettingsDialog({
               >
                 <TriangleAlert className="mt-0.5 size-4 shrink-0" strokeWidth={1.5} />
                 <p>
-                  {error ? formatConfigError(error) : 'settings.json est invalide.'} Corrigez le
-                  fichier pour modifier les réglages.
+                  {error ? formatConfigError(error) : t('settings.json est invalide.')}{' '}
+                  {t('Corrigez le fichier pour modifier les réglages.')}
                 </p>
               </div>
             )}

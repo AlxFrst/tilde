@@ -72,9 +72,9 @@ drop connections without saying why. Tilde starts from the other end.
 - Coloured folders, tags, icons and favourites (shown as tiles at the top of the Rail).
 - Fuzzy search, and a **command palette** (`Ctrl+Shift+P`) for every connection, session,
   space and command; `→` on a server lists what you can do with it (connect beside, files,
-  monitor, copy the `ssh` command…). English words work too (« split », « files »).
+  monitor, copy the `ssh` command…). English words work too (“split”, “files”).
 - Import and export of connections as JSON, **without any secret**.
-- On Windows, **« Ouvrir dans Tilde »** in Explorer's context menu opens a terminal in that
+- On Windows, **“Open in Tilde”** in Explorer's context menu opens a terminal in that
   folder.
 
 ### Files (SFTP) on the same connection
@@ -102,8 +102,8 @@ drop connections without saying why. Tilde starts from the other end.
   read from `/proc` over the SSH connection you already have. Nothing to install.
 - **Status strip**: under each SSH session, a one-line summary of the server (CPU, memory,
   disk, load). It reads `/proc` and runs `df` on local disks every 3 seconds over the open
-  connection, which shows up in the server's audit logs. Turn it off in *Réglages → SSH →
-  Bandeau d'état du serveur*.
+  connection, which shows up in the server's audit logs. Turn it off in *Settings → SSH →
+  Server status strip*.
 
 ### Make it yours
 - **14 themes** (Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine — dark
@@ -149,9 +149,10 @@ Download the installer for your system from the
 
 **Updates** are built in. At startup, at most once a day, Tilde asks GitHub whether a newer
 version exists and offers to install it. Updates are signed: one whose signature does not
-match the key built into Tilde is refused. You can turn the check off in *Réglages → Général*.
+match the key built into Tilde is refused. You can turn the check off in *Settings → General*.
 
-> The interface is in **French** for now. An English translation is planned.
+> The interface is in **English** and **French**. It follows your system's language; you can
+> pick one in *Settings → General → Language*.
 
 ## Quick start
 
@@ -187,11 +188,11 @@ On macOS, `Ctrl` means `⌘`.
 - Symbols follow the key's position on a US layout. The welcome screen shows them as printed
   on your keyboard.
 
-Every shortcut can be changed in *Réglages → Raccourcis* or in `keybindings.json`.
+Every shortcut can be changed in *Settings → Shortcuts* or in `keybindings.json`.
 
 ## Configuration
 
-Settings are edited in the app (*Réglages*) or in JSON files that come with a schema for
+Settings are edited in the app (*Settings*) or in JSON files that come with a schema for
 editor autocompletion and are reloaded as you save. An invalid file is reported with its line
 and never overwritten; the last valid configuration stays active.
 
@@ -276,7 +277,7 @@ French).
 - [x] Editor, preview and system monitor panes
 - [x] Installers for Windows, macOS and Linux, built-in updates
 - [x] The Rail, spaces and the Library
-- [ ] English interface
+- [x] English interface
 - [ ] Signed installers
 - [ ] Third-party plugins on top of the panel registry
 

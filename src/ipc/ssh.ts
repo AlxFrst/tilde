@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import { listen } from '@tauri-apps/api/event';
 
 /** Mirrors `ConnState` in crates/tilde-ssh/src/connection.rs. */

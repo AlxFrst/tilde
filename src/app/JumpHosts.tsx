@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import type { Connection } from '@/ipc/connections';
 import type { SshHostEntry } from '@/ipc/ssh';
 import { describeTarget } from './sidebar/Section';
@@ -73,10 +74,10 @@ export function JumpHosts({
                 </span>
                 <Input
                   id={i === 0 ? 'conn-proxyJump' : undefined}
-                  aria-label={`Rebond ${n}`}
+                  aria-label={t('Rebond {n}', { n })}
                   aria-invalid={invalid}
                   value={hop}
-                  placeholder="alias, ou user@hôte:port"
+                  placeholder={t('alias, ou user@hôte:port')}
                   spellCheck={false}
                   autoComplete="off"
                   onChange={(e) => {
@@ -85,7 +86,7 @@ export function JumpHosts({
                 />
                 <button
                   type="button"
-                  aria-label={`Retirer le rebond ${n}`}
+                  aria-label={t('Retirer le rebond {n}', { n })}
                   className="flex size-7 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
                   onClick={() => {
                     commit(hops.filter((_, j) => j !== i));
@@ -102,17 +103,17 @@ export function JumpHosts({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Ajouter un rebond"
+            aria-label={t('Ajouter un rebond')}
             className="flex h-7 w-fit items-center gap-1.5 rounded-md px-2 text-sm text-text-muted hover:bg-surface-2 hover:text-text"
           >
             <Plus className="size-3.5" strokeWidth={1.5} />
-            {hops.length === 0 ? 'Passer par un bastion' : 'Ajouter un rebond'}
+            {hops.length === 0 ? t('Passer par un bastion') : t('Ajouter un rebond')}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="max-h-80 min-w-64 overflow-y-auto">
           {connections.length > 0 && (
             <>
-              <DropdownMenuLabel>Connexions enregistrées</DropdownMenuLabel>
+              <DropdownMenuLabel>{t('Connexions enregistrées')}</DropdownMenuLabel>
               {connections.map((c) => {
                 const target = describeTarget(c);
                 return (
@@ -154,7 +155,7 @@ export function JumpHosts({
             }}
           >
             <Keyboard className="size-4" strokeWidth={1.5} />
-            Saisir une adresse…
+            {t('Saisir une adresse…')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

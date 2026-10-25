@@ -10,13 +10,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import type { PromptReply, SshPrompt } from '@/ipc/ssh';
 
 export type CredentialPromptData = Extract<SshPrompt, { kind: 'secret' | 'keyboardInteractive' }>;
 
 const MAX_ATTEMPTS = 3;
 
-/** A password, a key passphrase, or keyboard-interactive questions (OTP, 2FA…). */
+/**
+ * A password, a key passphrase, or keyboard-interactive questions (OTP, 2FA…). The
+ * questions, their name and instructions are written by the server: never translated.
+ */
 export function CredentialDialog({
   prompt,
   onAnswer,
@@ -26,7 +30,12 @@ export function CredentialDialog({
 }) {
   const questions =
     prompt.kind === 'secret'
-      ? [{ text: prompt.secret === 'password' ? 'Mot de passe' : 'Phrase secrète', echo: false }]
+      ? [
+          {
+            text: prompt.secret === 'password' ? t('Mot de passe') : t('Phrase secrète'),
+            echo: false,
+          },
+        ]
       : prompt.questions;
   const [answers, setAnswers] = useState(() => questions.map(() => ''));
   const [remember, setRemember] = useState(false);
@@ -41,10 +50,10 @@ export function CredentialDialog({
 
   const title =
     prompt.kind === 'keyboardInteractive'
-      ? prompt.name || `Vérification pour ${prompt.target}`
+      ? prompt.name || t('Vérification pour {target}', { target: prompt.target })
       : prompt.secret === 'password'
-        ? `Mot de passe pour ${prompt.target}`
-        : 'Phrase secrète de la clé';
+        ? t('Mot de passe pour {target}', { target: prompt.target })
+        : t('Phrase secrète de la clé');
 
   return (
     <Dialog
@@ -70,11 +79,14 @@ export function CredentialDialog({
               {prompt.kind === 'keyboardInteractive'
                 ? prompt.instructions || prompt.target
                 : prompt.secret === 'passphrase'
-                  ? `${prompt.keyPath ?? ''} — pour ${prompt.target}`
-                  : 'Le mot de passe n’est jamais écrit sur le disque ni dans les journaux.'}
+                  ? t('{key} — pour {target}', { key: prompt.keyPath ?? '', target: prompt.target })
+                  : t('Le mot de passe n’est jamais écrit sur le disque ni dans les journaux.')}
               {prompt.kind === 'secret' && prompt.attempt > 1 && (
                 <span className="block text-warning">
-                  Refusé. Tentative {prompt.attempt}/{MAX_ATTEMPTS}
+                  {t('Refusé. Tentative {attempt}/{max}', {
+                    attempt: prompt.attempt,
+                    max: MAX_ATTEMPTS,
+                  })}
                 </span>
               )}
             </DialogDescription>
@@ -113,11 +125,11 @@ export function CredentialDialog({
                     setRemember(e.currentTarget.checked);
                   }}
                 />
-                Mémoriser dans le trousseau
+                {t('Mémoriser dans le trousseau')}
               </label>
               {!prompt.canRemember && (
                 <p className="text-xs text-text-muted">
-                  Aucun trousseau système disponible : rien ne sera enregistré.
+                  {t('Aucun trousseau système disponible : rien ne sera enregistré.')}
                 </p>
               )}
             </div>
@@ -131,9 +143,9 @@ export function CredentialDialog({
                 onAnswer({ kind: 'cancel' });
               }}
             >
-              Annuler
+              {t('Annuler')}
             </Button>
-            <Button type="submit">Se connecter</Button>
+            <Button type="submit">{t('Se connecter')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

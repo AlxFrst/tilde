@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import { isValidTarget, sshHosts, type SshHostEntry } from '@/ipc/ssh';
 import { cn } from '@/lib/utils';
 
@@ -80,14 +81,14 @@ function QuickConnectForm({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Connexion SSH</DialogTitle>
+        <DialogTitle>{t('Connexion SSH')}</DialogTitle>
         <DialogDescription>
-          Un alias de ~/.ssh/config ou user@hôte:port. Entrée pour ouvrir un onglet.
+          {t('Un alias de ~/.ssh/config ou user@hôte:port. Entrée pour ouvrir un onglet.')}
         </DialogDescription>
       </DialogHeader>
       <Input
         role="combobox"
-        aria-label="Hôte SSH"
+        aria-label={t('Hôte SSH')}
         aria-expanded={matches.length > 0}
         aria-controls={LIST_ID}
         aria-invalid={invalid}
@@ -115,7 +116,7 @@ function QuickConnectForm({
       />
       {invalid && (
         <p className="text-sm text-error">
-          Hôte invalide : indiquez un alias de ~/.ssh/config ou user@hôte:port.
+          {t('Hôte invalide : indiquez un alias de ~/.ssh/config ou user@hôte:port.')}
         </p>
       )}
       <ul id={LIST_ID} role="listbox" className="max-h-64 overflow-auto">

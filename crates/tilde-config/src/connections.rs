@@ -556,6 +556,55 @@ impl ConnectionsStore {
         self.commit(file)
     }
 
+    /// Moves a connection into `folder_id` (`None`: the root) and just before `before`
+    /// (`None`: last). Lists show connections in file order, so this is their order too.
+    ///
+    /// # Errors
+    ///
+    /// Read-only file, unknown connection or folder, or I/O.
+    pub fn move_connection(
+        &mut self,
+        id: &str,
+        folder_id: Option<&str>,
+        before: Option<&str>,
+    ) -> Result<(), ConfigError> {
+        self.check_writable()?;
+        let mut file = self.file.clone();
+        let from = file
+            .connections
+            .iter()
+            .position(|c| c.id == id)
+            .ok_or_else(|| invalid("id", "connexion inconnue"))?;
+        // A connection is always in its folder's space.
+        let space = match folder_id {
+            Some(f) => Some(
+                file.folders
+                    .iter()
+                    .find(|x| x.id == f)
+                    .ok_or_else(|| invalid("folderId", "dossier inconnu"))?
+                    .space_id
+                    .clone(),
+            ),
+            None => None,
+        };
+        let mut c = file.connections.remove(from);
+        c.folder_id = folder_id.map(str::to_owned);
+        if let Some(space) = space {
+            c.space_id = space;
+        }
+        let to = match before.filter(|b| *b != id) {
+            Some(b) => file
+                .connections
+                .iter()
+                .position(|x| x.id == b)
+                .ok_or_else(|| invalid("before", "connexion inconnue"))?,
+            None if before.is_some() => from,
+            None => file.connections.len(),
+        };
+        file.connections.insert(to, c);
+        self.commit(file)
+    }
+
     /// Creates (empty id) or renames/recolours a folder.
     ///
     /// # Errors

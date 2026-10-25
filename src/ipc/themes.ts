@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 /** Mirrors `UserTheme` in crates/tilde-config/src/themes.rs; `data` is checked by the front. */

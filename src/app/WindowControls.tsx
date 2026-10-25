@@ -1,6 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Copy, Minus, Square, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 
 function ControlButton({
@@ -51,11 +52,11 @@ export function WindowControls() {
   const win = getCurrentWindow();
   return (
     <div className="flex h-full">
-      <ControlButton label="Réduire" onClick={() => void win.minimize()}>
+      <ControlButton label={t('Réduire')} onClick={() => void win.minimize()}>
         <Minus className="size-4" strokeWidth={1.5} />
       </ControlButton>
       <ControlButton
-        label={maximized ? 'Restaurer' : 'Agrandir'}
+        label={maximized ? t('Restaurer') : t('Agrandir')}
         onClick={() => void win.toggleMaximize()}
       >
         {maximized ? (
@@ -64,7 +65,7 @@ export function WindowControls() {
           <Square className="size-3.5" strokeWidth={1.5} />
         )}
       </ControlButton>
-      <ControlButton label="Fermer" danger onClick={() => void win.close()}>
+      <ControlButton label={t('Fermer')} danger onClick={() => void win.close()}>
         <X className="size-4" strokeWidth={1.5} />
       </ControlButton>
     </div>

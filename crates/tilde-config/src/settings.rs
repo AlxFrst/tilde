@@ -248,9 +248,21 @@ impl Default for Sftp {
     }
 }
 
+/// The interface's language. `Auto` follows the system: French on a French system,
+/// English everywhere else.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum Language {
+    #[default]
+    Auto,
+    Fr,
+    En,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct General {
+    pub language: Language,
     pub restore_session: bool,
     pub quake: Quake,
     /// Look for a new version on GitHub at startup (at most once a day).
@@ -263,6 +275,7 @@ pub struct General {
 impl Default for General {
     fn default() -> Self {
         Self {
+            language: Language::Auto,
             restore_session: true,
             quake: Quake::default(),
             check_updates: true,
@@ -353,6 +366,14 @@ pub fn settings_schema() -> serde_json::Value {
 mod tests {
     use super::*;
     use crate::ConfigError;
+
+    #[test]
+    fn language_follows_the_system_unless_chosen() {
+        assert_eq!(Settings::default().general.language, Language::Auto);
+        let en: Settings = serde_json::from_str(r#"{"general":{"language":"en"}}"#).unwrap();
+        assert_eq!(en.general.language, Language::En);
+        assert!(serde_json::from_str::<Settings>(r#"{"general":{"language":"de"}}"#).is_err());
+    }
 
     #[test]
     fn defaults_are_valid() {

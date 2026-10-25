@@ -16,7 +16,8 @@ import {
   type FormErrors,
 } from '@/connections/validate';
 import { CONNECTION_ICONS, type Connection } from '@/ipc/connections';
-import { connectionSpace, listSpaces, spaceIdOf } from '@/connections/spaces';
+import { connectionSpace, listSpaces, spaceIdOf, spaceName } from '@/connections/spaces';
+import { msg, t } from '@/i18n';
 import { isConfigError } from '@/ipc/errors';
 import { cn } from '@/lib/utils';
 import { blankConnection, useConnections } from '@/stores/connections';
@@ -26,9 +27,9 @@ import { IconPicker } from './IconPicker';
 import { JumpHosts } from './JumpHosts';
 
 const AGENT = [
-  ['', 'Selon ~/.ssh/config'],
-  ['yes', 'Oui'],
-  ['no', 'Non'],
+  ['', msg('Selon ~/.ssh/config')],
+  ['yes', msg('Oui')],
+  ['no', msg('Non')],
 ] as const;
 
 function Field({
@@ -159,39 +160,41 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
     >
       <DialogHeader>
         <DialogTitle>
-          {initial.id ? `Modifier « ${initial.name} »` : 'Nouvelle connexion'}
+          {initial.id ? t('Modifier « {name} »', { name: initial.name }) : t('Nouvelle connexion')}
         </DialogTitle>
         <DialogDescription>
-          Aucun mot de passe n’est enregistré ici : ils restent dans le trousseau du système.
+          {t('Aucun mot de passe n’est enregistré ici : ils restent dans le trousseau du système.')}
         </DialogDescription>
       </DialogHeader>
 
       <div className="grid grid-cols-6 gap-3">
-        <Field id="conn-name" label="Nom" error={errors.name} className="col-span-6">
-          {input('name', { autoFocus: true, placeholder: 'Base de prod' })}
+        <Field id="conn-name" label={t('Nom')} error={errors.name} className="col-span-6">
+          {input('name', { autoFocus: true, placeholder: t('Base de prod') })}
         </Field>
         <Field
           id="conn-host"
-          label="Hôte"
+          label={t('Hôte')}
           error={errors.host}
           className="col-span-4"
           hint={
             alias
-              ? 'Les réglages de ~/.ssh/config pour cet alias s’appliquent ; les champs remplis ici les remplacent.'
-              : 'Nom, IP ou alias de ~/.ssh/config'
+              ? t(
+                  'Les réglages de ~/.ssh/config pour cet alias s’appliquent ; les champs remplis ici les remplacent.',
+                )
+              : t('Nom, IP ou alias de ~/.ssh/config')
           }
         >
           {input('host', { placeholder: 'db.example.com' })}
         </Field>
-        <Field id="conn-port" label="Port" error={errors.port} className="col-span-2">
+        <Field id="conn-port" label={t('Port')} error={errors.port} className="col-span-2">
           {input('port', { inputMode: 'numeric', placeholder: alias ? String(alias.port) : '22' })}
         </Field>
-        <Field id="conn-user" label="Utilisateur" error={errors.user} className="col-span-3">
+        <Field id="conn-user" label={t('Utilisateur')} error={errors.user} className="col-span-3">
           {input('user', { placeholder: alias?.user ?? '' })}
         </Field>
         <Field
           id="conn-identityFile"
-          label="Clé"
+          label={t('Clé')}
           error={errors.identityFile}
           className="col-span-3"
         >
@@ -199,10 +202,12 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
         </Field>
         <Field
           id="conn-proxyJump"
-          label="Rebonds (ProxyJump)"
+          label={t('Rebonds (ProxyJump)')}
           error={errors.proxyJump}
           className="col-span-6"
-          hint="Tilde passe par chaque bastion dans l’ordre, puis se connecte à l’hôte ; les fichiers et le bandeau d’état suivent le même chemin."
+          hint={t(
+            'Tilde passe par chaque bastion dans l’ordre, puis se connecte à l’hôte ; les fichiers et le bandeau d’état suivent le même chemin.',
+          )}
         >
           <JumpHosts
             value={form.proxyJump}
@@ -216,7 +221,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
           />
         </Field>
         {spaces.length > 1 && (
-          <Field id="conn-space" label="Espace" className="col-span-6">
+          <Field id="conn-space" label={t('Espace')} className="col-span-6">
             <select
               id="conn-space"
               className={selectClass}
@@ -228,13 +233,13 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             >
               {spaces.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {spaceName(s)}
                 </option>
               ))}
             </select>
           </Field>
         )}
-        <Field id="conn-folder" label="Dossier" className="col-span-2">
+        <Field id="conn-folder" label={t('Dossier')} className="col-span-2">
           <select
             id="conn-folder"
             className={selectClass}
@@ -243,7 +248,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
               setFolderId(e.currentTarget.value || null);
             }}
           >
-            <option value="">Sans dossier</option>
+            <option value="">{t('Sans dossier')}</option>
             {spaceFolders.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.name}
@@ -251,7 +256,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             ))}
           </select>
         </Field>
-        <Field id="conn-agent" label="Transférer l’agent" className="col-span-2">
+        <Field id="conn-agent" label={t('Transférer l’agent')} className="col-span-2">
           <select
             id="conn-agent"
             className={selectClass}
@@ -262,12 +267,17 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
           >
             {AGENT.map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label)}
               </option>
             ))}
           </select>
         </Field>
-        <Field id="conn-tags" label="Tags" className="col-span-2" hint="Séparés par des virgules">
+        <Field
+          id="conn-tags"
+          label={t('Tags')}
+          className="col-span-2"
+          hint={t('Séparés par des virgules')}
+        >
           <Input
             id="conn-tags"
             value={tags}
@@ -277,13 +287,13 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
           />
         </Field>
         <div className="col-span-6 grid gap-1">
-          <span className="text-sm">Couleur</span>
-          <ColorPicker label="Couleur de la connexion" value={color} onChange={setColor} />
+          <span className="text-sm">{t('Couleur')}</span>
+          <ColorPicker label={t('Couleur de la connexion')} value={color} onChange={setColor} />
         </div>
         <div className="col-span-6 grid gap-1">
-          <span className="text-sm">Icône</span>
+          <span className="text-sm">{t('Icône')}</span>
           <IconPicker
-            label="Icône"
+            label={t('Icône')}
             icons={CONNECTION_ICONS}
             value={icon ?? 'server'}
             color={color}
@@ -298,7 +308,7 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
 
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
-          Annuler
+          {t('Annuler')}
         </Button>
         <Button
           type="button"
@@ -308,10 +318,10 @@ function ConnectionFormView({ initial, onDone }: { initial: Connection; onDone: 
             submit(true);
           }}
         >
-          Enregistrer et se connecter
+          {t('Enregistrer et se connecter')}
         </Button>
         <Button type="submit" disabled={busy}>
-          Enregistrer
+          {t('Enregistrer')}
         </Button>
       </DialogFooter>
     </form>

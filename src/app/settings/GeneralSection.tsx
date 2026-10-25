@@ -6,10 +6,12 @@ import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { openThemesDir } from '@/ipc/themes';
 import { quakeStatus } from '@/ipc/window';
 import { checkForUpdates } from '@/app/updates';
+import { t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { useSettings } from '@/stores/settings';
 import { bindingKeys } from '@/terminal/keyLabels';
 import type { Binding } from '@/terminal/keys';
-import { Row, Section, SwitchField } from './fields';
+import { Choice, Row, Section, SwitchField } from './fields';
 import { ShortcutRecorder } from './ShortcutRecorder';
 
 /**
@@ -21,7 +23,9 @@ function globalKeyProblem(b: Binding): string | null {
     b.key,
   )
     ? null
-    : 'Pour un raccourci global, choisissez une lettre, un chiffre ou une touche F : un symbole change de place selon la disposition du clavier.';
+    : t(
+        'Pour un raccourci global, choisissez une lettre, un chiffre ou une touche F : un symbole change de place selon la disposition du clavier.',
+      );
 }
 
 export function GeneralSection() {
@@ -50,26 +54,45 @@ export function GeneralSection() {
 
   return (
     <div className="grid gap-6">
-      <Section title="Démarrage">
+      <Section title={t('Langue')}>
+        <Row label={t('Langue de l’interface')}>
+          <Choice
+            setting="general.language"
+            label={t('Langue de l’interface')}
+            value={g.language}
+            options={[
+              ['auto', t('Automatique (langue du système)')],
+              ['fr', 'Français'],
+              ['en', 'English'],
+            ]}
+            disabled={readOnly}
+            onChange={(language) => void update({ general: { language } })}
+          />
+        </Row>
+      </Section>
+
+      <Section title={t('Démarrage')}>
         <Row
-          label="Restaurer la session"
-          hint="Onglets et panneaux rouverts au lancement ; les onglets SSH attendent Entrée."
+          label={t('Restaurer la session')}
+          hint={t('Onglets et panneaux rouverts au lancement ; les onglets SSH attendent Entrée.')}
         >
           <SwitchField
             setting="general.restoreSession"
-            label="Restaurer la session"
+            label={t('Restaurer la session')}
             checked={g.restoreSession}
             disabled={readOnly}
             onChange={(restoreSession) => void update({ general: { restoreSession } })}
           />
         </Row>
         <Row
-          label="« Ouvrir dans Tilde » dans l’Explorateur"
-          hint="Windows : clic droit sur un dossier ou dans un dossier ouvre un terminal à cet endroit (sous Windows 11, dans « Afficher plus d’options »)."
+          label={t('« Ouvrir dans Tilde » dans l’Explorateur')}
+          hint={t(
+            'Windows : clic droit sur un dossier ou dans un dossier ouvre un terminal à cet endroit (sous Windows 11, dans « Afficher plus d’options »).',
+          )}
         >
           <SwitchField
             setting="general.explorerMenu"
-            label="« Ouvrir dans Tilde » dans l’Explorateur"
+            label={t('« Ouvrir dans Tilde » dans l’Explorateur')}
             checked={g.explorerMenu}
             disabled={readOnly}
             onChange={(explorerMenu) => void update({ general: { explorerMenu } })}
@@ -77,14 +100,14 @@ export function GeneralSection() {
         </Row>
       </Section>
 
-      <Section title="Mises à jour">
+      <Section title={t('Mises à jour')}>
         <Row
-          label="Rechercher au démarrage"
-          hint="Une requête vers GitHub au plus une fois par jour ; rien d’autre n’est envoyé."
+          label={t('Rechercher au démarrage')}
+          hint={t('Une requête vers GitHub au plus une fois par jour ; rien d’autre n’est envoyé.')}
         >
           <SwitchField
             setting="general.checkUpdates"
-            label="Rechercher les mises à jour au démarrage"
+            label={t('Rechercher les mises à jour au démarrage')}
             checked={g.checkUpdates}
             disabled={readOnly}
             onChange={(checkUpdates) => void update({ general: { checkUpdates } })}
@@ -94,19 +117,19 @@ export function GeneralSection() {
             size="xs"
             onClick={() => void checkForUpdates({ manual: true })}
           >
-            Rechercher maintenant
+            {t('Rechercher maintenant')}
           </Button>
         </Row>
       </Section>
 
-      <Section title="Mode Quake">
+      <Section title={t('Mode Quake')}>
         <Row
-          label="Terminal déroulant"
-          hint="Un raccourci global affiche ou masque un terminal en haut de l’écran."
+          label={t('Terminal déroulant')}
+          hint={t('Un raccourci global affiche ou masque un terminal en haut de l’écran.')}
         >
           <SwitchField
             setting="general.quake.enabled"
-            label="Mode Quake"
+            label={t('Mode Quake')}
             checked={g.quake.enabled}
             disabled={readOnly}
             onChange={(enabled) => void update({ general: { quake: { enabled } } })}
@@ -114,13 +137,13 @@ export function GeneralSection() {
         </Row>
         {quakeError && (
           <p role="status" className="text-xs text-warning">
-            {quakeError}
+            {tRust(quakeError)}
           </p>
         )}
-        <Row label="Raccourci global">
+        <Row label={t('Raccourci global')}>
           {recording ? (
             <ShortcutRecorder
-              label="Nouveau raccourci Quake"
+              label={t('Nouveau raccourci Quake')}
               onRecord={(shortcut) => {
                 setRecording(false);
                 void update({ general: { quake: { shortcut } } });
@@ -143,20 +166,20 @@ export function GeneralSection() {
                 variant="ghost"
                 size="xs"
                 data-setting="general.quake.shortcut"
-                aria-label="Modifier le raccourci Quake"
+                aria-label={t('Modifier le raccourci Quake')}
                 disabled={readOnly}
                 onClick={() => {
                   setRecording(true);
                 }}
               >
-                Modifier
+                {t('Modifier')}
               </Button>
             </>
           )}
         </Row>
       </Section>
 
-      <Section title="Fichiers">
+      <Section title={t('Fichiers')}>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void openSettingsFile()}>
             <FileJson strokeWidth={1.5} />
@@ -168,7 +191,7 @@ export function GeneralSection() {
           </Button>
           <Button variant="outline" size="sm" onClick={() => void openThemesDir()}>
             <Palette strokeWidth={1.5} />
-            Dossier des thèmes
+            {t('Dossier des thèmes')}
           </Button>
           <Button variant="outline" size="sm" onClick={() => void openLogsDir()}>
             <ScrollText strokeWidth={1.5} />
@@ -177,7 +200,7 @@ export function GeneralSection() {
         </div>
         <p className="flex items-center gap-1.5 text-xs text-text-muted">
           <FolderOpen className="size-3.5" strokeWidth={1.5} />
-          Les fichiers sont rechargés à chaud : une modification s’applique sans redémarrer.
+          {t('Les fichiers sont rechargés à chaud : une modification s’applique sans redémarrer.')}
         </p>
       </Section>
     </div>

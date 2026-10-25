@@ -1,5 +1,7 @@
 import { toast } from 'sonner';
 import { create } from 'zustand';
+import { t, useLocale } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { formatConfigError, isConfigError } from '@/ipc/errors';
 import {
   onThemesChanged,
@@ -31,17 +33,18 @@ interface ThemesState {
 const errorKey = (e: ThemeFileError) => `${e.file}\n${e.message}`;
 
 function describe(err: unknown): string {
-  if (isConfigError(err)) return formatConfigError(err, 'thème');
-  return typeof err === 'string' ? err : 'Erreur inattendue';
+  if (isConfigError(err)) return formatConfigError(err, t('thème'));
+  return typeof err === 'string' ? err : t('Erreur inattendue');
 }
 
+/** The usable themes and the errors, in the interface's language (Rust's and ours). */
 function load(snapshot: ThemesSnapshot): Pick<ThemesState, 'user' | 'errors'> {
   const user: ThemeDefinition[] = [];
-  const errors = [...snapshot.errors];
+  const errors = snapshot.errors.map((e) => ({ ...e, message: tRust(e.message) }));
   for (const { id, data } of snapshot.themes) {
     const file = `${id}.json`;
     if (getTheme(id)) {
-      errors.push({ file, message: 'id réservé par un thème intégré : renommez le fichier' });
+      errors.push({ file, message: t('id réservé par un thème intégré : renommez le fichier') });
       continue;
     }
     try {
@@ -56,11 +59,15 @@ function load(snapshot: ThemesSnapshot): Pick<ThemesState, 'user' | 'errors'> {
 }
 
 export const useThemes = create<ThemesState>()((set, get) => {
+  let last: ThemesSnapshot | null = null;
   const apply = (snapshot: ThemesSnapshot) => {
+    last = snapshot;
     const known = new Set(get().errors.map(errorKey));
     const next = load(snapshot);
     for (const e of next.errors) {
-      if (!known.has(errorKey(e))) toast.error(`themes/${e.file} : ${e.message}`);
+      if (!known.has(errorKey(e))) {
+        toast.error(t('themes/{file} : {message}', { file: e.file, message: e.message }));
+      }
     }
     set(next);
   };
@@ -73,12 +80,19 @@ export const useThemes = create<ThemesState>()((set, get) => {
     init: async () => {
       const unlisten = await onThemesChanged(apply);
       apply(await themesList());
-      return unlisten;
+      // Errors are kept as text: when the language changes, they are rewritten in it (no toast).
+      const offLocale = useLocale.subscribe(() => {
+        if (last) set(load(last));
+      });
+      return () => {
+        unlisten();
+        offLocale();
+      };
     },
 
-    save: async (t) => {
+    save: async (theme) => {
       try {
-        await themesSave(t.id, JSON.parse(serializeTheme(t)));
+        await themesSave(theme.id, JSON.parse(serializeTheme(theme)));
         return true;
       } catch (err) {
         toast.error(describe(err));

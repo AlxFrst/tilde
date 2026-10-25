@@ -37,6 +37,7 @@ export const defaultSettings: Settings = {
   },
   sftp: { concurrency: 3, editorMode: 'external', externalEditor: null },
   general: {
+    language: 'auto',
     restoreSession: true,
     quake: { enabled: false, shortcut: 'Alt+F12' },
     checkUpdates: true,

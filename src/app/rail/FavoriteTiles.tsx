@@ -1,5 +1,6 @@
 import { connectionIcon } from '@/connections/icons';
 import { connectionSpace } from '@/connections/spaces';
+import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
@@ -19,10 +20,10 @@ export function FavoriteTiles() {
     .slice(0, MAX_TILES);
   if (favorites.length === 0) return null;
   return (
-    <div role="group" aria-label="Favoris" className="grid grid-cols-4 gap-1.5 px-1 pt-1">
+    <div role="group" aria-label={t('Favoris')} className="grid grid-cols-4 gap-1.5 px-1 pt-1">
       {favorites.map((c) => {
         const Icon = connectionIcon(c.icon);
-        const session = tabs.find((t) => t.pinnedConnectionId === c.id);
+        const session = tabs.find((x) => x.pinnedConnectionId === c.id);
         const active = session !== undefined && session.id === activeTabId;
         return (
           <button

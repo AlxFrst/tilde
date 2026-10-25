@@ -4,7 +4,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MAIN_SPACE } from '@/connections/spaces';
 import type { Connection } from '@/ipc/connections';
-import { upsertConnection } from '@/ipc/connections';
+import { moveConnection, upsertConnection } from '@/ipc/connections';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
 import { PinnedSection } from './PinnedSection';
@@ -12,6 +12,7 @@ import { PinnedSection } from './PinnedSection';
 vi.mock('@/ipc/connections', async (orig) => ({
   ...(await orig<typeof import('@/ipc/connections')>()),
   upsertConnection: vi.fn((c: Connection) => Promise.resolve(c)),
+  moveConnection: vi.fn(() => Promise.resolve()),
 }));
 
 const rects = new Map<Element, DOMRect>();
@@ -94,4 +95,54 @@ test('dragging a connection onto another folder moves it there', async () => {
   expect(upsertConnection).toHaveBeenCalledWith(
     expect.objectContaining({ id: 'c1', folderId: 'f2' }),
   );
+});
+
+describe('reordering', () => {
+  beforeEach(() => {
+    useConnections.setState({
+      file: {
+        version: 1,
+        spaces: [],
+        folders: [{ id: 'f1', name: 'Prod', color: null, spaceId: null }],
+        connections: [
+          blankConnection({ id: 'a', name: 'alpha', host: 'a.example' }),
+          blankConnection({ id: 'b', name: 'beta', host: 'b.example' }),
+          blankConnection({ id: 'c1', name: 'web', host: 'web.example', folderId: 'f1' }),
+        ],
+        recents: [],
+      },
+    });
+  });
+
+  function layout() {
+    rects.set(screen.getByRole('group', { name: 'Épinglés' }), new DOMRect(0, 0, 280, 400));
+    rects.set(screen.getByRole('group', { name: 'Prod' }), new DOMRect(0, 200, 280, 100));
+    const row = (name: RegExp) => screen.getByRole('button', { name });
+    rects.set(row(/^alpha/), new DOMRect(0, 40, 280, 30));
+    rects.set(row(/^beta/), new DOMRect(0, 80, 280, 30));
+    rects.set(row(/^web/), new DOMRect(0, 240, 280, 30));
+    return row;
+  }
+
+  test('dropping a row on the one above puts it before', async () => {
+    render(<PinnedSection />);
+    const row = layout();
+    await drag(row(/^beta/), 5); // the pointer ends at y 55, on alpha
+    expect(moveConnection).toHaveBeenCalledWith('b', null, 'a');
+    expect(upsertConnection).not.toHaveBeenCalled();
+  });
+
+  test('dropping a row on the one below puts it after', async () => {
+    render(<PinnedSection />);
+    const row = layout();
+    await drag(row(/^alpha/), 45); // y 95, on beta, the last one
+    expect(moveConnection).toHaveBeenCalledWith('a', null, null);
+  });
+
+  test('dropping a row from a folder on a root row moves it out, before that row', async () => {
+    render(<PinnedSection />);
+    const row = layout();
+    await drag(row(/^web/), 0 - 5); // y 45, on alpha
+    expect(moveConnection).toHaveBeenCalledWith('c1', null, 'a');
+  });
 });

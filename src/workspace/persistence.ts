@@ -1,4 +1,6 @@
 import { toast } from 'sonner';
+import { tn } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import type { Settings } from '@/ipc/generated/settings';
 import { pickDefaultProfile, type ResolvedProfile } from '@/ipc/profiles';
 import { loadWorkspace, saveWorkspace } from '@/ipc/workspace';
@@ -60,7 +62,13 @@ export async function restoreWorkspace(
     if (useWorkspace.getState().tabs.length > 0) {
       if (replaced > 0) {
         toast.info(
-          `${String(replaced)} panneau(x) relancé(s) avec « ${fallback.name} » : leur profil n’existe plus.`,
+          tn(
+            replaced,
+            '{count} panneau relancé avec « {name} » : son profil n’existe plus.',
+            '{count} panneaux relancés avec « {name} » : leur profil n’existe plus.',
+            // A detected shell's name may be Rust's (« Invite de commandes »).
+            { name: tRust(fallback.name) },
+          ),
         );
       }
       return;

@@ -1,5 +1,6 @@
 import { Activity, PanelRight, X } from 'lucide-react';
 import { useEffect } from 'react';
+import { t } from '@/i18n';
 import MonitorPane from '@/panels/monitor/MonitorPane';
 import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
@@ -17,7 +18,7 @@ export function Peek() {
   const peek = useUi((s) => s.peek);
   const tab = useWorkspace((s) =>
     peek
-      ? s.tabs.find((t) => t.id === s.activeTabId && findLeaf(t.root, peek.sshLeafId))
+      ? s.tabs.find((x) => x.id === s.activeTabId && findLeaf(x.root, peek.sshLeafId))
       : undefined,
   );
   const names = useLabelNames();
@@ -62,12 +63,12 @@ export function Peek() {
     <>
       <div aria-hidden className="absolute inset-0 z-20" onMouseDown={close} />
       <section
-        aria-label={`Moniteur · ${owner}`}
+        aria-label={t('Moniteur · {name}', { name: owner })}
         className="absolute top-3 right-3 bottom-3 z-30 flex w-[min(640px,calc(100%-1.5rem))] flex-col overflow-hidden rounded-xl border bg-surface-1 shadow-2xl motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-right-4"
       >
         <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
           <Activity className="size-4 text-primary" strokeWidth={1.75} />
-          <span className="text-sm font-medium">Moniteur</span>
+          <span className="text-sm font-medium">{t('Moniteur')}</span>
           <span className="min-w-0 truncate text-sm text-text-muted">· {owner}</span>
           <span className="flex-1" />
           <button
@@ -79,11 +80,11 @@ export function Peek() {
             }}
           >
             <PanelRight className="size-3.5" strokeWidth={1.75} />
-            Ancrer à droite
+            {t('Ancrer à droite')}
           </button>
           <button
             type="button"
-            aria-label="Fermer l’aperçu (Échap)"
+            aria-label={t('Fermer l’aperçu (Échap)')}
             className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
             onClick={close}
           >

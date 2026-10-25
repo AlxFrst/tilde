@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   getConnections,
+  moveConnection,
   onConnectionsChanged,
   removeConnection,
   removeFolder,
@@ -38,6 +39,8 @@ interface ConnectionsState {
   saveSpace: (s: Space) => Promise<Space>;
   removeSpace: (id: string) => Promise<void>;
   setFavorite: (id: string, favorite: boolean) => Promise<void>;
+  /** Into `folderId` (`null`: the root), just before `before` (`null`: last). */
+  move: (id: string, folderId: string | null, before: string | null) => Promise<void>;
   /** The connection in the form: an existing one, or `'new'` (with optional presets). */
   editing: Connection | 'new' | null;
   setEditing: (c: Connection | 'new' | null) => void;
@@ -116,6 +119,7 @@ export const useConnections = create<ConnectionsState>()((set, get) => ({
   saveSpace: (sp) => upsertSpace(sp),
   removeSpace: (id) => removeSpace(id),
   setFavorite: (id, favorite) => setFavorite(id, favorite),
+  move: (id, folderId, before) => moveConnection(id, folderId, before),
   editing: null,
   setEditing: (editing) => {
     set({ editing });

@@ -11,7 +11,9 @@ import { startSingleSpace, startSpaceSync } from '@/app/spaceSync';
 import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
-import { getAppInfo, type AppInfo } from '@/ipc/app';
+import { resolveLocale, setLocale, useLocale } from '@/i18n';
+import { tRust } from '@/i18n/rust';
+import { getAppInfo, setUiLocale, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useConnections } from '@/stores/connections';
 import { useKeybindings } from '@/stores/keybindings';
@@ -42,6 +44,16 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
   const uiFont = settings?.appearance.uiFontFamily ?? 'Geist Variable';
   const effect = settings?.appearance.window.effect ?? 'none';
   const opacity = settings?.appearance.window.opacity ?? 1;
+  const language = settings?.general.language;
+  // Every string is read with t() while rendering: re-rendering from here is a switch.
+  useLocale((s) => s.locale);
+
+  useEffect(() => {
+    const locale = resolveLocale(language);
+    setLocale(locale);
+    // Rust writes native dialogs, Explorer's entry and terminal notices itself.
+    setUiLocale(locale).catch(() => undefined);
+  }, [language]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -189,12 +201,12 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     if (quake) return;
     quakeStatus().then(
       (status) => {
-        if (status) toast.error(status);
+        if (status) toast.error(tRust(status));
       },
       () => undefined,
     );
     const off = listen<string>('quake://error', (e) => {
-      toast.error(e.payload);
+      toast.error(tRust(e.payload));
     });
     return () => {
       void off.then((f) => {

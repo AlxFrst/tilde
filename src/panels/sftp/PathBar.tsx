@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 
 /** Clickable breadcrumb; click the empty space (or « Modifier le chemin ») to type one. */
 export function PathBar({ path, onNavigate }: { path: string; onNavigate: (p: string) => void }) {
@@ -8,7 +9,7 @@ export function PathBar({ path, onNavigate }: { path: string; onNavigate: (p: st
     return (
       <Input
         autoFocus
-        aria-label="Chemin"
+        aria-label={t('Chemin')}
         defaultValue={path}
         spellCheck={false}
         className="h-7 font-mono text-xs"
@@ -61,7 +62,7 @@ export function PathBar({ path, onNavigate }: { path: string; onNavigate: (p: st
       })}
       <button
         type="button"
-        aria-label="Modifier le chemin"
+        aria-label={t('Modifier le chemin')}
         className="ml-auto h-full min-w-6 flex-1"
         onClick={() => {
           setEditing(true);

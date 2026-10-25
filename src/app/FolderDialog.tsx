@@ -8,9 +8,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { t } from '@/i18n';
 import { formatConfigError, isConfigError } from '@/ipc/errors';
 import type { Folder } from '@/ipc/connections';
-import { listSpaces, spaceIdOf } from '@/connections/spaces';
+import { listSpaces, spaceIdOf, spaceName } from '@/connections/spaces';
 import { useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
 import { ColorPicker } from './ColorPicker';
@@ -30,7 +31,7 @@ function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => 
 
   const submit = () => {
     if (!name.trim()) {
-      setError('Le nom est obligatoire');
+      setError(t('Le nom est obligatoire'));
       return;
     }
     const stored = file.spaces.length === 0 ? null : spaceId;
@@ -51,11 +52,13 @@ function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => 
       }}
     >
       <DialogHeader>
-        <DialogTitle>{folder === 'new' ? 'Nouveau dossier' : 'Renommer le dossier'}</DialogTitle>
+        <DialogTitle>
+          {folder === 'new' ? t('Nouveau dossier') : t('Renommer le dossier')}
+        </DialogTitle>
       </DialogHeader>
       <div className="grid gap-1.5">
         <label htmlFor="folder-name" className="text-sm">
-          Nom du dossier
+          {t('Nom du dossier')}
         </label>
         <Input
           id="folder-name"
@@ -72,7 +75,7 @@ function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => 
       {spaces.length > 1 && (
         <div className="grid gap-1.5">
           <label htmlFor="folder-space" className="text-sm">
-            Espace du dossier
+            {t('Espace du dossier')}
           </label>
           <select
             id="folder-space"
@@ -84,21 +87,21 @@ function FolderForm({ folder, onDone }: { folder: Folder | 'new'; onDone: () => 
           >
             {spaces.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name}
+                {spaceName(s)}
               </option>
             ))}
           </select>
         </div>
       )}
       <div className="grid gap-1.5">
-        <span className="text-sm">Couleur</span>
-        <ColorPicker label="Couleur du dossier" value={color} onChange={setColor} />
+        <span className="text-sm">{t('Couleur')}</span>
+        <ColorPicker label={t('Couleur du dossier')} value={color} onChange={setColor} />
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
-          Annuler
+          {t('Annuler')}
         </Button>
-        <Button type="submit">Enregistrer</Button>
+        <Button type="submit">{t('Enregistrer')}</Button>
       </DialogFooter>
     </form>
   );

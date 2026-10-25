@@ -1,4 +1,5 @@
 import { useId, useMemo } from 'react';
+import { t } from '@/i18n';
 import { BUNDLED_FONTS, canvasMeasure, isFontAvailable } from '@/themes/fonts';
 import { Row, TextField } from './fields';
 
@@ -29,7 +30,7 @@ export function FontField({
       label={label}
       hint={
         missing
-          ? 'Police introuvable sur ce système : une police de repli est utilisée.'
+          ? t('Police introuvable sur ce système : une police de repli est utilisée.')
           : undefined
       }
     >

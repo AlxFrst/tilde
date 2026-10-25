@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { setLocale } from '@/i18n';
 import { exportConnections, importConnections } from '@/ipc/connections';
 import { exportWithToast, importWithReport } from './transfer';
 
@@ -50,4 +51,22 @@ test('imported keys and jump hosts are named for review', async () => {
     description:
       'À vérifier : unc, jump (clé ou bastion importés). Le transfert d’agent n’est jamais importé.',
   });
+});
+
+test('reports in English, with English plurals', async () => {
+  setLocale('en');
+  vi.mocked(importConnections).mockResolvedValueOnce({ imported: 0, skipped: 1, review: [] });
+  await importWithReport();
+  expect(toast.success).toHaveBeenLastCalledWith(
+    '0 connections imported, 1 skipped (already present or invalid)',
+  );
+
+  vi.mocked(importConnections).mockRejectedValueOnce({
+    kind: 'parse',
+    message: 'EOF',
+    line: 2,
+    column: 1,
+  });
+  await importWithReport();
+  expect(toast.error).toHaveBeenCalledWith('Imported file line 2, column 1: EOF');
 });

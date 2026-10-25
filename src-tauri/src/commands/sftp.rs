@@ -127,7 +127,8 @@ pub async fn sftp_download(
     save_as: bool,
 ) -> Result<Vec<u32>, SessionErrorDto> {
     let picked = if save_as {
-        let dialog = app.dialog().file().set_title("Télécharger vers…");
+        let title = state.locale.pick("Télécharger vers…", "Download to…");
+        let dialog = app.dialog().file().set_title(title);
         tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_folder())
             .await
             .ok()
@@ -161,7 +162,8 @@ pub async fn sftp_upload(
     let locals: Vec<PathBuf> = if let Some(paths) = local_paths {
         paths.into_iter().map(PathBuf::from).collect()
     } else {
-        let dialog = app.dialog().file().set_title("Envoyer des fichiers");
+        let title = state.locale.pick("Envoyer des fichiers", "Upload files");
+        let dialog = app.dialog().file().set_title(title);
         tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_files())
             .await
             .ok()

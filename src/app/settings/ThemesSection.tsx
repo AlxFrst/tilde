@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { confirmAction } from '@/app/confirm';
 import { Button } from '@/components/ui/button';
+import { t, tn } from '@/i18n';
 import { openThemesDir, themesExport, themesImportPick } from '@/ipc/themes';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/stores/settings';
@@ -39,12 +40,12 @@ function Swatches({ theme }: { theme: ThemeDefinition }) {
 
 function errorMessage(err: unknown): string {
   if (err instanceof ThemeError) return err.message;
-  return typeof err === 'string' ? err : 'Import impossible';
+  return typeof err === 'string' ? err : t('Import impossible');
 }
 
 /** Checklist for files holding several schemes (Windows Terminal settings.json). */
 function ImportChooser({ result, onDone }: { result: ImportResult; onDone: () => void }) {
-  const [checked, setChecked] = useState(() => new Set(result.themes.map((t) => t.id)));
+  const [checked, setChecked] = useState(() => new Set(result.themes.map((theme) => theme.id)));
   const [busy, setBusy] = useState(false);
 
   const importSelected = async () => {
@@ -52,53 +53,53 @@ function ImportChooser({ result, onDone }: { result: ImportResult; onDone: () =>
     const { save } = useThemes.getState();
     const taken = new Set(allThemes(useThemes.getState().user).map((t) => t.id));
     let saved = 0;
-    for (const t of result.themes) {
-      if (!checked.has(t.id)) continue;
-      const id = uniqueThemeId(t.id, taken);
+    for (const theme of result.themes) {
+      if (!checked.has(theme.id)) continue;
+      const id = uniqueThemeId(theme.id, taken);
       taken.add(id);
-      if (await save({ ...t, id })) saved++;
+      if (await save({ ...theme, id })) saved++;
     }
     setBusy(false);
-    if (saved > 0) toast.success(saved === 1 ? '1 thème importé' : `${saved} thèmes importés`);
+    if (saved > 0) toast.success(tn(saved, '{count} thème importé', '{count} thèmes importés'));
     onDone();
   };
 
   return (
     <div className="grid gap-3">
-      <fieldset aria-label="Thèmes à importer" className="grid gap-1.5">
-        {result.themes.map((t) => (
-          <label key={t.id} className="flex items-center gap-3 text-sm">
+      <fieldset aria-label={t('Thèmes à importer')} className="grid gap-1.5">
+        {result.themes.map((theme) => (
+          <label key={theme.id} className="flex items-center gap-3 text-sm">
             <input
               type="checkbox"
-              aria-label={t.name}
-              checked={checked.has(t.id)}
+              aria-label={theme.name}
+              checked={checked.has(theme.id)}
               onChange={() => {
                 setChecked((prev) => {
                   const next = new Set(prev);
-                  if (next.has(t.id)) next.delete(t.id);
-                  else next.add(t.id);
+                  if (next.has(theme.id)) next.delete(theme.id);
+                  else next.add(theme.id);
                   return next;
                 });
               }}
             />
-            <Swatches theme={t} />
-            {t.name}
+            <Swatches theme={theme} />
+            {theme.name}
           </label>
         ))}
       </fieldset>
       {result.warnings.length > 0 && (
         <ul className="grid gap-1 text-xs text-warning">
           {result.warnings.map((w) => (
-            <li key={w}>Ignoré — {w}</li>
+            <li key={w}>{t('Ignoré — {warning}', { warning: w })}</li>
           ))}
         </ul>
       )}
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onDone}>
-          Annuler
+          {t('Annuler')}
         </Button>
         <Button disabled={busy || checked.size === 0} onClick={() => void importSelected()}>
-          Importer la sélection
+          {t('Importer la sélection')}
         </Button>
       </div>
     </div>
@@ -114,7 +115,7 @@ export function ThemesSection() {
   const appearance = useSettings((s) => s.settings?.appearance);
   const [editing, setEditing] = useState<{ theme: ThemeDefinition; isNew: boolean } | null>(null);
   const [choosing, setChoosing] = useState<ImportResult | null>(null);
-  const userIds = new Set(user.map((t) => t.id));
+  const userIds = new Set(user.map((theme) => theme.id));
 
   if (editing) {
     return (
@@ -151,37 +152,39 @@ export function ThemesSection() {
     }
   };
 
-  const exportTheme = async (t: ThemeDefinition) => {
+  const exportTheme = async (theme: ThemeDefinition) => {
     try {
-      if (await themesExport(t.id, serializeTheme(t))) toast.success('Thème exporté');
+      if (await themesExport(theme.id, serializeTheme(theme))) toast.success(t('Thème exporté'));
     } catch (err) {
       toast.error(errorMessage(err));
     }
   };
 
-  const remove = async (t: ThemeDefinition) => {
+  const remove = async (theme: ThemeDefinition) => {
     const ok = await confirmAction({
-      title: `Supprimer « ${t.name} » ?`,
-      description: `Le fichier themes/${t.id}.json sera supprimé.`,
-      confirmLabel: 'Supprimer',
+      title: t('Supprimer « {name} » ?', { name: theme.name }),
+      description: t('Le fichier themes/{id}.json sera supprimé.', { id: theme.id }),
+      confirmLabel: t('Supprimer'),
       destructive: true,
     });
-    if (ok) await useThemes.getState().remove(t.id);
+    if (ok) await useThemes.getState().remove(theme.id);
   };
 
-  const inUse = (t: ThemeDefinition) =>
-    t.kind === 'dark' ? appearance?.themeDark === t.id : appearance?.themeLight === t.id;
+  const inUse = (theme: ThemeDefinition) =>
+    theme.kind === 'dark'
+      ? appearance?.themeDark === theme.id
+      : appearance?.themeLight === theme.id;
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={() => void startImport()}>
           <Upload strokeWidth={1.5} />
-          Importer…
+          {t('Importer…')}
         </Button>
         <Button variant="outline" size="sm" onClick={() => void openThemesDir()}>
           <FolderOpen strokeWidth={1.5} />
-          Ouvrir le dossier des thèmes
+          {t('Ouvrir le dossier des thèmes')}
         </Button>
         <span className="self-center text-xs text-text-muted">
           iTerm2 (.itermcolors), Windows Terminal (JSON), base16 (YAML)
@@ -193,37 +196,37 @@ export function ThemesSection() {
           {errors.map((e) => (
             <li key={`${e.file}:${e.message}`} className="flex gap-2">
               <TriangleAlert className="size-3.5 shrink-0" strokeWidth={1.5} />
-              themes/{e.file} : {e.message}
+              {t('themes/{file} : {message}', { file: e.file, message: e.message })}
             </li>
           ))}
         </ul>
       )}
 
       <ul className="grid gap-1">
-        {allThemes(user).map((t) => {
-          const mine = userIds.has(t.id);
-          const used = inUse(t);
-          const mode = t.kind === 'dark' ? 'sombre' : 'clair';
+        {allThemes(user).map((theme) => {
+          const mine = userIds.has(theme.id);
+          const used = inUse(theme);
+          const dark = theme.kind === 'dark';
           return (
             <li
-              key={t.id}
+              key={theme.id}
               className={cn(
                 'flex items-center gap-3 rounded-md border border-transparent px-2 py-1.5 hover:bg-surface-2',
                 used && 'border-primary/50 bg-primary/10 hover:bg-primary/10',
               )}
             >
-              <Swatches theme={t} />
+              <Swatches theme={theme} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm">{t.name}</div>
+                <div className="truncate text-sm">{theme.name}</div>
                 <div className="text-xs text-text-muted">
-                  {t.kind === 'dark' ? 'Sombre' : 'Clair'}
-                  {mine ? ' · personnel' : ''}
+                  {dark ? t('Sombre') : t('Clair')}
+                  {mine ? ` · ${t('personnel')}` : ''}
                 </div>
               </div>
               {used ? (
                 <span className="flex h-6 items-center gap-1 px-2 text-xs font-medium text-primary">
                   <Check className="size-3.5" strokeWidth={2.5} />
-                  Utilisé en {mode}
+                  {dark ? t('Utilisé en sombre') : t('Utilisé en clair')}
                 </span>
               ) : (
                 <Button
@@ -232,21 +235,22 @@ export function ThemesSection() {
                   disabled={readOnly}
                   onClick={() =>
                     void update({
-                      appearance: t.kind === 'dark' ? { themeDark: t.id } : { themeLight: t.id },
+                      appearance: dark ? { themeDark: theme.id } : { themeLight: theme.id },
                     })
                   }
                 >
-                  Utiliser en {mode}
+                  {dark ? t('Utiliser en sombre') : t('Utiliser en clair')}
                 </Button>
               )}
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label={`Dupliquer et modifier ${t.name}`}
-                title="Dupliquer et modifier"
+                aria-label={t('Dupliquer et modifier {name}', { name: theme.name })}
+                title={t('Dupliquer et modifier')}
                 onClick={() => {
                   setEditing({
-                    theme: { ...t, name: `${t.name} (copie)` },
+                    // The default name of the copy; the user can change it before saving.
+                    theme: { ...theme, name: t('{name} (copie)', { name: theme.name }) },
                     isNew: true,
                   });
                 }}
@@ -257,10 +261,10 @@ export function ThemesSection() {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label={`Modifier ${t.name}`}
-                  title="Modifier"
+                  aria-label={t('Modifier {name}', { name: theme.name })}
+                  title={t('Modifier')}
                   onClick={() => {
-                    setEditing({ theme: t, isNew: false });
+                    setEditing({ theme, isNew: false });
                   }}
                 >
                   <Pencil strokeWidth={1.5} />
@@ -269,9 +273,9 @@ export function ThemesSection() {
               <Button
                 variant="ghost"
                 size="icon-xs"
-                aria-label={`Exporter ${t.name}`}
-                title="Exporter"
-                onClick={() => void exportTheme(t)}
+                aria-label={t('Exporter {name}', { name: theme.name })}
+                title={t('Exporter')}
+                onClick={() => void exportTheme(theme)}
               >
                 <Download strokeWidth={1.5} />
               </Button>
@@ -279,9 +283,9 @@ export function ThemesSection() {
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  aria-label={`Supprimer ${t.name}`}
-                  title="Supprimer"
-                  onClick={() => void remove(t)}
+                  aria-label={t('Supprimer {name}', { name: theme.name })}
+                  title={t('Supprimer')}
+                  onClick={() => void remove(theme)}
                 >
                   <Trash2 strokeWidth={1.5} />
                 </Button>

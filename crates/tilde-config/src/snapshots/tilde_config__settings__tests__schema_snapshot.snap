@@ -70,6 +70,7 @@ expression: settings_schema()
     "general": {
       "$ref": "#/$defs/General",
       "default": {
+        "language": "auto",
         "restoreSession": true,
         "quake": {
           "enabled": false,
@@ -352,6 +353,10 @@ expression: settings_schema()
     "General": {
       "type": "object",
       "properties": {
+        "language": {
+          "$ref": "#/$defs/Language",
+          "default": "auto"
+        },
         "restoreSession": {
           "type": "boolean",
           "default": true
@@ -374,6 +379,15 @@ expression: settings_schema()
           "default": true
         }
       }
+    },
+    "Language": {
+      "description": "The interface's language. `Auto` follows the system: French on a French system,\nEnglish everywhere else.",
+      "type": "string",
+      "enum": [
+        "auto",
+        "fr",
+        "en"
+      ]
     },
     "Quake": {
       "type": "object",

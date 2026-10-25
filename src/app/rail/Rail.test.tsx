@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MAIN_SPACE } from '@/connections/spaces';
+import { setLocale } from '@/i18n';
 import type { Connection, ConnectionsFile } from '@/ipc/connections';
 import { removeConnection } from '@/ipc/connections';
 import type { ResolvedProfile } from '@/ipc/profiles';
@@ -345,4 +346,28 @@ test('a read-only file shows the error; warnings are listed', () => {
   );
   show();
   expect(screen.getByText('« alpha » : port : entre 1 et 65535')).toBeInTheDocument();
+});
+
+test('speaks English when the interface does', async () => {
+  setLocale('en');
+  setFile({ connections: [conn('a', 'alpha', { favorite: true }), conn('b', 'beta')] });
+  ws().openTab('pwsh');
+  ws().splitActive('row');
+  show();
+  const aside = screen.getByRole('complementary', { name: 'Sidebar' });
+  expect(within(aside).getByRole('group', { name: 'Favorites' })).toBeInTheDocument();
+  const today = within(aside).getByRole('group', { name: 'Today' });
+  expect(within(today).getByText('2 panes')).toBeInTheDocument();
+  expect(within(aside).getByRole('button', { name: 'New session' })).toHaveAttribute(
+    'title',
+    // The keys' names come from keyLabels.
+    expect.stringMatching(/^New session \(Ctrl\+.+\+T\)$/),
+  );
+  expect(within(aside).getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+  fireEvent.contextMenu(
+    within(within(aside).getByRole('group', { name: 'Pinned' })).getByRole('button', {
+      name: /^beta/,
+    }),
+  );
+  expect(await screen.findByRole('menuitem', { name: 'Add to favorites' })).toBeInTheDocument();
 });

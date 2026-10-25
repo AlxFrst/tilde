@@ -1,5 +1,7 @@
 import { toast } from 'sonner';
 import { create } from 'zustand';
+import { t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { formatConfigError, isConfigError } from '@/ipc/errors';
 import {
   keybindingsGet,
@@ -61,12 +63,17 @@ function duplicates(effective: Record<string, string | null>): string[] {
   }
   return [...byBinding]
     .filter(([, ids]) => ids.length > 1)
-    .map(([b, ids]) => `${b} est attribué à plusieurs commandes (${ids.join(', ')})`);
+    .map(([b, ids]) =>
+      t('{binding} est attribué à plusieurs commandes ({ids})', {
+        binding: b,
+        ids: ids.join(', '),
+      }),
+    );
 }
 
 function describe(err: unknown): string {
   if (isConfigError(err)) return formatConfigError(err, 'keybindings.json');
-  return typeof err === 'string' ? err : 'Erreur inattendue';
+  return typeof err === 'string' ? err : t('Erreur inattendue');
 }
 
 export const useKeybindings = create<KeybindingsState>()((set, get) => {
@@ -78,11 +85,16 @@ export const useKeybindings = create<KeybindingsState>()((set, get) => {
     for (const id of next.invalid) {
       if (before.has(`${id}=${s.bindings[id] ?? ''}`)) continue;
       toast.error(
-        `keybindings.json : raccourci refusé pour ${id} (« ${s.bindings[id] ?? ''} ») : syntaxe inconnue, ou touche sans Ctrl ni Alt`,
+        t(
+          'keybindings.json : raccourci refusé pour {id} (« {binding} ») : syntaxe inconnue, ou touche sans Ctrl ni Alt',
+          { id, binding: s.bindings[id] ?? '' },
+        ),
       );
     }
-    const warnings = new Set([...s.warnings, ...duplicates(next.effective)]);
-    for (const w of warnings) if (!shownWarnings.has(w)) toast.error(`keybindings.json : ${w}`);
+    const warnings = new Set([...s.warnings.map((w) => tRust(w)), ...duplicates(next.effective)]);
+    for (const w of warnings) {
+      if (!shownWarnings.has(w)) toast.error(t('keybindings.json : {warning}', { warning: w }));
+    }
     shownWarnings = warnings;
     set({ ...next, readOnly: s.readOnly });
   };

@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { spaceName } from '@/connections/spaces';
+import { t } from '@/i18n';
 import { SPACE_ICONS, type Space } from '@/ipc/connections';
 import { formatConfigError, isConfigError } from '@/ipc/errors';
 import { useConnections } from '@/stores/connections';
@@ -20,17 +22,20 @@ import { IconPicker } from '../IconPicker';
 function SpaceForm({ space, onDone }: { space: Space | 'new'; onDone: () => void }) {
   const saveSpace = useConnections((s) => s.saveSpace);
   const initial: Space = space === 'new' ? { id: '', name: '', color: null, icon: null } : space;
-  const [name, setName] = useState(initial.name);
+  // The main space's default name is shown translated; kept as is, it stays the default.
+  const shownName = spaceName(initial);
+  const [name, setName] = useState(shownName);
   const [color, setColor] = useState<string | null>(initial.color);
   const [icon, setIcon] = useState<string | null>(initial.icon);
   const [error, setError] = useState<string | null>(null);
 
   const submit = () => {
     if (!name.trim()) {
-      setError('Le nom est obligatoire');
+      setError(t('Le nom est obligatoire'));
       return;
     }
-    saveSpace({ ...initial, name: name.trim(), color, icon }).then(
+    const newName = name.trim() === shownName ? initial.name : name.trim();
+    saveSpace({ ...initial, name: newName, color, icon }).then(
       (saved) => {
         onDone();
         // A new space is where the user wants to go next.
@@ -51,14 +56,14 @@ function SpaceForm({ space, onDone }: { space: Space | 'new'; onDone: () => void
       }}
     >
       <DialogHeader>
-        <DialogTitle>{space === 'new' ? 'Nouvel espace' : 'Modifier l’espace'}</DialogTitle>
+        <DialogTitle>{space === 'new' ? t('Nouvel espace') : t('Modifier l’espace')}</DialogTitle>
         <DialogDescription>
-          Un espace regroupe ses connexions et ses sessions : Pro, Perso, Homelab…
+          {t('Un espace regroupe ses connexions et ses sessions : Pro, Perso, Homelab…')}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-1.5">
         <label htmlFor="space-name" className="text-sm">
-          Nom de l’espace
+          {t('Nom de l’espace')}
         </label>
         <Input
           id="space-name"
@@ -74,13 +79,13 @@ function SpaceForm({ space, onDone }: { space: Space | 'new'; onDone: () => void
         {error && <p className="text-xs text-error">{error}</p>}
       </div>
       <div className="grid gap-1.5">
-        <span className="text-sm">Couleur</span>
-        <ColorPicker label="Couleur de l’espace" value={color} onChange={setColor} />
+        <span className="text-sm">{t('Couleur')}</span>
+        <ColorPicker label={t('Couleur de l’espace')} value={color} onChange={setColor} />
       </div>
       <div className="grid gap-1.5">
-        <span className="text-sm">Icône</span>
+        <span className="text-sm">{t('Icône')}</span>
         <IconPicker
-          label="Icône de l’espace"
+          label={t('Icône de l’espace')}
           icons={SPACE_ICONS}
           value={icon ?? 'server'}
           color={color}
@@ -89,9 +94,9 @@ function SpaceForm({ space, onDone }: { space: Space | 'new'; onDone: () => void
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
-          Annuler
+          {t('Annuler')}
         </Button>
-        <Button type="submit">{space === 'new' ? 'Créer' : 'Enregistrer'}</Button>
+        <Button type="submit">{space === 'new' ? t('Créer') : t('Enregistrer')}</Button>
       </DialogFooter>
     </form>
   );

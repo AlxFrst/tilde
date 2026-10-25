@@ -1,6 +1,7 @@
+import { msg, t } from '@/i18n';
 import { bindingCode } from './keys';
 
-const MODIFIER_LABELS: Record<string, string> = { Ctrl: 'Ctrl', Shift: 'Maj', Alt: 'Alt' };
+const MODIFIER_LABELS: Record<string, string> = { Ctrl: 'Ctrl', Shift: msg('Maj'), Alt: 'Alt' };
 const ARROWS: Record<string, string> = {
   ArrowLeft: '←',
   ArrowRight: '→',
@@ -8,11 +9,11 @@ const ARROWS: Record<string, string> = {
   ArrowDown: '↓',
 };
 
-/** A binding as keycaps, e.g. `['Alt', 'Maj', '-']` (US layout labels). */
+/** A binding as keycaps, e.g. `['Alt', 'Maj', '-']` (US layout labels; `Shift` in English). */
 export function bindingKeys(binding: string): string[] {
   const parts = binding.split('+');
   const key = parts.pop() ?? '';
-  return [...parts.map((m) => MODIFIER_LABELS[m] ?? m), ARROWS[key] ?? key];
+  return [...parts.map((m) => t(MODIFIER_LABELS[m] ?? m)), ARROWS[key] ?? key];
 }
 
 interface LayoutSource {

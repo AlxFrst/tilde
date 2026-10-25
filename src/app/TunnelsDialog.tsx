@@ -9,6 +9,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { t, tn } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import {
   addForward,
   listForwards,
@@ -24,8 +26,8 @@ function describe(f: ForwardInfo): string {
   const listen = `${f.spec.bind || '*'}:${String(f.boundPort || f.spec.listenPort)}`;
   const target = `${f.spec.host}:${String(f.spec.port)}`;
   return f.spec.kind === 'local'
-    ? `ici ${listen} → serveur ${target}`
-    : `serveur ${listen} → ici ${target}`;
+    ? t('ici {listen} → serveur {target}', { listen, target })
+    : t('serveur {listen} → ici {target}', { listen, target });
 }
 
 const portOf = (s: string) => {
@@ -87,15 +89,18 @@ export function TunnelsDialog() {
     >
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Tunnels — {tunnels?.title}</DialogTitle>
+          <DialogTitle>{t('Tunnels — {title}', { title: tunnels?.title ?? '' })}</DialogTitle>
           <DialogDescription>
-            Local : un port de ce PC mène à une adresse vue depuis le serveur. Distant : un port du
-            serveur mène à une adresse vue depuis ce PC. Rétablis après une reconnexion.
+            {t(
+              'Local : un port de ce PC mène à une adresse vue depuis le serveur. Distant : un port du serveur mène à une adresse vue depuis ce PC. Rétablis après une reconnexion.',
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <ul className="grid gap-1.5">
-          {forwards.length === 0 && <li className="text-sm text-text-muted">Aucun tunnel.</li>}
+          {forwards.length === 0 && (
+            <li className="text-sm text-text-muted">{t('Aucun tunnel.')}</li>
+          )}
           {forwards.map((f) => (
             <li
               key={f.id}
@@ -105,17 +110,17 @@ export function TunnelsDialog() {
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{describe(f)}</span>
                 {f.error ? (
-                  <span className="block text-xs text-error">{f.error}</span>
+                  <span className="block text-xs text-error">{tRust(f.error)}</span>
                 ) : (
                   <span className="block text-xs text-text-muted">
-                    {f.activeConnections} connexion{f.activeConnections > 1 ? 's' : ''}
+                    {tn(f.activeConnections, '{count} connexion', '{count} connexions')}
                   </span>
                 )}
               </span>
               <Button
                 size="icon"
                 variant="ghost"
-                aria-label="Arrêter le tunnel"
+                aria-label={t('Arrêter le tunnel')}
                 onClick={() => {
                   if (sessionId !== null) removeForward(sessionId, f.id).then(refresh, refresh);
                 }}
@@ -134,20 +139,20 @@ export function TunnelsDialog() {
           }}
         >
           <select
-            aria-label="Sens du tunnel"
+            aria-label={t('Sens du tunnel')}
             className="h-8 rounded-lg border bg-transparent px-2 text-sm"
             value={kind}
             onChange={(e) => {
               setKind(e.currentTarget.value === 'remote' ? 'remote' : 'local');
             }}
           >
-            <option value="local">Local</option>
-            <option value="remote">Distant</option>
+            <option value="local">{t('Local')}</option>
+            <option value="remote">{t('Distant')}</option>
           </select>
           <Input
-            aria-label="Port d’écoute"
+            aria-label={t('Port d’écoute')}
             className="w-28"
-            placeholder="port (auto)"
+            placeholder={t('port (auto)')}
             inputMode="numeric"
             value={listenPort}
             onChange={(e) => {
@@ -156,7 +161,7 @@ export function TunnelsDialog() {
           />
           <ArrowRight className="size-4 text-text-muted" strokeWidth={1.5} />
           <Input
-            aria-label="Hôte de destination"
+            aria-label={t('Hôte de destination')}
             className="w-36"
             value={host}
             onChange={(e) => {
@@ -164,9 +169,9 @@ export function TunnelsDialog() {
             }}
           />
           <Input
-            aria-label="Port de destination"
+            aria-label={t('Port de destination')}
             className="w-24"
-            placeholder="port"
+            placeholder={t('port')}
             inputMode="numeric"
             value={port}
             onChange={(e) => {
@@ -174,7 +179,7 @@ export function TunnelsDialog() {
             }}
           />
           <Button type="submit" disabled={!canAdd}>
-            Ajouter
+            {t('Ajouter')}
           </Button>
         </form>
       </DialogContent>

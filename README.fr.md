@@ -75,6 +75,8 @@ Réglages → Général.
 - **Fichiers (SFTP)** sur la même connexion que le terminal (voir [plus bas](#fichiers-sftp))
 - **Éditeur intégré**, **aperçu** et **moniteur système** à côté du terminal (voir
   [plus bas](#éditeur-aperçu-et-moniteur))
+- Interface en **français** ou en **anglais** : elle suit la langue du système, ou celle choisie
+  dans *Réglages → Général → Langue*
 - Aucune télémétrie : la seule requête que Tilde fait d'elle-même est la vérification
   quotidienne des mises à jour (désactivable)
 
@@ -319,6 +321,7 @@ Voir [docs/architecture.md](docs/architecture.md) et le
 6. ✅ Personnalisation avancée : éditeur et import de thèmes, raccourcis, transparence, mode Quake
 7. ✅ Panneaux modulaires : éditeur, aperçu, moniteur
 8. ✅ Packaging et CI multiplateforme, le Rail et les espaces
+9. ✅ Interface en anglais
 
 ## Contribuer
 

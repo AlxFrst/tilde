@@ -1,5 +1,6 @@
 import { Eye } from 'lucide-react';
 import { lazy, Suspense } from 'react';
+import { msg, t } from '@/i18n';
 import type { PanelModule, PanelProps } from '@/panels/registry';
 import type { PreviewPanel } from '@/workspace/types';
 
@@ -11,7 +12,7 @@ function PreviewLoader(props: PanelProps<PreviewPanel>) {
     <Suspense
       fallback={
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
-          Chargement de l’aperçu…
+          {t('Chargement de l’aperçu…')}
         </div>
       }
     >
@@ -26,10 +27,10 @@ const nameOf = (s: PreviewPanel['source']) =>
 export const previewModule: PanelModule<PreviewPanel> = {
   id: 'core.preview',
   kind: 'preview',
-  title: 'Aperçu',
+  title: msg('Aperçu'),
   icon: Eye,
   component: PreviewLoader,
-  tabTitle: (s) => `Aperçu — ${nameOf(s.source)}`,
+  tabTitle: (s) => t('Aperçu — {name}', { name: nameOf(s.source) }),
   // Not restored after a restart (like the editor it may follow).
   serialize: () => null,
   deserialize: () => null,

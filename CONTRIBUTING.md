@@ -5,7 +5,7 @@ Thanks for your interest! A few simple rules save everyone time.
 ## Before you code
 
 - **Bug**: open an issue with the steps to reproduce it, your OS and Tilde version, and the
-  logs if you can (*Réglages → Général → Logs*).
+  logs if you can (*Settings → General → Logs*).
 - **Feature**: open an issue first to discuss it, especially if it touches the architecture.
 - **Security issue**: do not open a public issue; see [SECURITY.md](SECURITY.md).
 

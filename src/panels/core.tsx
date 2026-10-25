@@ -3,6 +3,7 @@
 import { FolderTree, Server, SquareTerminal } from 'lucide-react';
 import { toast } from 'sonner';
 import { unsavedIn } from '@/app/actions';
+import { msg } from '@/i18n';
 import { ServerStatusBar } from '@/panels/monitor/ServerStatusBar';
 import { SftpPanelView } from '@/panels/sftp/SftpPanel';
 import { TerminalView } from '@/terminal/TerminalView';
@@ -96,7 +97,7 @@ export function registerCorePanels(): void {
   registerPanel<SftpPanel>({
     id: 'core.sftp',
     kind: 'sftp',
-    title: 'Fichiers',
+    title: msg('Fichiers'),
     icon: FolderTree,
     component: SftpPane,
     deserialize: (raw) => {

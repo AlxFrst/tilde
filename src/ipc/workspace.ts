@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 
 /** The saved workspace (validated by the store), or null. */
 export const loadWorkspace = () => invoke<unknown>('workspace_load');

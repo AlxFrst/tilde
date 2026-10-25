@@ -1,21 +1,49 @@
-const UNITS = ['o', 'Kio', 'Mio', 'Gio', 'Tio'];
-const number = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 });
-const date = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+import { localeTag, useLocale } from '@/i18n';
 
-/** 1536 → « 1,5 Kio ». */
+const UNITS = {
+  fr: ['o', 'Kio', 'Mio', 'Gio', 'Tio'],
+  en: ['B', 'KiB', 'MiB', 'GiB', 'TiB'],
+};
+
+/** Formatters by locale tag, created on first use. */
+const numbers = new Map<string, Intl.NumberFormat>();
+const dates = new Map<string, Intl.DateTimeFormat>();
+
+function numberFormat(): Intl.NumberFormat {
+  const tag = localeTag();
+  let f = numbers.get(tag);
+  if (!f) {
+    f = new Intl.NumberFormat(tag, { maximumFractionDigits: 1 });
+    numbers.set(tag, f);
+  }
+  return f;
+}
+
+function dateFormat(): Intl.DateTimeFormat {
+  const tag = localeTag();
+  let f = dates.get(tag);
+  if (!f) {
+    f = new Intl.DateTimeFormat(tag, { dateStyle: 'short', timeStyle: 'short' });
+    dates.set(tag, f);
+  }
+  return f;
+}
+
+/** 1536 → « 1,5 Kio » (« 1.5 KiB » in English). */
 export function formatSize(bytes: number): string {
+  const units = UNITS[useLocale.getState().locale];
   let value = bytes;
   let unit = 0;
-  while (value >= 1024 && unit < UNITS.length - 1) {
+  while (value >= 1024 && unit < units.length - 1) {
     value /= 1024;
     unit += 1;
   }
-  return `${unit === 0 ? String(value) : number.format(value)} ${UNITS[unit] ?? ''}`;
+  return `${unit === 0 ? String(value) : numberFormat().format(value)} ${units[unit] ?? ''}`;
 }
 
 /** Seconds since the epoch → « 23/10/2026 14:05 ». */
 export const formatDate = (secs: number | null) =>
-  secs === null ? '' : date.format(new Date(secs * 1000));
+  secs === null ? '' : dateFormat().format(new Date(secs * 1000));
 
 /** 0o755 + dir → « drwxr-xr-x ». */
 export function formatMode(mode: number | null, kind: string): string {

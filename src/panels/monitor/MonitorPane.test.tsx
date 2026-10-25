@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { setLocale } from '@/i18n';
 import { monitorLocal, monitorRemote, type Snapshot } from '@/ipc/monitor';
 import { registerSession } from '@/terminal/sessionRegistry';
 import type { MonitorPanel } from '@/workspace/types';
@@ -78,4 +79,17 @@ test('a non-Linux server shows the explanation', async () => {
   );
   expect(await screen.findByText(/Linux uniquement/)).toBeInTheDocument();
   expect(monitorRemote).toHaveBeenCalledWith(9);
+});
+
+test('reads in English, with English units', async () => {
+  setLocale('en');
+  vi.mocked(monitorLocal).mockResolvedValue(sample);
+  render(pane({ kind: 'monitor', source: { kind: 'local' }, cwd: null, title: null }));
+  expect(await screen.findByText('web-01')).toBeInTheDocument();
+  expect(screen.getByText('CPU')).toBeInTheDocument();
+  expect(screen.getByText('38%')).toBeInTheDocument();
+  expect(screen.getByText('8 cores')).toBeInTheDocument();
+  expect(screen.getByText(/6 GiB \/ 16 GiB/)).toBeInTheDocument();
+  expect(screen.getByText(/1 MiB\/s/)).toBeInTheDocument();
+  expect(screen.getByText('3 d 4 h')).toBeInTheDocument();
 });
