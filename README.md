@@ -151,7 +151,8 @@ Download the installer for your system from the
 version exists and offers to install it. Updates are signed: one whose signature does not
 match the key built into Tilde is refused. You can turn the check off in *Réglages → Général*.
 
-> The interface is in **French** for now. An English translation is planned.
+> The interface is in **English** and **French**. It follows your system's language; you can
+> pick one in *Settings → General → Language*.
 
 ## Quick start
 
@@ -276,7 +277,7 @@ French).
 - [x] Editor, preview and system monitor panes
 - [x] Installers for Windows, macOS and Linux, built-in updates
 - [x] The Rail, spaces and the Library
-- [ ] English interface
+- [x] English interface
 - [ ] Signed installers
 - [ ] Third-party plugins on top of the panel registry
 
