@@ -45,6 +45,9 @@ export const upsertConnection = (connection: Connection) =>
 export const removeConnection = (id: string) => invoke<undefined>('connections_remove', { id });
 export const setFavorite = (id: string, favorite: boolean) =>
   invoke<undefined>('connections_set_favorite', { id, favorite });
+/** Into `folderId` (`null`: the root), just before `before` (`null`: last). */
+export const moveConnection = (id: string, folderId: string | null, before: string | null) =>
+  invoke<undefined>('connections_move', { id, folderId, before });
 export const upsertFolder = (folder: Folder) => invoke<Folder>('folders_upsert', { folder });
 export const removeFolder = (id: string) => invoke<undefined>('folders_remove', { id });
 /** An empty `id` creates the space (and writes the implicit « Principal » first). */

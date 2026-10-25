@@ -135,6 +135,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::connections::connections_upsert,
         commands::connections::connections_remove,
         commands::connections::connections_set_favorite,
+        commands::connections::connections_move,
         commands::connections::folders_upsert,
         commands::connections::folders_remove,
         commands::connections::spaces_upsert,

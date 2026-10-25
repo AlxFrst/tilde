@@ -92,6 +92,17 @@ pub fn connections_set_favorite(
     edit(&app, |s| s.set_favorite(&id, favorite))
 }
 
+/// Moves a connection into a folder (`None`: the root), before another (`None`: last).
+#[tauri::command]
+pub fn connections_move(
+    app: AppHandle,
+    id: String,
+    folder_id: Option<String>,
+    before: Option<String>,
+) -> Result<(), ConfigErrorDto> {
+    edit(&app, |s| s.move_connection(&id, folder_id.as_deref(), before.as_deref()))
+}
+
 #[tauri::command]
 pub fn folders_upsert(app: AppHandle, folder: Folder) -> Result<Folder, ConfigErrorDto> {
     edit(&app, |s| s.upsert_folder(folder))
