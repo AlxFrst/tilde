@@ -169,8 +169,19 @@ describe('Ctrl+C / Ctrl+V, as in Windows Terminal', () => {
     expect(clipboardKey(key('v', { altKey: true }), false, false)).toBeNull();
   });
 
-  test('not on macOS, where ⌘C and ⌘V already do it and Ctrl+C must interrupt', () => {
+  test('on macOS Ctrl+C and Ctrl+V always reach the shell', () => {
     expect(clipboardKey(key('c'), true, true)).toBeNull();
     expect(clipboardKey(key('v'), false, true)).toBeNull();
+  });
+
+  test('on macOS ⌘C copies and ⌘V pastes', () => {
+    const cmd = (k: string, mods: Partial<KeyboardEvent> = {}) =>
+      key(k, { ctrlKey: false, metaKey: true, ...mods });
+    expect(clipboardKey(cmd('c'), true, true)).toBe('copy');
+    expect(clipboardKey(cmd('v'), false, true)).toBe('paste');
+    expect(clipboardKey(cmd('c', { shiftKey: true }), true, true)).toBeNull();
+    expect(clipboardKey(cmd('v', { altKey: true }), false, true)).toBeNull();
+    // ⌘ means nothing to the shell elsewhere.
+    expect(clipboardKey(cmd('c'), true, false)).toBeNull();
   });
 });

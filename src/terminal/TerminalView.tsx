@@ -206,7 +206,8 @@ export function TerminalView(props: TerminalViewProps) {
           e.preventDefault();
           if (clip === 'copy') {
             copySelection();
-            term.clearSelection();
+            // Windows Terminal clears it, so a second Ctrl+C interrupts; macOS keeps it.
+            if (!e.metaKey) term.clearSelection();
           } else pasteFromClipboard();
         }
         return false;
