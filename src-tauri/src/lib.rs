@@ -94,7 +94,7 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
         let enabled = app.state::<AppState>().settings.lock().settings().general.explorer_menu;
         let handle = app.clone();
         std::thread::spawn(move || {
-            explorer_menu::apply(enabled, &handle.state::<AppState>().locale)
+            explorer_menu::apply(enabled, &handle.state::<AppState>().locale);
         });
     }
     let handle = app.clone();
