@@ -1,4 +1,5 @@
-import { Channel, invoke } from '@tauri-apps/api/core';
+import { Channel } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import type { ConnState } from './ssh';
 
 /** Mirrors `SessionErrorDto` in src-tauri/src/commands/session.rs. */

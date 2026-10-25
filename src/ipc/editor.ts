@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 
 /** The version of a file that was read (mirrors `StampDto` in commands/editor.rs). */
 export interface Stamp {

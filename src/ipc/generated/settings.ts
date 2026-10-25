@@ -66,6 +66,11 @@ export interface Sftp {
   externalEditor: string | null;
 }
 export interface General {
+  /**
+   * The interface's language. `Auto` follows the system: French on a French system,
+   * English everywhere else.
+   */
+  language: 'auto' | 'fr' | 'en';
   restoreSession: boolean;
   quake: Quake;
   /**

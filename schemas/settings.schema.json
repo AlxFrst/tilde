@@ -66,6 +66,7 @@
     "general": {
       "$ref": "#/$defs/General",
       "default": {
+        "language": "auto",
         "restoreSession": true,
         "quake": {
           "enabled": false,
@@ -348,6 +349,10 @@
     "General": {
       "type": "object",
       "properties": {
+        "language": {
+          "$ref": "#/$defs/Language",
+          "default": "auto"
+        },
         "restoreSession": {
           "type": "boolean",
           "default": true
@@ -370,6 +375,15 @@
           "default": true
         }
       }
+    },
+    "Language": {
+      "description": "The interface's language. `Auto` follows the system: French on a French system,\nEnglish everywhere else.",
+      "type": "string",
+      "enum": [
+        "auto",
+        "fr",
+        "en"
+      ]
     },
     "Quake": {
       "type": "object",

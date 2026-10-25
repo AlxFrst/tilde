@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 
 /** Mirrors `ResolvedProfile` in crates/tilde-pty/src/profiles.rs. */
 export interface ResolvedProfile {

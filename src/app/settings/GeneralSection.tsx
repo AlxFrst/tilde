@@ -6,10 +6,11 @@ import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { openThemesDir } from '@/ipc/themes';
 import { quakeStatus } from '@/ipc/window';
 import { checkForUpdates } from '@/app/updates';
+import { t } from '@/i18n';
 import { useSettings } from '@/stores/settings';
 import { bindingKeys } from '@/terminal/keyLabels';
 import type { Binding } from '@/terminal/keys';
-import { Row, Section, SwitchField } from './fields';
+import { Choice, Row, Section, SwitchField } from './fields';
 import { ShortcutRecorder } from './ShortcutRecorder';
 
 /**
@@ -50,6 +51,23 @@ export function GeneralSection() {
 
   return (
     <div className="grid gap-6">
+      <Section title={t('Langue')}>
+        <Row label={t('Langue de l’interface')}>
+          <Choice
+            setting="general.language"
+            label={t('Langue de l’interface')}
+            value={g.language}
+            options={[
+              ['auto', t('Automatique (langue du système)')],
+              ['fr', 'Français'],
+              ['en', 'English'],
+            ]}
+            disabled={readOnly}
+            onChange={(language) => void update({ general: { language } })}
+          />
+        </Row>
+      </Section>
+
       <Section title="Démarrage">
         <Row
           label="Restaurer la session"

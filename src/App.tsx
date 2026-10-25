@@ -11,6 +11,7 @@ import { startSingleSpace, startSpaceSync } from '@/app/spaceSync';
 import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
 import { StartupError } from '@/app/StartupError';
+import { resolveLocale, setLocale, useLocale } from '@/i18n';
 import { getAppInfo, type AppInfo } from '@/ipc/app';
 import { useProfiles } from '@/stores/profiles';
 import { useConnections } from '@/stores/connections';
@@ -42,6 +43,13 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
   const uiFont = settings?.appearance.uiFontFamily ?? 'Geist Variable';
   const effect = settings?.appearance.window.effect ?? 'none';
   const opacity = settings?.appearance.window.opacity ?? 1;
+  const language = settings?.general.language;
+  // Every string is read with t() while rendering: re-rendering from here is a switch.
+  useLocale((s) => s.locale);
+
+  useEffect(() => {
+    setLocale(resolveLocale(language));
+  }, [language]);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './invoke';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ConfigErrorDto } from './errors';
 import type { Connection, ConnectionsFile, Folder, Space } from './generated/connections';
