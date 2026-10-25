@@ -12,7 +12,7 @@ use tilde_pty::ShellCandidate;
 use tilde_session::SessionManager;
 use tilde_ssh::{EditSession, KeyringStore, SshShell, TransferQueue};
 
-use crate::{prompter::UiPrompter, quake::QuakeState};
+use crate::{locale::UiLocale, prompter::UiPrompter, quake::QuakeState};
 
 /// Application-wide state managed by Tauri.
 pub struct AppState {
@@ -43,6 +43,8 @@ pub struct AppState {
     pub monitor_remote: Mutex<HashMap<u32, tilde_monitor::RemoteMonitor>>,
     /// The folder Tilde was started on (`--open`), until the front-end takes it.
     pub launch_dir: crate::launch::LaunchDir,
+    /// The interface's language, for native dialogs and Explorer's context menu.
+    pub locale: UiLocale,
 }
 
 #[derive(Default)]

@@ -46,7 +46,7 @@ pub fn apply_live(app: &AppHandle, settings: &Settings) {
     }
     crate::quake::sync_quake(app, &settings.general.quake, &state.quake);
     #[cfg(windows)]
-    crate::explorer_menu::apply(settings.general.explorer_menu);
+    crate::explorer_menu::apply(settings.general.explorer_menu, &state.locale);
 }
 
 /// Called by the file watcher: reloads `settings.json` and notifies the front-end.

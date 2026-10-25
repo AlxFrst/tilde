@@ -16,6 +16,24 @@ pub fn app_info(app: AppHandle) -> AppInfo {
     AppInfo { version: app.package_info().version.to_string(), platform: std::env::consts::OS }
 }
 
+/// The interface's language (`fr` or `en`; anything else is French), for the text Rust
+/// shows itself: native dialogs, Explorer's context menu, the lines written into SSH
+/// terminals. Messages sent to the front-end stay French (it translates them).
+#[tauri::command]
+pub fn app_set_locale(state: State<'_, AppState>, locale: String) {
+    if !state.locale.set(&locale) {
+        return;
+    }
+    tilde_ssh::set_english_notices(state.locale.is_english());
+    #[cfg(windows)]
+    {
+        let enabled = state.settings.lock().settings().general.explorer_menu;
+        if enabled {
+            crate::explorer_menu::apply(true, &state.locale);
+        }
+    }
+}
+
 #[tauri::command]
 pub fn open_logs_dir(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let dir = state.log_dir.as_ref().ok_or("aucun dossier de logs disponible")?;

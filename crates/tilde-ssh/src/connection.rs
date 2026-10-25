@@ -19,12 +19,9 @@ use crate::{
     ConnectError, Connector, ForwardKind, ForwardSpec, HopLabel,
     chain::Connection,
     connect::within,
+    notices,
     shell::{Delivery, Input, SshShell},
 };
-
-/// Injected into the terminal once the shell is back after a reconnection.
-pub const RECONNECTED_LINE: &[u8] =
-    b"\r\n\x1b[2m\xe2\x94\x80\xe2\x94\x80 reconnect\xc3\xa9 \xe2\x94\x80\xe2\x94\x80\x1b[0m\r\n";
 
 /// How often held output is retried while the UI is behind.
 const RELEASE_TICK: Duration = Duration::from_millis(20);
@@ -308,7 +305,7 @@ impl Supervisor {
                     (connection, channel) = (c, ch);
                     // Keystrokes typed while disconnected are not replayed.
                     while self.input.lock().await.try_recv().is_ok() {}
-                    self.delivery.push(RECONNECTED_LINE.to_vec()).await;
+                    self.delivery.push(notices::reconnected()).await;
                     self.shell.attach(Some(Arc::clone(&connection)));
                     self.shell.forwards.reattach(&connection).await;
                     (self.on_state)(ConnState::Ready);
@@ -537,11 +534,5 @@ mod tests {
         assert!(is_fatal(&key));
         assert!(is_fatal(&ConnectError::Cancelled));
         assert!(!is_fatal(&down));
-    }
-
-    #[test]
-    fn reconnected_line_reads_right() {
-        let text = String::from_utf8(RECONNECTED_LINE.to_vec()).unwrap();
-        assert_eq!(text, "\r\n\x1b[2m── reconnecté ──\x1b[0m\r\n");
     }
 }

@@ -5,6 +5,7 @@ mod commands;
 #[cfg(windows)]
 mod explorer_menu;
 mod launch;
+mod locale;
 mod logging;
 mod prompter;
 mod quake;
@@ -91,7 +92,10 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     #[cfg(windows)]
     {
         let enabled = app.state::<AppState>().settings.lock().settings().general.explorer_menu;
-        std::thread::spawn(move || explorer_menu::apply(enabled));
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            explorer_menu::apply(enabled, &handle.state::<AppState>().locale)
+        });
     }
     let handle = app.clone();
     let on_change = move |file| match file {
@@ -118,6 +122,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::settings::settings_get,
         commands::settings::settings_update,
         commands::app::app_info,
+        commands::app::app_set_locale,
         launch::launch_take_dir,
         commands::app::open_logs_dir,
         commands::app::open_settings_file,
@@ -271,6 +276,7 @@ pub fn run() {
             monitor_local: Arc::default(),
             monitor_remote: Mutex::default(),
             launch_dir: launch::LaunchDir(Mutex::new(launch_dir)),
+            locale: locale::UiLocale::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

@@ -1,6 +1,7 @@
 import { Activity, ArrowDown, ArrowUp, Cpu, HardDrive, MemoryStick, Network } from 'lucide-react';
 import { useCallback, type ReactNode } from 'react';
 import { t, tn } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import { monitorLocal, monitorRemote } from '@/ipc/monitor';
 import type { PanelProps } from '@/panels/registry';
 import { useSessionId } from '@/terminal/sessionRegistry';
@@ -82,7 +83,7 @@ export default function MonitorPane({ state, visible }: PanelProps<MonitorPanel>
       <header className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <Activity className="size-4 self-center text-primary" strokeWidth={1.5} />
         <h2 className="text-base font-medium">
-          {latest?.host ?? (remote ? t('Serveur') : t('Cette machine'))}
+          {latest ? tRust(latest.host) : remote ? t('Serveur') : t('Cette machine')}
         </h2>
         {latest && (
           <>

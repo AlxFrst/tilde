@@ -38,7 +38,7 @@ export function connectionMessage(state: ConnState | null): string | null {
     case 'resolving':
       return t('Préparation de la connexion…');
     case 'connecting':
-      return t('Connexion à {hop}…', { hop: state.hop });
+      return t('Connexion à {hop}…', { hop: tRust(state.hop) });
     case 'lost':
       return t('Connexion perdue : {reason}', { reason: tRust(state.reason) });
     case 'reconnecting':

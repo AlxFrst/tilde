@@ -26,6 +26,7 @@ use crate::{
     ForwardInfo, ForwardSpec, RemoteFile, SftpClient, SftpError, Stamp,
     chain::Connection,
     forward::{Forwards, Routes},
+    notices,
 };
 
 /// Output held while the UI is paused, before the reader starts waiting for it.
@@ -220,13 +221,6 @@ impl Backend for SshShell {
     }
 }
 
-/// The dim line that replaces skipped output.
-fn notice(skipped: usize) -> Vec<u8> {
-    let kib = skipped.div_ceil(1024);
-    format!("\r\n\x1b[0m\x1b[2m── {kib} Kio de sortie ignorés (affichage en retard) ──\x1b[0m\r\n")
-        .into_bytes()
-}
-
 /// Where the shell's output goes: straight to the pump, or held while the UI is behind.
 pub(crate) struct Delivery {
     shell: Arc<SshShell>,
@@ -259,7 +253,7 @@ impl Delivery {
         self.held_bytes = 0;
         self.shell.held.store(0, Ordering::Relaxed);
         if self.skipped > 0 {
-            let _ = self.tx.send(notice(self.skipped));
+            let _ = self.tx.send(notices::skipped(self.skipped));
             self.skipped = 0;
         }
     }
@@ -367,7 +361,7 @@ mod tests {
         f.paused.store(false, Ordering::Relaxed);
         f.delivery.release();
         let out = drain(&f.out);
-        assert_eq!(out.len() - HOLD_CAP, notice(2 * chunk.len()).len());
+        assert_eq!(out.len() - HOLD_CAP, notices::skipped(2 * chunk.len()).len());
         assert!(String::from_utf8_lossy(&out[HOLD_CAP..]).contains("128 Kio de sortie ignorés"));
     }
 

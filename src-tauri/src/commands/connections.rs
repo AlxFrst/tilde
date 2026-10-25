@@ -130,8 +130,9 @@ fn io_dto(path: PathBuf, source: std::io::Error) -> ConfigErrorDto {
 /// Asks for a file (native dialog) and imports it. `None` when cancelled.
 #[tauri::command]
 pub async fn connections_import(app: AppHandle) -> Result<Option<ImportReport>, ConfigErrorDto> {
-    let dialog =
-        app.dialog().file().add_filter("JSON", &["json"]).set_title("Importer des connexions");
+    let title =
+        app.state::<AppState>().locale.pick("Importer des connexions", "Import connections");
+    let dialog = app.dialog().file().add_filter("JSON", &["json"]).set_title(title);
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_file())
         .await
         .ok()
@@ -157,12 +158,14 @@ pub async fn connections_export(app: AppHandle) -> Result<bool, ConfigErrorDto> 
         .lock()
         .export()
         .map_err(|e| ConfigErrorDto::from(&e))?;
+    let title =
+        app.state::<AppState>().locale.pick("Exporter les connexions", "Export connections");
     let dialog = app
         .dialog()
         .file()
         .add_filter("JSON", &["json"])
         .set_file_name("tilde-connections.json")
-        .set_title("Exporter les connexions");
+        .set_title(title);
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file())
         .await
         .ok()

@@ -141,7 +141,8 @@ pub async fn editor_open_local(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Option<LocalOpened>, EditorErrorDto> {
-    let dialog = app.dialog().file().set_title("Ouvrir un fichier");
+    let title = state.locale.pick("Ouvrir un fichier", "Open file");
+    let dialog = app.dialog().file().set_title(title);
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_file())
         .await
         .ok()

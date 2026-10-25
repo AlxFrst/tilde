@@ -87,11 +87,15 @@ pub(crate) fn read_import(path: &Path) -> Result<PickedFile, String> {
 /// Asks for a color scheme file (native dialog). `None` when cancelled.
 #[tauri::command]
 pub async fn themes_import_pick(app: AppHandle) -> Result<Option<PickedFile>, String> {
+    let locale = &app.state::<AppState>().locale;
     let dialog = app
         .dialog()
         .file()
-        .add_filter("Jeux de couleurs", &["itermcolors", "json", "yaml", "yml"])
-        .set_title("Importer un thème");
+        .add_filter(
+            locale.pick("Jeux de couleurs", "Color schemes"),
+            &["itermcolors", "json", "yaml", "yml"],
+        )
+        .set_title(locale.pick("Importer un thème", "Import a theme"));
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_file())
         .await
         .ok()
@@ -105,12 +109,9 @@ pub async fn themes_import_pick(app: AppHandle) -> Result<Option<PickedFile>, St
 pub async fn themes_export(app: AppHandle, id: String, text: String) -> Result<bool, String> {
     let file_name =
         if is_valid_theme_id(&id) { format!("{id}.json") } else { "theme.json".to_owned() };
-    let dialog = app
-        .dialog()
-        .file()
-        .add_filter("JSON", &["json"])
-        .set_file_name(file_name)
-        .set_title("Exporter le thème");
+    let title = app.state::<AppState>().locale.pick("Exporter le thème", "Export theme");
+    let dialog =
+        app.dialog().file().add_filter("JSON", &["json"]).set_file_name(file_name).set_title(title);
     let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_save_file())
         .await
         .ok()

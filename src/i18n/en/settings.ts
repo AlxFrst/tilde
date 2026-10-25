@@ -231,7 +231,7 @@ export default {
   'Restaurer la session': 'Restore session',
   'Onglets et panneaux rouverts au lancement ; les onglets SSH attendent Entrée.':
     'Tabs and panes reopen at launch; SSH tabs wait for Enter.',
-  '« Ouvrir dans Tilde » dans l’Explorateur': '“Ouvrir dans Tilde” in Explorer',
+  '« Ouvrir dans Tilde » dans l’Explorateur': '“Open in Tilde” in Explorer',
   'Windows : clic droit sur un dossier ou dans un dossier ouvre un terminal à cet endroit (sous Windows 11, dans « Afficher plus d’options »).':
     'Windows: right-click a folder, or inside one, to open a terminal there (on Windows 11, under “Show more options”).',
   'Mises à jour': 'Updates',

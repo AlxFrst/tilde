@@ -1,4 +1,5 @@
 import { msg, t } from '@/i18n';
+import { tRust } from '@/i18n/rust';
 import type { Settings } from '@/ipc/generated/settings';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
@@ -117,7 +118,10 @@ export function TerminalSection() {
             setting="terminal.defaultProfile"
             label={t('Profil par défaut')}
             value={term.defaultProfile ?? AUTO}
-            options={[[AUTO, t('Automatique')], ...profiles.map((p) => [p.id, p.name] as const)]}
+            options={[
+              [AUTO, t('Automatique')],
+              ...profiles.map((p) => [p.id, tRust(p.name)] as const),
+            ]}
             disabled={readOnly}
             onChange={(v) => {
               set({ defaultProfile: v === AUTO ? null : v });
