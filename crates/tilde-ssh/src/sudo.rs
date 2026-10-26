@@ -367,9 +367,10 @@ mod tests {
 
     #[test]
     fn the_password_line_is_sized_once() {
-        let line = password_line("s3cret");
-        assert_eq!(&line[..], b"s3cret\n");
-        assert_eq!(line.capacity(), 7);
+        // Any text: not a password look-alike, which secret scanners flag.
+        let line = password_line("abc");
+        assert_eq!(&line[..], b"abc\n");
+        assert_eq!(line.capacity(), 4);
     }
 
     #[test]
