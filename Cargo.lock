@@ -6014,6 +6014,7 @@ dependencies = [
  "tilde-ssh-config",
  "tokio",
  "tracing",
+ "zeroize",
 ]
 
 [[package]]
