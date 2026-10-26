@@ -34,6 +34,19 @@ export interface TransferInfo {
   state: TransferState;
 }
 
+/** Mirrors `SftpIdentityDto` in src-tauri/src/commands/sftp.rs. */
+export interface SftpIdentity {
+  /** The login user. */
+  login: string | null;
+  /** The user reached through sudo; `null` for the login user. */
+  user: string | null;
+}
+
+export const sftpIdentity = (sessionId: number) =>
+  invoke<SftpIdentity>('sftp_identity', { sessionId });
+/** Files as `user` through sudo (`null`: the login user); may ask for the sudo password. */
+export const sftpSwitchUser = (sessionId: number, user: string | null) =>
+  invoke<SftpIdentity>('sftp_switch_user', { sessionId, user });
 export const sftpHome = (sessionId: number) => invoke<string>('sftp_home', { sessionId });
 export const sftpList = (sessionId: number, path: string) =>
   invoke<RemoteEntry[]>('sftp_list', { sessionId, path });

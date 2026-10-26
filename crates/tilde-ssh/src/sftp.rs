@@ -10,11 +10,15 @@ use std::{
 
 use russh_sftp::{
     client::{SftpSession, error::Error as SessionError, fs::Metadata},
-    protocol::{FileAttributes, FileType, OpenFlags},
+    protocol::{FileAttributes, FileType, OpenFlags, StatusCode},
 };
 use serde::Serialize;
+use zeroize::Zeroizing;
 
-use crate::chain::Connection;
+use crate::{
+    chain::Connection,
+    sudo::{SFTP_SERVER_SCRIPT, SudoUser, sudo_command, valid_user},
+};
 
 /// Bound on opening the SFTP subsystem (a server without one may never answer).
 const OPEN_TIMEOUT: Duration = Duration::from_secs(15);
@@ -52,6 +56,8 @@ pub struct RemoteEntry {
 pub enum SftpError {
     #[error("SFTP indisponible : {0}")]
     Unavailable(String),
+    #[error("{0} : permission refusée")]
+    PermissionDenied(String),
     #[error("{path} : {message}")]
     Io { path: String, message: String },
     #[error("trop d'éléments à supprimer (plus de {MAX_REMOVE}) : opération arrêtée")]
@@ -146,6 +152,18 @@ fn entry(name: String, path: String, m: &Metadata) -> RemoteEntry {
     }
 }
 
+/// A library error as the user's, and whether the session is unusable afterwards: only a
+/// refusal by the server (a status) leaves it working.
+fn classify(path: &str, e: SessionError) -> (SftpError, bool) {
+    match &e {
+        SessionError::Status(s) if s.status_code == StatusCode::PermissionDenied => {
+            (SftpError::PermissionDenied(path.to_owned()), false)
+        }
+        SessionError::Status(_) => (io(path, e), false),
+        _ => (io(path, e), true),
+    }
+}
+
 /// An SFTP session on one SSH connection.
 pub struct SftpClient {
     session: SftpSession,
@@ -173,6 +191,36 @@ impl SftpClient {
         Ok(Self { session, dead: AtomicBool::new(false) })
     }
 
+    /// Opens an SFTP server started through `sudo -u` (see [`crate::SudoUser`]) on the
+    /// connection's target.
+    ///
+    /// # Errors
+    ///
+    /// [`SftpError::Unavailable`] when `sudo` or the server refuses, or does not answer.
+    pub async fn open_as(connection: &Connection, who: &SudoUser) -> Result<Self, SftpError> {
+        let unavailable = |e: &dyn std::fmt::Display| SftpError::Unavailable(e.to_string());
+        if !valid_user(&who.user) {
+            return Err(SftpError::Unavailable(format!("utilisateur invalide : {}", who.user)));
+        }
+        let open = async {
+            let channel =
+                connection.target().channel_open_session().await.map_err(|e| unavailable(&e))?;
+            let server = format!("/bin/sh -c '{SFTP_SERVER_SCRIPT}'");
+            let command = sudo_command(&who.user, who.password.is_some(), &server);
+            channel.exec(true, command).await.map_err(|e| unavailable(&e))?;
+            // `sudo -S` reads one line, then hands the rest of the input to the server.
+            if let Some(password) = &who.password {
+                let line = Zeroizing::new(format!("{}\n", password.as_str()));
+                channel.data(line.as_bytes()).await.map_err(|e| unavailable(&e))?;
+            }
+            SftpSession::new(channel.into_stream()).await.map_err(|e| unavailable(&e))
+        };
+        let session = tokio::time::timeout(OPEN_TIMEOUT, open)
+            .await
+            .map_err(|_| SftpError::Unavailable("le serveur ne répond pas".into()))??;
+        Ok(Self { session, dead: AtomicBool::new(false) })
+    }
+
     /// The channel broke (connection, `sftp-server` gone…): open a new session.
     #[must_use]
     pub fn is_dead(&self) -> bool {
@@ -190,10 +238,11 @@ impl SftpClient {
 
     /// Maps a library error; anything but a refusal by the server marks the session dead.
     fn fail(&self, path: &str, e: SessionError) -> SftpError {
-        if !matches!(e, SessionError::Status(_)) {
+        let (error, dead) = classify(path, e);
+        if dead {
             self.dead.store(true, Ordering::Release);
         }
-        io(path, e)
+        error
     }
 
     #[must_use]
@@ -371,6 +420,26 @@ mod tests {
             Some("gz"),
             "keeps the extension"
         );
+    }
+
+    #[test]
+    fn a_refused_permission_is_its_own_error_and_keeps_the_session() {
+        let status = |status_code| {
+            SessionError::Status(russh_sftp::protocol::Status {
+                id: 1,
+                status_code,
+                error_message: "Permission denied".into(),
+                language_tag: "en".into(),
+            })
+        };
+        let (e, dead) = classify("/root", status(StatusCode::PermissionDenied));
+        assert!(matches!(e, SftpError::PermissionDenied(ref p) if p == "/root"), "{e}");
+        assert!(!dead);
+        let (e, dead) = classify("/x", status(StatusCode::NoSuchFile));
+        assert!(matches!(e, SftpError::Io { .. }), "{e}");
+        assert!(!dead);
+        let (_, dead) = classify("/x", SessionError::Timeout);
+        assert!(dead);
     }
 
     #[test]

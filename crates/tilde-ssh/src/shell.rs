@@ -27,6 +27,7 @@ use crate::{
     chain::Connection,
     forward::{Forwards, Routes},
     notices,
+    sudo::SudoUser,
 };
 
 /// Output held while the UI is paused, before the reader starts waiting for it.
@@ -59,6 +60,10 @@ pub struct SshShell {
     pub(crate) forwards: Forwards,
     /// The SFTP session and the connection it was opened on.
     sftp: tokio::sync::Mutex<Option<(Arc<Connection>, Arc<SftpClient>)>>,
+    /// The user the files are read and written as, when not the login user.
+    sftp_as: Mutex<Option<SudoUser>>,
+    /// Who the session logged in as: user, host, port (keyring accounts, prompts).
+    login: OnceLock<(String, String, u16)>,
 }
 
 impl SshShell {
@@ -75,6 +80,8 @@ impl SshShell {
             connection: Mutex::new(None),
             forwards: Forwards::default(),
             sftp: tokio::sync::Mutex::new(None),
+            sftp_as: Mutex::new(None),
+            login: OnceLock::new(),
         }
     }
 
@@ -133,8 +140,32 @@ impl SshShell {
         *self.connection.lock() = connection;
     }
 
+    pub(crate) fn set_login(&self, user: &str, host: &str, port: u16) {
+        let _ = self.login.set((user.to_owned(), host.to_owned(), port));
+    }
+
+    /// Who the session logged in as: user, host and port.
+    #[must_use]
+    pub fn login(&self) -> Option<(&str, &str, u16)> {
+        self.login.get().map(|(u, h, p)| (u.as_str(), h.as_str(), *p))
+    }
+
+    /// The user the files are read and written as, when not the login user.
+    #[must_use]
+    pub fn sftp_user(&self) -> Option<String> {
+        self.sftp_as.lock().as_ref().map(|w| w.user.clone())
+    }
+
+    /// Files as `who` from now on (`None`: the login user): the next SFTP call opens a
+    /// new session.
+    pub(crate) async fn set_sftp_as(&self, who: Option<SudoUser>) {
+        *self.sftp_as.lock() = who;
+        *self.sftp.lock().await = None;
+    }
+
     /// The SFTP session of this SSH session, opened on first use and reopened after a
-    /// reconnection (or after [`Self::reset_sftp`]).
+    /// reconnection (or after [`Self::reset_sftp`]), as the login user or through
+    /// `sudo` (see [`Self::switch_sftp_user`]).
     ///
     /// # Errors
     ///
@@ -150,7 +181,11 @@ impl SshShell {
         {
             return Ok(Arc::clone(client));
         }
-        let client = Arc::new(SftpClient::open(&connection).await?);
+        let who = self.sftp_as.lock().clone();
+        let client = Arc::new(match &who {
+            None => SftpClient::open(&connection).await?,
+            Some(who) => SftpClient::open_as(&connection, who).await?,
+        });
         *cached = Some((connection, Arc::clone(&client)));
         Ok(client)
     }

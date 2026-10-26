@@ -32,7 +32,7 @@ export function CredentialDialog({
     prompt.kind === 'secret'
       ? [
           {
-            text: prompt.secret === 'password' ? t('Mot de passe') : t('Phrase secrète'),
+            text: prompt.secret === 'passphrase' ? t('Phrase secrète') : t('Mot de passe'),
             echo: false,
           },
         ]
@@ -53,7 +53,9 @@ export function CredentialDialog({
       ? prompt.name || t('Vérification pour {target}', { target: prompt.target })
       : prompt.secret === 'password'
         ? t('Mot de passe pour {target}', { target: prompt.target })
-        : t('Phrase secrète de la clé');
+        : prompt.secret === 'sudo'
+          ? t('Mot de passe sudo pour {target}', { target: prompt.target })
+          : t('Phrase secrète de la clé');
 
   return (
     <Dialog
@@ -80,7 +82,12 @@ export function CredentialDialog({
                 ? prompt.instructions || prompt.target
                 : prompt.secret === 'passphrase'
                   ? t('{key} — pour {target}', { key: prompt.keyPath ?? '', target: prompt.target })
-                  : t('Le mot de passe n’est jamais écrit sur le disque ni dans les journaux.')}
+                  : prompt.secret === 'sudo'
+                    ? t(
+                        'Votre mot de passe, que sudo demande pour lire et écrire les fichiers en tant que {user}.',
+                        { user: prompt.sudoUser ?? 'root' },
+                      )
+                    : t('Le mot de passe n’est jamais écrit sur le disque ni dans les journaux.')}
               {prompt.kind === 'secret' && prompt.attempt > 1 && (
                 <span className="block text-warning">
                   {t('Refusé. Tentative {attempt}/{max}', {
@@ -145,7 +152,11 @@ export function CredentialDialog({
             >
               {t('Annuler')}
             </Button>
-            <Button type="submit">{t('Se connecter')}</Button>
+            <Button type="submit">
+              {prompt.kind === 'secret' && prompt.secret === 'sudo'
+                ? t('Valider')
+                : t('Se connecter')}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -9,8 +9,10 @@ import {
   Link2,
   Link2Off,
   RotateCw,
+  ShieldAlert,
   Unplug,
   Upload,
+  UserRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -28,8 +30,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { msg, t, tn } from '@/i18n';
+import { isSessionError } from '@/ipc/session';
 import {
   joinRemote,
   onTransfer,
@@ -48,6 +60,7 @@ import {
 } from '@/ipc/sftp';
 import { cn } from '@/lib/utils';
 import { useSettings } from '@/stores/settings';
+import { useSftpUsers } from '@/stores/sftpUsers';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { useSessionId } from '@/terminal/sessionRegistry';
@@ -63,7 +76,11 @@ const NAMING_TITLES = {
   mkdir: msg('Nouveau dossier'),
   file: msg('Nouveau fichier'),
   rename: msg('Renommer'),
+  user: msg('Utilisateur (sudo)'),
 };
+
+/** The server refused a permission: switching to root may help. */
+const refused = (err: unknown) => isSessionError(err) && err.kind === 'permission';
 
 /** How long to wait for the shell to report its directory before offering the snippet. */
 const OSC7_GRACE_MS = 3000;
@@ -197,6 +214,70 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
   );
 }
 
+/**
+ * Who the files are read and written as: the login user, root or another user through
+ * sudo. Elevated, it stands out.
+ */
+function UserMenu({
+  login,
+  user,
+  onChoose,
+  onOther,
+}: {
+  login: string | null;
+  user: string | null;
+  onChoose: (user: string | null) => void;
+  onOther: () => void;
+}) {
+  const shown = user ?? login ?? '…';
+  const Icon = user ? ShieldAlert : UserRound;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={t('Utilisateur des fichiers : {user}', { user: shown })}
+          title={user ? t('Fichiers lus et écrits en tant que {user} (sudo)', { user }) : undefined}
+          className={cn(
+            'flex h-7 max-w-28 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs text-text-muted hover:bg-surface-2 hover:text-text',
+            user && 'bg-warning/15 text-warning hover:bg-warning/20 hover:text-warning',
+          )}
+        >
+          <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+          <span className="truncate">{shown}</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuRadioGroup
+          value={user ?? ''}
+          onValueChange={(v) => {
+            if (v !== (user ?? '')) onChoose(v === '' ? null : v);
+          }}
+        >
+          <DropdownMenuRadioItem value="">
+            {login ?? '…'}
+            <span className="text-text-muted">{t('(connexion)')}</span>
+          </DropdownMenuRadioItem>
+          {login !== 'root' && (
+            <DropdownMenuRadioItem value="root">
+              root
+              <span className="text-text-muted">(sudo)</span>
+            </DropdownMenuRadioItem>
+          )}
+          {user && user !== 'root' && (
+            <DropdownMenuRadioItem value={user}>
+              {user}
+              <span className="text-text-muted">(sudo)</span>
+            </DropdownMenuRadioItem>
+          )}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={onOther}>{t('Autre utilisateur (sudo)…')}</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /** The files (SFTP) of the SSH session running in `panel.linkedLeafId`. */
 export function SftpPanelView({
   tabId,
@@ -217,14 +298,20 @@ export function SftpPanelView({
   });
   const ready = useSsh((s) => s.states[panel.linkedLeafId]?.kind === 'ready');
   const [entries, setEntries] = useState<RemoteEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ text: string; refused: boolean } | null>(null);
+  const identity = useSftpUsers((s) => (sessionId === null ? undefined : s.bySession[sessionId]));
+  const asUser = identity?.user ?? null;
   const [reload, setReload] = useState(0);
   const [sort, setSort] = useState<Sort>({ key: 'name', asc: true });
   const [showHidden, setShowHidden] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [anchor, setAnchor] = useState<string | null>(null);
   const [naming, setNaming] = useState<
-    { kind: 'mkdir' } | { kind: 'file' } | { kind: 'rename'; entry: RemoteEntry } | null
+    | { kind: 'mkdir' }
+    | { kind: 'file' }
+    | { kind: 'user' }
+    | { kind: 'rename'; entry: RemoteEntry }
+    | null
   >(null);
   const [chmod, setChmod] = useState<RemoteEntry | null>(null);
   const [noOsc7, setNoOsc7] = useState(false);
@@ -240,6 +327,10 @@ export function SftpPanelView({
   );
   const refresh = () => {
     setReload((r) => r + 1);
+  };
+  const becomeUser = (user: string | null) => {
+    if (sessionId === null) return;
+    void useSftpUsers.getState().switchTo(sessionId, user);
   };
   const navigate = (to: string) => {
     // Browsing by hand detaches the pane from the terminal's directory.
@@ -259,10 +350,15 @@ export function SftpPanelView({
         update({ path: home });
       },
       (e: unknown) => {
-        setError(message(e));
+        setError({ text: message(e), refused: refused(e) });
       },
     );
   }, [sessionId, path, panel.follow, linkedCwd, update]);
+
+  // Who the files are read as (the login user unless switched through sudo).
+  useEffect(() => {
+    if (sessionId !== null && identity === undefined) void useSftpUsers.getState().load(sessionId);
+  }, [sessionId, identity]);
 
   // Follow the terminal's `cd`.
   useEffect(() => {
@@ -292,13 +388,14 @@ export function SftpPanelView({
         setError(null);
       },
       (e: unknown) => {
-        if (!cancelled) setError(message(e));
+        if (!cancelled) setError({ text: message(e), refused: refused(e) });
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [sessionId, path, reload]);
+    // `asUser`: another user may read what the previous one could not.
+  }, [sessionId, path, reload, asUser]);
 
   // Uploads landing in this folder show up as they finish.
   useEffect(() => {
@@ -373,7 +470,20 @@ export function SftpPanelView({
         if (done) toast.success(done);
         refresh();
       },
-      (e: unknown) => toast.error(message(e)),
+      (e: unknown) =>
+        toast.error(
+          message(e),
+          refused(e) && asUser !== 'root'
+            ? {
+                action: {
+                  label: t('Passer en root (sudo)'),
+                  onClick: () => {
+                    becomeUser('root');
+                  },
+                },
+              }
+            : undefined,
+        ),
     );
   };
   const edit = (target: string) => {
@@ -603,6 +713,14 @@ export function SftpPanelView({
         >
           <Upload className="size-4" strokeWidth={1.5} />
         </button>
+        <UserMenu
+          login={identity?.login ?? null}
+          user={asUser}
+          onChoose={becomeUser}
+          onOther={() => {
+            setNaming({ kind: 'user' });
+          }}
+        />
       </div>
 
       {noOsc7 && (
@@ -612,7 +730,23 @@ export function SftpPanelView({
           }}
         />
       )}
-      {error && <p className="m-2 rounded-md bg-destructive/10 p-2 text-xs text-error">{error}</p>}
+      {error && (
+        <div className="m-2 flex flex-wrap items-center gap-2 rounded-md bg-destructive/10 p-2 text-xs text-error">
+          <span className="min-w-0 flex-1 break-words">{error.text}</span>
+          {error.refused && asUser !== 'root' && (
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => {
+                becomeUser('root');
+              }}
+            >
+              <ShieldAlert strokeWidth={1.5} />
+              {t('Ouvrir en root (sudo)')}
+            </Button>
+          )}
+        </div>
+      )}
 
       <FileList
         entries={visible}
@@ -658,6 +792,10 @@ export function SftpPanelView({
             const current = naming;
             setNaming(null);
             if (!name) return;
+            if (current.kind === 'user') {
+              becomeUser(name.trim());
+              return;
+            }
             const target = joinRemote(path, name);
             // The server would only answer « Failure ».
             if (current.kind !== 'rename' && entries?.some((e) => e.name === name)) {

@@ -32,7 +32,13 @@ pub enum HostKeyDecision {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SecretKind {
     Password,
-    Passphrase { key_path: PathBuf },
+    Passphrase {
+        key_path: PathBuf,
+    },
+    /// The login user's password for `sudo -u user` (the files pane).
+    Sudo {
+        user: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

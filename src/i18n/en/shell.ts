@@ -83,6 +83,9 @@ export default {
 
   // src/app/CredentialDialog.tsx
   'Mot de passe': 'Password',
+  'Mot de passe sudo pour {target}': 'sudo password for {target}',
+  'Votre mot de passe, que sudo demande pour lire et écrire les fichiers en tant que {user}.':
+    'Your password, which sudo asks for to read and write the files as {user}.',
   'Phrase secrète': 'Passphrase',
   'Vérification pour {target}': 'Verification for {target}',
   'Mot de passe pour {target}': 'Password for {target}',

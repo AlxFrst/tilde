@@ -5,11 +5,12 @@ use std::{
     sync::Arc,
 };
 
+use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 use tilde_ssh::{
-    EditSession, RemoteEntry, RemoteFile, SftpClient, SftpError, SshShell, TransferInfo,
+    EditSession, RemoteEntry, RemoteFile, SftpClient, SftpError, SshShell, SudoError, TransferInfo,
     TransferQueue, TransferState, session_temp_dir,
 };
 
@@ -18,7 +19,28 @@ use crate::{commands::session::SessionErrorDto, state::AppState};
 pub const TRANSFER_EVENT: &str = "sftp://transfer";
 
 fn sftp_err(e: &SftpError) -> SessionErrorDto {
-    SessionErrorDto { kind: "sftp", message: e.to_string() }
+    // A refused permission is told apart: the files pane offers to switch to root.
+    let kind = if matches!(e, SftpError::PermissionDenied(_)) { "permission" } else { "sftp" };
+    SessionErrorDto { kind, message: e.to_string() }
+}
+
+fn sudo_err(e: &SudoError) -> SessionErrorDto {
+    let kind = if matches!(e, SudoError::Cancelled) { "cancelled" } else { "sudo" };
+    SessionErrorDto { kind, message: e.to_string() }
+}
+
+/// Who the files of an SSH session are read and written as.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SftpIdentityDto {
+    /// The login user.
+    pub login: Option<String>,
+    /// The user reached through `sudo`; `null` for the login user.
+    pub user: Option<String>,
+}
+
+fn identity(shell: &SshShell) -> SftpIdentityDto {
+    SftpIdentityDto { login: shell.login().map(|(u, _, _)| u.to_owned()), user: shell.sftp_user() }
 }
 
 fn shell(state: &AppState, session_id: u32) -> Result<Arc<SshShell>, SessionErrorDto> {
@@ -50,6 +72,36 @@ pub fn download_destination(
     downloads: Option<PathBuf>,
 ) -> Option<PathBuf> {
     if save_as { picked } else { downloads.or_else(dirs::home_dir) }
+}
+
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)] // Tauri hands command arguments over by value.
+pub fn sftp_identity(
+    state: State<'_, AppState>,
+    session_id: u32,
+) -> Result<SftpIdentityDto, SessionErrorDto> {
+    Ok(identity(shell(&state, session_id)?.as_ref()))
+}
+
+/// Reads and writes the session's files as `user` through `sudo` (`null`: as the login
+/// user again), asking for the sudo password if needed.
+#[tauri::command]
+pub async fn sftp_switch_user(
+    state: State<'_, AppState>,
+    session_id: u32,
+    user: Option<String>,
+) -> Result<SftpIdentityDto, SessionErrorDto> {
+    let shell = shell(&state, session_id)?;
+    let prompter = state.ssh.prompter.get().cloned().ok_or(SessionErrorDto {
+        kind: "sftp",
+        message: "l'application démarre encore, réessayez".into(),
+    })?;
+    let secrets = Arc::clone(&state.ssh.secrets);
+    shell
+        .switch_sftp_user(user.as_deref(), secrets.as_ref(), prompter.as_ref())
+        .await
+        .map_err(|e| sudo_err(&e))?;
+    Ok(identity(&shell))
 }
 
 #[tauri::command]

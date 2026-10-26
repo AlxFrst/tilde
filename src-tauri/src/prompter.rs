@@ -49,12 +49,15 @@ pub enum PromptRequest {
         changed: Option<ChangedKey>,
     },
     Secret {
-        /// `password` or `passphrase`.
+        /// `password`, `passphrase` or `sudo` (the login password for the files pane).
         secret: &'static str,
         key_path: Option<String>,
         target: String,
         attempt: u32,
         can_remember: bool,
+        /// For `sudo`: the user the files will be read and written as.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        sudo_user: Option<String>,
     },
     KeyboardInteractive {
         target: String,
@@ -181,11 +184,12 @@ impl Prompter for UiPrompter {
     }
 
     async fn secret(&self, req: SecretPrompt) -> Option<SecretAnswer> {
-        let (secret, key_path) = match req.kind {
-            SecretKind::Password => ("password", None),
+        let (secret, key_path, sudo_user) = match req.kind {
+            SecretKind::Password => ("password", None, None),
             SecretKind::Passphrase { key_path } => {
-                ("passphrase", Some(key_path.display().to_string()))
+                ("passphrase", Some(key_path.display().to_string()), None)
             }
+            SecretKind::Sudo { user } => ("sudo", None, Some(user)),
         };
         let request = PromptRequest::Secret {
             secret,
@@ -193,6 +197,7 @@ impl Prompter for UiPrompter {
             target: req.target,
             attempt: req.attempt,
             can_remember: req.can_remember,
+            sudo_user,
         };
         match self.ask(request).await {
             Some(PromptReply::Secret { value, remember }) => {
@@ -276,6 +281,28 @@ mod tests {
         assert!(p.reply(1, PromptReply::Secret { value: "pw".into(), remember: true }));
         let answer = asking.await.unwrap().unwrap();
         assert_eq!((answer.value.as_str(), answer.remember), ("pw", true));
+    }
+
+    #[tokio::test]
+    async fn a_sudo_password_names_the_user_it_is_for() {
+        let (p, seen) = prompter(PROMPT_TIMEOUT);
+        let asking = tokio::spawn({
+            let p = Arc::clone(&p);
+            async move {
+                p.secret(SecretPrompt {
+                    kind: SecretKind::Sudo { user: "root".into() },
+                    ..password_prompt()
+                })
+                .await
+            }
+        });
+        let ask = wait_for_question(&seen).await;
+        assert_eq!(
+            ask,
+            r#"ask {"id":1,"kind":"secret","secret":"sudo","keyPath":null,"target":"alice@h","attempt":1,"canRemember":true,"sudoUser":"root"}"#
+        );
+        assert!(p.reply(1, PromptReply::Cancel));
+        assert!(asking.await.unwrap().is_none());
     }
 
     #[tokio::test]

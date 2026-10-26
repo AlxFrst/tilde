@@ -16,6 +16,7 @@ mod proxy_command;
 mod secrets;
 mod sftp;
 mod shell;
+mod sudo;
 mod textfile;
 mod transfer;
 
@@ -42,11 +43,14 @@ pub use interact::{
 pub use known_hosts::{HostKeyStatus, KnownHosts, fingerprint};
 pub use notices::set_english_notices;
 pub use proxy_command::{ProxyStream, spawn_proxy_command};
-pub use secrets::{KeyringStore, MemoryStore, SecretStore, passphrase_account, password_account};
+pub use secrets::{
+    KeyringStore, MemoryStore, SecretStore, passphrase_account, password_account, sudo_account,
+};
 pub use sftp::{
     EntryKind, MAX_REMOVE, RemoteEntry, SftpClient, SftpError, join_remote, safe_local_name,
 };
 pub use shell::{HOLD_CAP, STALL_MAX, SshShell};
+pub use sudo::{SudoError, SudoUser, valid_user};
 pub use textfile::{
     PREVIEW_MAX_BYTES, TEXT_MAX_BYTES, TextError, decode_text, read_local_bytes, read_local_text,
     write_local_text,

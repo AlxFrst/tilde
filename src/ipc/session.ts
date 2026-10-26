@@ -4,7 +4,17 @@ import type { ConnState } from './ssh';
 
 /** Mirrors `SessionErrorDto` in src-tauri/src/commands/session.rs. */
 export interface SessionErrorDto {
-  kind: 'profileNotFound' | 'spawn' | 'notFound' | 'io' | 'ssh' | 'cancelled';
+  /** `sftp`, `permission` (a refused permission) and `sudo` come from the files commands. */
+  kind:
+    | 'profileNotFound'
+    | 'spawn'
+    | 'notFound'
+    | 'io'
+    | 'ssh'
+    | 'cancelled'
+    | 'sftp'
+    | 'permission'
+    | 'sudo';
   message: string;
 }
 

@@ -38,11 +38,13 @@ export type SshPrompt = { id: number } & (
     }
   | {
       kind: 'secret';
-      secret: 'password' | 'passphrase';
+      /** `sudo`: the login password, for the files pane to work as `sudoUser`. */
+      secret: 'password' | 'passphrase' | 'sudo';
       keyPath: string | null;
       target: string;
       attempt: number;
       canRemember: boolean;
+      sudoUser?: string;
     }
   | {
       kind: 'keyboardInteractive';

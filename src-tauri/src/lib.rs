@@ -148,6 +148,8 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::connections::connections_import,
         commands::connections::connections_export,
         commands::sftp::sftp_home,
+        commands::sftp::sftp_identity,
+        commands::sftp::sftp_switch_user,
         commands::sftp::sftp_list,
         commands::sftp::sftp_mkdir,
         commands::sftp::sftp_create_file,
