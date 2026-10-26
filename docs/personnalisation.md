@@ -155,6 +155,7 @@ fait avec la touche `)`.
 | `tab.next` / `tab.prev`              | Session suivante / précédente | Ctrl+Tab / Ctrl+Shift+Tab |
 | `pane.splitRight` / `pane.splitDown` | Diviser                    | Alt+Shift+= / Alt+Shift+-   |
 | `pane.close`                         | Fermer le panneau          | Ctrl+Shift+X                |
+| `pane.maximize`                      | Agrandir / réduire le panneau | Ctrl+Shift+Enter         |
 | `pane.focusLeft` … `pane.focusDown`  | Changer de panneau         | Alt+flèches                 |
 | `terminal.copy` / `terminal.paste`   | Copier / coller            | Ctrl+Shift+C / Ctrl+Shift+V |
 | `terminal.search`                    | Rechercher                 | Ctrl+Shift+F                |
@@ -166,6 +167,7 @@ fait avec la touche `)`.
 | `space.new`                          | Nouvel espace              | —                           |
 | `library.open`                       | Bibliothèque               | Ctrl+Shift+L                |
 | `sidebar.toggle`                     | Masquer / afficher la barre latérale | Ctrl+Shift+B      |
+| `window.fullscreen`                  | Plein écran                | F11                         |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 

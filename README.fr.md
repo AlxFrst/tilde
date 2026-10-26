@@ -93,6 +93,8 @@ Réglages → Général.
 | Alt+Maj+= | Diviser à droite |
 | Alt+Maj+- | Diviser en bas |
 | Ctrl+Maj+X | Fermer le panneau |
+| Ctrl+Maj+Entrée | Agrandir le panneau / revenir aux autres |
+| F11 | Plein écran |
 | Alt+← ↑ → ↓ | Changer de panneau |
 | Ctrl+C (avec une sélection) / Ctrl+V, ou Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller (Ctrl+C sans sélection interrompt la commande) |
 | Ctrl+Maj+F | Rechercher |
@@ -181,9 +183,11 @@ Le Rail range les serveurs de l'**espace** affiché : les **Favoris** en tuiles,
   de `~/.ssh/config` s'appliquent et les champs remplis les remplacent.
 - Un hôte de `~/.ssh/config` s'**adopte** d'un clic dans la Bibliothèque (dans l'espace
   affiché) pour lui donner un dossier, une couleur ou des tags. Votre `~/.ssh/config` n'est jamais modifié.
-- Clic droit : ouvrir, ouvrir une autre session, modifier, dupliquer, favori, ranger dans un
-  dossier, déplacer vers un espace, supprimer. On peut aussi glisser une connexion sur un
-  dossier.
+- Clic droit : ouvrir, ouvrir une autre session (elle se range sous la connexion :
+  « Session 2 »…), modifier, dupliquer, favori, ranger dans un dossier, déplacer vers un
+  espace, supprimer. On peut aussi glisser une connexion sur un dossier.
+- **Agrandir un panneau** (Ctrl+Maj+Entrée, ou le bouton de son en-tête) : il occupe toute la
+  fenêtre, les autres continuent de tourner. F11 : plein écran.
 - **Import / export** (menu `+` ou palette) : un fichier JSON **sans aucun secret**. À l'import,
   les doublons (même hôte, utilisateur et port) sont ignorés et les dossiers fusionnés par nom.
 
@@ -209,6 +213,10 @@ revient tout seul après une reconnexion.
 - **Nouveau fichier**, **nouveau dossier** : boutons de la barre d'outils. Le fichier créé
   s'ouvre dans l'éditeur ; un fichier existant n'est jamais écrasé.
 - **Envoyer** : bouton ⬆ ou glisser-déposer des fichiers et dossiers depuis l'explorateur.
+- **Fichiers en root** : le menu utilisateur de la barre d'outils passe en *root* (ou un autre
+  utilisateur) via `sudo`, et revient à votre compte. Un dossier illisible propose « Ouvrir en
+  root (sudo) ». Le mot de passe est demandé si `sudo` le veut, gardé en mémoire le temps de la
+  session, et mémorisé dans le trousseau seulement si vous le cochez.
 - **Transferts** (icône dans la barre de titre) : progression, vitesse, temps restant,
   annulation. « Réessayer » **reprend** où le transfert s'est arrêté. Trois transferts à la
   fois par défaut (`sftp.concurrency`).

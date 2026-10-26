@@ -55,7 +55,8 @@ drop connections without saying why. Tilde starts from the other end.
 ### The Rail and spaces
 - **The Rail** replaces tabs. *Pinned* lists the space's saved servers (asleep until you open
   them, then live with their connection state); *Today* holds everything else you opened.
-  A session unfolds into its panes; a click shows one, a middle click closes it.
+  A session unfolds into its panes; a click shows one, a middle click closes it. *Open
+  another session* on a server lists the new one under it (*Session 2*…).
 - **Spaces** (Arc-style): create *Pro*, *Personal*, *Homelab*, *Cloud*… each with its own
   colour, icon, servers and sessions. Switch with a click or `Ctrl+Shift+1…9`; the other
   spaces' sessions keep running.
@@ -67,6 +68,8 @@ drop connections without saying why. Tilde starts from the other end.
   *Monitor*, *Tunnels*, *New shell* and *Split*; each pane has its own small header to split
   or close it. The server monitor opens **over** the session (*Peek*) and can be docked.
 - The Rail hides (`Ctrl+Shift+B`) and slides back when the mouse reaches the edge.
+- **Maximize a pane** (`Ctrl+Shift+Enter`, or the button in its header): it fills the window,
+  the other panes keep running. `F11` for full screen.
 
 ### Connections at hand
 - Coloured folders, tags, icons and favourites (shown as tiles at the top of the Rail).
@@ -86,6 +89,10 @@ drop connections without saying why. Tilde starts from the other end.
   queue shows speed, time left, cancel, and **resume**.
 - **Edit remote files** in the built-in editor or in your own (`code --wait`…). A file changed
   on the server in the meantime is never overwritten silently.
+- **Files as root**: the pane's user menu switches to *root* (or another user) through
+  `sudo`, for `/root`, `/etc/ssl/private` and the like. A folder you may not read offers it
+  directly. Your password is asked when `sudo` needs it, kept in memory for the session, and
+  remembered in the OS keyring only if you say so.
 
 ### A fast local terminal
 - PowerShell 7, Windows PowerShell, cmd, Git Bash and every WSL distribution are detected
@@ -94,8 +101,8 @@ drop connections without saying why. Tilde starts from the other end.
   links, copy on select, `Ctrl+C` / `Ctrl+V`, safe multi-line paste.
 
 ### Panes beside your shell
-- **Editor** (CodeMirror 6): 16 languages, search, Ctrl+S. Conflict detection, Windows line
-  endings preserved.
+- **Editor** (CodeMirror 6): 16 languages, search, Ctrl+S, a *Save* button that tells whether
+  the file is saved. Conflict detection, Windows line endings preserved.
 - **Preview**: Markdown (rendered safely), JSON as a foldable tree, images. It follows the
   editor as you type.
 - **System monitor**: CPU, memory, network and disks for this machine, or for a Linux server
@@ -175,6 +182,8 @@ match the key built into Tilde is refused. You can turn the check off in *Settin
 | `Alt+Shift+=` / `Alt+Shift+-` | Split right / down |
 | `Alt+←↑→↓` | Move between panes |
 | `Ctrl+Shift+X` | Close pane |
+| `Ctrl+Shift+Enter` | Maximize the pane / show the others again |
+| `F11` | Full screen |
 | `Ctrl+C` (with a selection) / `Ctrl+V`, or `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` with nothing selected interrupts, as usual) |
 | `Ctrl+Shift+F` | Search the scrollback |
 | `Ctrl+Shift+K` | SSH quick connect |
