@@ -82,6 +82,10 @@ interface WorkspaceState {
   focusNeighbor: (dir: FocusDirection) => void;
   updatePanel: (tabId: string, leafId: string, patch: PanelPatch) => void;
   setSizes: (tabId: string, splitId: string, sizes: number[]) => void;
+  /** A pane shown alone, by session (not persisted); see {@link zoomedLeafOf}. */
+  zoomed: Record<string, Zoom>;
+  /** Shows a pane alone (focusing it), or the session's panes again if it is. */
+  toggleZoom: (tabId: string, leafId: string) => void;
   /** Restored SSH panes, left disconnected until the user asks (not persisted). */
   dormant: string[];
   wake: (leafId: string) => void;
@@ -91,6 +95,24 @@ interface WorkspaceState {
     availableProfileIds: string[],
     fallbackProfileId: string,
   ) => { replaced: number };
+}
+
+/** The pane shown alone, and how many panes its session had then. */
+export interface Zoom {
+  leafId: string;
+  panes: number;
+}
+
+/**
+ * The pane of `tab` shown alone, or `null`. A zoom lasts while that pane has the focus and
+ * the session keeps its panes: a new pane or a focus change shows them all again, so
+ * nothing ever opens out of sight.
+ */
+export function zoomedLeafOf(tab: Tab, zoomed: Readonly<Record<string, Zoom>>): string | null {
+  const zoom = zoomed[tab.id];
+  if (!zoom || tab.activeLeafId !== zoom.leafId) return null;
+  const all = leaves(tab.root);
+  return all.length === zoom.panes && all.some((l) => l.id === zoom.leafId) ? zoom.leafId : null;
 }
 
 const newLeaf = (profileId: string, cwd: string | null = null): LeafNode => ({
@@ -106,7 +128,7 @@ const newSshLeaf = (target: string, connectionId: string | null = null): LeafNod
 });
 
 /** `record` without `key`. */
-const without = (record: Record<string, string>, key: string) =>
+const without = <T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> =>
   Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
 
 /** Index of the tab to activate after removing the one at `index`. */
@@ -608,6 +630,20 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
 
     setSizes: (tabId, splitId, sizes) => {
       mapTab(tabId, (t) => ({ ...t, root: setTreeSizes(t.root, splitId, sizes) }));
+    },
+
+    zoomed: {},
+
+    toggleZoom: (tabId, leafId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab || !findLeaf(tab.root, leafId)) return;
+      if (zoomedLeafOf(tab, get().zoomed) === leafId) {
+        set((s) => ({ zoomed: without(s.zoomed, tabId) }));
+        return;
+      }
+      get().focusLeaf(tabId, leafId);
+      const panes = leaves(tab.root).length;
+      set((s) => ({ zoomed: { ...s.zoomed, [tabId]: { leafId, panes } } }));
     },
 
     wake: (leafId) => {

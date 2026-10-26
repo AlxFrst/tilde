@@ -15,6 +15,7 @@ import { useWorkspace } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { activeTerminal } from '@/terminal/terminalActions';
 import { findLeaf } from '@/workspace/tree';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { toast } from 'sonner';
 import { registerCommands, type Command } from './registry';
 
@@ -82,6 +83,16 @@ export function registerBuiltins(): () => void {
       run: () => {
         const { railHidden, setRailHidden } = useUi.getState();
         setRailHidden(!railHidden);
+      },
+    },
+    {
+      id: 'window.fullscreen',
+      keywords: ['fullscreen', 'plein écran', 'zen'],
+      title: msg('Plein écran'),
+      group: 'Application',
+      run: () => {
+        const win = getCurrentWindow();
+        void win.isFullscreen().then((on) => win.setFullscreen(!on));
       },
     },
     {
@@ -154,6 +165,17 @@ export function registerBuiltins(): () => void {
       title: msg('Fermer le panneau'),
       group: 'Panneaux',
       run: () => void closeActivePane(),
+    },
+    {
+      id: 'pane.maximize',
+      keywords: ['zoom', 'maximize', 'fullscreen', 'plein écran', 'agrandir'],
+      title: msg('Agrandir / réduire le panneau'),
+      group: 'Panneaux',
+      run: () => {
+        const { tabs, activeTabId } = ws();
+        const tab = tabs.find((x) => x.id === activeTabId);
+        if (tab) ws().toggleZoom(tab.id, tab.activeLeafId);
+      },
     },
     {
       id: 'pane.focusLeft',

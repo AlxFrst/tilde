@@ -8,6 +8,8 @@ export default {
   Aperçu: 'Preview',
   'Ouvrir dans l’éditeur externe': 'Open in external editor',
   Enregistrer: 'Save',
+  'Enregistrement…': 'Saving…',
+  Enregistré: 'Saved',
   'Le fichier a changé sur le serveur depuis son ouverture.':
     'The file has changed on the server since it was opened.',
   Écraser: 'Overwrite',

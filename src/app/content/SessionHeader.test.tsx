@@ -163,3 +163,14 @@ test('sessionEnv follows the active pane', () => {
   ws().openPinned('c2', 'lab', 'main');
   expect(sessionEnv(activeTab(), file)).toBeNull();
 });
+
+test('a pane shown alone can always be brought back from the header', async () => {
+  ws().openTab('pwsh');
+  ws().toggleZoom(activeTab().id, activeTab().activeLeafId);
+  useUi.setState({ railHidden: false });
+  render(<SessionHeader platform="windows" />);
+  expect(within(header()).queryByRole('button', { name: 'Afficher la barre latérale' })).toBeNull();
+  await userEvent.click(within(header()).getByRole('button', { name: 'Réduire le panneau' }));
+  expect(ws().zoomed[activeTab().id]).toBeUndefined();
+  expect(within(header()).queryByRole('button', { name: 'Réduire le panneau' })).toBeNull();
+});

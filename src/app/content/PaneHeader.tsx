@@ -1,6 +1,7 @@
-import { Columns2, Rows2, X, type LucideIcon } from 'lucide-react';
+import { Columns2, Maximize2, Minimize2, Rows2, X, type LucideIcon } from 'lucide-react';
 import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useWorkspace } from '@/stores/workspace';
 import type { LeafNode, Tab } from '@/workspace/types';
 import { closePane, splitPane } from '../actions';
 import { paneLabel, useLabelNames } from '../paneLabel';
@@ -27,8 +28,19 @@ function PaneAction({
   );
 }
 
-/** The strip above a pane when its session has several: its name, split, close. */
-export function PaneHeader({ tab, leaf, active }: { tab: Tab; leaf: LeafNode; active: boolean }) {
+/** The strip above a pane when its session has several: its name, zoom, split, close. */
+export function PaneHeader({
+  tab,
+  leaf,
+  active,
+  zoomed,
+}: {
+  tab: Tab;
+  leaf: LeafNode;
+  active: boolean;
+  /** Shown alone in its session. */
+  zoomed: boolean;
+}) {
   const names = useLabelNames();
   const { title, owner, detail, Icon } = paneLabel(tab, leaf, names);
   const name = owner ? `${title} · ${owner}` : title;
@@ -46,6 +58,13 @@ export function PaneHeader({ tab, leaf, active }: { tab: Tab; leaf: LeafNode; ac
       {owner && <span className="shrink-0 text-text-muted">· {owner}</span>}
       {detail && <span className="min-w-0 truncate font-mono text-text-muted">{detail}</span>}
       <span className="flex-1" />
+      <PaneAction
+        label={zoomed ? t('Réduire le panneau') : t('Agrandir le panneau')}
+        Icon={zoomed ? Minimize2 : Maximize2}
+        onClick={() => {
+          useWorkspace.getState().toggleZoom(tab.id, leaf.id);
+        }}
+      />
       <PaneAction
         label={t('Diviser à droite')}
         Icon={Columns2}

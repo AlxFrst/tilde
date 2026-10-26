@@ -13,6 +13,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'pane.splitRight': 'Alt+Shift+=',
   'pane.splitDown': 'Alt+Shift+-',
   'pane.close': 'Ctrl+Shift+X',
+  'pane.maximize': 'Ctrl+Shift+Enter',
   'pane.focusLeft': 'Alt+ArrowLeft',
   'pane.focusRight': 'Alt+ArrowRight',
   'pane.focusUp': 'Alt+ArrowUp',
@@ -25,6 +26,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'sftp.open': 'Ctrl+Shift+E',
   'library.open': 'Ctrl+Shift+L',
   'sidebar.toggle': 'Ctrl+Shift+B',
+  'window.fullscreen': 'F11',
   'space.next': 'Ctrl+Shift+PageDown',
   'space.prev': 'Ctrl+Shift+PageUp',
   ...Object.fromEntries(

@@ -1,17 +1,28 @@
 // The built-in editor pane (loaded on demand: CodeMirror is not in the startup bundle).
 
-import { ExternalLink, Eye, RotateCcw, Save, TriangleAlert } from 'lucide-react';
+import {
+  Check,
+  ExternalLink,
+  Eye,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Save,
+  TriangleAlert,
+} from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { t } from '@/i18n';
 import { editorCloseLocal } from '@/ipc/editor';
+import { cn } from '@/lib/utils';
 import { sftpEdit } from '@/ipc/sftp';
 import { previewKind } from '@/panels/preview/previewKind';
 import type { PanelProps } from '@/panels/registry';
 import { useEditors } from '@/stores/editors';
 import { useSettings } from '@/stores/settings';
-import { useWorkspace } from '@/stores/workspace';
+import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { useSessionId } from '@/terminal/sessionRegistry';
 import { useActiveTheme } from '@/themes/useActiveTheme';
 import { leaves } from '@/workspace/tree';
@@ -22,7 +33,7 @@ import { editorTheme } from './editorTheme';
 import { languageFor, languageLabel } from './languages';
 import { useDocument } from './useDocument';
 
-export default function EditorPane({ leafId, state, active }: PanelProps<EditorPanel>) {
+export default function EditorPane({ tabId, leafId, state, active }: PanelProps<EditorPanel>) {
   const { source } = state;
   const name = fileName(source);
   const sessionId = useSessionId(source.kind === 'remote' ? source.linkedLeafId : '');
@@ -35,6 +46,15 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
   const current = useRef('');
   const saved = useRef('');
   const [saving, setSaving] = useState(false);
+  const alone = useWorkspace((s) => {
+    const tab = s.tabs.find((x) => x.id === tabId);
+    return tab ? zoomedLeafOf(tab, s.zoomed) === leafId : false;
+  });
+  // Beside other panes, the pane header above carries the zoom button.
+  const single = useWorkspace((s) => {
+    const tab = s.tabs.find((x) => x.id === tabId);
+    return tab ? leaves(tab.root).length === 1 : false;
+  });
 
   const fontSpec = {
     family: font?.fontFamily ?? 'JetBrains Mono Variable',
@@ -55,6 +75,8 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
   const inFlight = useRef(false);
   const again = useRef(false);
   const save = async (force = false): Promise<void> => {
+    // Nothing changed since the last save (or since opening): nothing to write.
+    if (!force && !inFlight.current && current.current === saved.current) return;
     if (inFlight.current) {
       again.current = true;
       return;
@@ -193,15 +215,36 @@ export default function EditorPane({ leafId, state, active }: PanelProps<EditorP
               <ExternalLink strokeWidth={1.5} />
             </Button>
           )}
+          {single && (
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={alone ? t('Réduire le panneau') : t('Agrandir le panneau')}
+              title={alone ? t('Réduire le panneau') : t('Agrandir le panneau')}
+              onClick={() => {
+                useWorkspace.getState().toggleZoom(tabId, leafId);
+              }}
+            >
+              {alone ? <Minimize2 strokeWidth={1.5} /> : <Maximize2 strokeWidth={1.5} />}
+            </Button>
+          )}
+          {/* What the button says is the file's state: to save, saving, saved. */}
           <Button
-            variant="ghost"
+            variant={dirty && !saving ? 'default' : 'ghost'}
             size="xs"
-            disabled={!ready || saving}
+            disabled={!ready || saving || !dirty}
             onClick={() => void save()}
             title="Ctrl+S"
+            className={cn(ready && !dirty && !saving && 'text-text-muted disabled:opacity-100')}
           >
-            <Save strokeWidth={1.5} />
-            {t('Enregistrer')}
+            {saving ? (
+              <Loader2 className="animate-spin" strokeWidth={1.5} />
+            ) : ready && !dirty ? (
+              <Check className="text-success" strokeWidth={2} />
+            ) : (
+              <Save strokeWidth={1.5} />
+            )}
+            {saving ? t('Enregistrement…') : ready && !dirty ? t('Enregistré') : t('Enregistrer')}
           </Button>
         </span>
       </div>

@@ -8,7 +8,7 @@ import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/stores/ui';
-import { useWorkspace } from '@/stores/workspace';
+import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { allSessions } from '@/terminal/sessionRegistry';
 import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
@@ -47,6 +47,16 @@ function useWindowCloseGuard(enabled: boolean) {
       });
     };
   }, [enabled]);
+}
+
+/** The Rail is hidden: by the user, or while the shown session has a pane alone. */
+export function useRailHidden(): boolean {
+  const hidden = useUi((s) => s.railHidden);
+  const zoomed = useWorkspace((s) => {
+    const tab = s.tabs.find((t) => t.id === s.activeTabId);
+    return tab ? zoomedLeafOf(tab, s.zoomed) !== null : false;
+  });
+  return hidden || zoomed;
 }
 
 /**
@@ -116,7 +126,7 @@ export function AppShell({
   const tabs = useWorkspace((s) => s.tabs);
   const activeTabId = useWorkspace((s) => s.activeTabId);
   const quickConnectOpen = useSsh((s) => s.quickConnectOpen);
-  const railHidden = useUi((s) => s.railHidden);
+  const railHidden = useRailHidden();
   const activeTab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const file = useConnections((s) => s.file);
   const env = activeTab ? sessionEnv(activeTab, file) : null;

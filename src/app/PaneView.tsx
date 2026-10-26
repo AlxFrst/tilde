@@ -3,7 +3,7 @@ import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getPanelModule } from '@/panels/registry';
 import { PaneHeader } from './content/PaneHeader';
-import { useWorkspace } from '@/stores/workspace';
+import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import {
   layoutRects,
   leaves,
@@ -60,12 +60,15 @@ function Leaf({
   rect,
   multi,
   visible,
+  zoomed,
 }: {
   tab: Tab;
   leaf: LeafNode;
   rect: Rect;
   multi: boolean;
   visible: boolean;
+  /** Shown alone (`true`), hidden behind another pane shown alone (`false`), or neither. */
+  zoomed: boolean | null;
 }) {
   const ws = useWorkspace.getState;
   const active = tab.activeLeafId === leaf.id;
@@ -75,7 +78,9 @@ function Leaf({
     <div
       className={cn(
         'absolute transition-shadow duration-150',
-        multi && active && 'z-[1] shadow-[inset_0_0_0_1px_var(--tilde-accent)]',
+        multi && active && !zoomed && 'z-[1] shadow-[inset_0_0_0_1px_var(--tilde-accent)]',
+        // Hidden, not unmounted: its shell keeps running.
+        zoomed === false && 'hidden',
       )}
       style={{ left: pct(rect.x), top: pct(rect.y), width: pct(rect.w), height: pct(rect.h) }}
       onMouseDownCapture={() => {
@@ -83,7 +88,9 @@ function Leaf({
       }}
     >
       <div className="flex h-full flex-col">
-        {multi && <PaneHeader tab={tab} leaf={leaf} active={visible && active} />}
+        {multi && (
+          <PaneHeader tab={tab} leaf={leaf} active={visible && active} zoomed={zoomed === true} />
+        )}
         <div className="relative min-h-0 flex-1">
           {Module ? (
             <PaneErrorBoundary
@@ -97,7 +104,7 @@ function Leaf({
                 leafId={leaf.id}
                 state={leaf.panel}
                 active={visible && active}
-                visible={visible}
+                visible={visible && zoomed !== false}
                 update={(patch) => {
                   ws().updatePanel(tab.id, leaf.id, patch);
                 }}
@@ -197,9 +204,12 @@ function findSplit(node: Tab['root'], id: string): Extract<Tab['root'], { type: 
  */
 export function PaneView({ tab, visible }: { tab: Tab; visible: boolean }) {
   const container = useRef<HTMLDivElement>(null);
+  const zoom = useWorkspace((s) => s.zoomed[tab.id]);
+  const alone = zoom ? zoomedLeafOf(tab, { [tab.id]: zoom }) : null;
   const all = leaves(tab.root);
   const rects = layoutRects(tab.root);
   const multi = all.length > 1;
+  const full: Rect = { x: 0, y: 0, w: 1, h: 1 };
   return (
     <div ref={container} className={cn('absolute inset-0', !visible && 'hidden')}>
       {all.map((leaf) => (
@@ -207,19 +217,21 @@ export function PaneView({ tab, visible }: { tab: Tab; visible: boolean }) {
           key={leaf.id}
           tab={tab}
           leaf={leaf}
-          rect={rects.get(leaf.id) ?? { x: 0, y: 0, w: 1, h: 1 }}
+          rect={alone === leaf.id ? full : (rects.get(leaf.id) ?? full)}
           multi={multi}
           visible={visible}
+          zoomed={alone === null ? null : alone === leaf.id}
         />
       ))}
-      {splitHandles(tab.root).map((h) => (
-        <Divider
-          key={`${h.splitId}:${String(h.index)}`}
-          tab={tab}
-          handle={h}
-          container={container}
-        />
-      ))}
+      {alone === null &&
+        splitHandles(tab.root).map((h) => (
+          <Divider
+            key={`${h.splitId}:${String(h.index)}`}
+            tab={tab}
+            handle={h}
+            container={container}
+          />
+        ))}
     </div>
   );
 }
