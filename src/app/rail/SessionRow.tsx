@@ -171,7 +171,8 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
 /** The field that replaces a row's title while it is renamed. */
 function RenameField({ tab, title, onDone }: { tab: Tab; title: string; onDone: () => void }) {
   const commit = (value: string) => {
-    ws().renameTab(tab.id, value);
+    // Unchanged, the name stays a live one (the connection's, « Session 2 »…).
+    if (value.trim() !== title) ws().renameTab(tab.id, value);
     onDone();
   };
   return (

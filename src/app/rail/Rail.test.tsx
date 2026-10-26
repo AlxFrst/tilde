@@ -421,3 +421,16 @@ test('pinning a today session to a connection keeps the sessions it already has'
     [loose, 'a'],
   ]);
 });
+
+test('leaving the rename field unchanged keeps the name a live one', async () => {
+  setFile({ connections: [conn('a', 'alpha')] });
+  ws().openPinned('a', 'a.example', 'main');
+  const second = ws().openAnotherSession('a', 'a.example', 'main');
+  show();
+  const others = within(group('Épinglés')).getByRole('list', { name: 'Autres sessions de alpha' });
+  await userEvent.dblClick(within(others).getByRole('button', { name: /^Session 2/ }));
+  const field = screen.getByRole('textbox', { name: 'Nom de la session' });
+  expect(field).toHaveValue('Session 2');
+  fireEvent.blur(field);
+  expect(ws().tabs.find((x) => x.id === second)?.customTitle).toBeNull();
+});

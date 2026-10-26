@@ -11,7 +11,7 @@ import { openThemesDir } from '@/ipc/themes';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
-import { useWorkspace } from '@/stores/workspace';
+import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { activeTerminal } from '@/terminal/terminalActions';
 import { findLeaf } from '@/workspace/tree';
@@ -81,6 +81,14 @@ export function registerBuiltins(): () => void {
       title: msg('Masquer / afficher la barre latérale'),
       group: 'Application',
       run: () => {
+        // A pane shown alone hides the Rail: bring everything back.
+        const { tabs, activeTabId, zoomed } = ws();
+        const tab = tabs.find((x) => x.id === activeTabId);
+        const alone = tab ? zoomedLeafOf(tab, zoomed) : null;
+        if (tab && alone !== null) {
+          ws().toggleZoom(tab.id, alone);
+          return;
+        }
         const { railHidden, setRailHidden } = useUi.getState();
         setRailHidden(!railHidden);
       },

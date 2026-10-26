@@ -703,3 +703,16 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
   };
 });
+
+// A zoom that stopped applying (the focus moved, the panes changed, the session closed) is
+// dropped, so it never comes back by itself when things look the same again.
+useWorkspace.subscribe((s) => {
+  const stale = Object.keys(s.zoomed).filter((tabId) => {
+    const tab = s.tabs.find((t) => t.id === tabId);
+    return !tab || zoomedLeafOf(tab, s.zoomed) === null;
+  });
+  if (stale.length === 0) return;
+  useWorkspace.setState({
+    zoomed: Object.fromEntries(Object.entries(s.zoomed).filter(([id]) => !stale.includes(id))),
+  });
+});

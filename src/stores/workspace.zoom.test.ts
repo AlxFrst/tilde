@@ -96,3 +96,30 @@ test('F11 puts the window in full screen, and back', async () => {
   });
   off();
 });
+
+test('a zoom that ended never comes back by itself', () => {
+  const [first, second] = leaves(tab().root);
+  if (!first || !second) throw new Error();
+  // Focus moves away, then back.
+  ws().toggleZoom(tab().id, first.id);
+  ws().focusLeaf(tab().id, second.id);
+  ws().focusLeaf(tab().id, first.id);
+  expect(zoomed()).toBeNull();
+  // A pane opens then closes.
+  ws().toggleZoom(tab().id, first.id);
+  ws().splitActive('row');
+  const added = tab().activeLeafId;
+  ws().closeLeaf(tab().id, added);
+  ws().focusLeaf(tab().id, first.id);
+  expect(zoomed()).toBeNull();
+  expect(ws().zoomed).toEqual({});
+});
+
+test('hiding the Rail while a pane is alone shows everything instead', () => {
+  const off = registerBuiltins();
+  ws().toggleZoom(tab().id, tab().activeLeafId);
+  runCommand('sidebar.toggle');
+  expect(zoomed()).toBeNull();
+  expect(useUi.getState().railHidden).toBe(false);
+  off();
+});
