@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MAIN_SPACE } from '@/connections/spaces';
 import { setLocale } from '@/i18n';
@@ -16,6 +16,7 @@ import { defaultSpaceResolver, makeSpaceResolver, setSpaceResolver } from '@/wor
 import { leaves } from '@/workspace/tree';
 import { ConfirmCloseDialog } from '../ConfirmCloseDialog';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { sessionTitle, useLabelNames } from '../paneLabel';
 import { Rail } from './Rail';
 
 vi.mock('@/ipc/connections', async (orig) => ({
@@ -370,4 +371,53 @@ test('speaks English when the interface does', async () => {
     }),
   );
   expect(await screen.findByRole('menuitem', { name: 'Add to favorites' })).toBeInTheDocument();
+});
+
+test('another session of a pinned connection is listed under it, not in today', async () => {
+  setFile({ connections: [conn('a', 'alpha')] });
+  show();
+  act(() => {
+    ws().openPinned('a', 'a.example', 'main');
+  });
+  const main = firstTab().id;
+  fireEvent.contextMenu(within(group('Épinglés')).getByRole('button', { name: /^alpha/ }));
+  await userEvent.click(await screen.findByRole('menuitem', { name: 'Ouvrir une autre session' }));
+  expect(ws().tabs).toHaveLength(2);
+  const second = ws().tabs[1];
+  expect(second?.pinnedConnectionId).toBe('a');
+  expect(ws().activeTabId).toBe(second?.id);
+  // Under alpha's row, not in « Aujourd'hui ».
+  const others = within(group('Épinglés')).getByRole('list', { name: 'Autres sessions de alpha' });
+  const row = within(others).getByRole('button', { name: /^Session 2/ });
+  expect(row).toHaveAttribute('aria-current', 'true');
+  expect(
+    within(group('Aujourd’hui')).queryByRole('button', { name: /alpha|Session 2/ }),
+  ).toBeNull();
+  // The pinned row still opens the first session.
+  await userEvent.click(within(group('Épinglés')).getByRole('button', { name: /^alpha/ }));
+  expect(ws().activeTabId).toBe(main);
+  await userEvent.click(row);
+  expect(ws().activeTabId).toBe(second?.id);
+});
+
+test('the sessions of a connection are numbered where they are named', () => {
+  setFile({ connections: [conn('a', 'alpha')] });
+  ws().openPinned('a', 'a.example', 'main');
+  ws().openAnotherSession('a', 'a.example', 'main');
+  const names = renderHook(() => useLabelNames()).result.current;
+  const [first, second] = ws().tabs;
+  if (!first || !second) throw new Error();
+  expect(sessionTitle(first, names)).toBe('alpha');
+  expect(sessionTitle(second, names)).toBe('alpha (2)');
+});
+
+test('pinning a today session to a connection keeps the sessions it already has', () => {
+  setFile({ connections: [conn('a', 'alpha')] });
+  const main = ws().openPinned('a', 'a.example', 'main');
+  const loose = ws().openSshTab('a.example', 'a');
+  ws().pinTab(loose, 'a');
+  expect(ws().tabs.map((x) => [x.id, x.pinnedConnectionId])).toEqual([
+    [main, 'a'],
+    [loose, 'a'],
+  ]);
 });

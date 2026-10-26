@@ -307,18 +307,21 @@ export function RowShell({
   );
 }
 
-/** A session of « Aujourd’hui ». */
+/** A session of « Aujourd’hui », or one more session under a pinned connection. */
 export function SessionRow({
   tab,
+  label,
   dragProps,
   buttonRef,
 }: {
   tab: Tab;
+  /** Its name where the context says the rest (« Session 2 » under its connection). */
+  label?: string;
   dragProps?: Record<string, unknown>;
   buttonRef?: (el: HTMLElement | null) => void;
 }) {
   const names = useLabelNames();
-  const title = sessionTitle(tab, names);
+  const title = label && !tab.customTitle ? label : sessionTitle(tab, names);
   const active = useWorkspace((s) => s.activeTabId === tab.id);
   const status = useSessionStatus(tab);
   const Icon = useSessionIcon(tab);

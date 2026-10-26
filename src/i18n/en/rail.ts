@@ -71,6 +71,8 @@ export default {
   'Nouvelle session ({keys})': 'New session ({keys})',
 
   // src/app/rail/PinnedSection.tsx
+  'Autres sessions de {name}': 'Other sessions of {name}',
+  'Session {n}': 'Session {n}',
   'Nouvelle connexion ici…': 'New connection here…',
   'Renommer…': 'Rename…',
   'Supprimer le dossier « {name} » ?': 'Delete folder “{name}”?',

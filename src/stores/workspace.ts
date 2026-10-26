@@ -54,9 +54,14 @@ interface WorkspaceState {
   switchSpace: (spaceId: string) => void;
   /** The sessions of a space, in order. */
   spaceTabs: (spaceId: string) => Tab[];
-  /** Shows the session pinned to a saved connection, or opens it (in `spaceId`). */
+  /**
+   * Shows the session pinned to a saved connection (its first one), or opens it (in
+   * `spaceId`).
+   */
   openPinned: (connectionId: string, target: string, spaceId: string) => string;
-  /** Makes a session the pinned one of a connection (unpinning any other). */
+  /** Opens one more session of a saved connection, listed under its row (in `spaceId`). */
+  openAnotherSession: (connectionId: string, target: string, spaceId: string) => string;
+  /** Attaches a session to a saved connection's row, after the sessions it already has. */
   pinTab: (tabId: string, connectionId: string) => void;
   /** Sends a pinned session to « Aujourd'hui », in the space it is in. */
   unpinTab: (tabId: string) => void;
@@ -474,16 +479,17 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       });
     },
 
+    openAnotherSession: (connectionId, target, spaceId) =>
+      addTab(newSshLeaf(target, connectionId), { spaceId, pinnedConnectionId: connectionId }),
+
     pinTab: (tabId, connectionId) => {
-      set((s) => ({
-        tabs: s.tabs.map((t) => {
-          if (t.id === tabId) return { ...t, pinnedConnectionId: connectionId };
-          if (t.pinnedConnectionId === connectionId) {
-            return { ...t, spaceId: spaceOfTab(t), pinnedConnectionId: null };
-          }
-          return t;
-        }),
-      }));
+      // Last of the connection's sessions: the first one stays the row's.
+      set((s) => {
+        const tab = s.tabs.find((t) => t.id === tabId);
+        if (!tab) return s;
+        const rest = s.tabs.filter((t) => t.id !== tabId);
+        return { tabs: [...rest, { ...tab, pinnedConnectionId: connectionId }] };
+      });
     },
 
     unpinTab: (tabId) => {
