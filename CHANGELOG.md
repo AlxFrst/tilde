@@ -4,6 +4,26 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0]
+
+### Added
+- **Files as root.** The files pane has a user menu: switch the session's files to *root* (or
+  another user) through `sudo`, and back. A folder you may not read offers *Open as root
+  (sudo)*, and a refused operation *Switch to root (sudo)*. Tilde asks for your password when
+  `sudo` needs it (and can remember it in the OS keyring); the editor, transfers and external
+  edits of the session follow the chosen user.
+- **Maximize a pane**: the button in a pane's header (or the editor's own when it is alone),
+  `Ctrl+Shift+Enter`, or the palette. The pane fills the window and the Rail steps aside; the
+  other panes keep running. `F11` puts the window in full screen.
+- *Open another session* on a pinned server lists the new session **under that server**
+  (*Session 2*, *Session 3*…), no longer among the day's other sessions.
+
+### Changed
+- The editor's *Save* button tells the file's state: highlighted when there are changes,
+  *Saving…*, then *✓ Saved*. `Ctrl+S` on an unchanged file writes nothing.
+- *Pin* on a session of *Today* adds it to the server's sessions instead of replacing the one
+  already pinned.
+
 ## [0.2.1]
 
 ### Added
