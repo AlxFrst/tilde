@@ -11,10 +11,11 @@ import { openThemesDir } from '@/ipc/themes';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
-import { useWorkspace } from '@/stores/workspace';
+import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { activeTerminal } from '@/terminal/terminalActions';
 import { findLeaf } from '@/workspace/tree';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { toast } from 'sonner';
 import { registerCommands, type Command } from './registry';
 
@@ -80,8 +81,26 @@ export function registerBuiltins(): () => void {
       title: msg('Masquer / afficher la barre latérale'),
       group: 'Application',
       run: () => {
+        // A pane shown alone hides the Rail: bring everything back.
+        const { tabs, activeTabId, zoomed } = ws();
+        const tab = tabs.find((x) => x.id === activeTabId);
+        const alone = tab ? zoomedLeafOf(tab, zoomed) : null;
+        if (tab && alone !== null) {
+          ws().toggleZoom(tab.id, alone);
+          return;
+        }
         const { railHidden, setRailHidden } = useUi.getState();
         setRailHidden(!railHidden);
+      },
+    },
+    {
+      id: 'window.fullscreen',
+      keywords: ['fullscreen', 'plein écran', 'zen'],
+      title: msg('Plein écran'),
+      group: 'Application',
+      run: () => {
+        const win = getCurrentWindow();
+        void win.isFullscreen().then((on) => win.setFullscreen(!on));
       },
     },
     {
@@ -154,6 +173,17 @@ export function registerBuiltins(): () => void {
       title: msg('Fermer le panneau'),
       group: 'Panneaux',
       run: () => void closeActivePane(),
+    },
+    {
+      id: 'pane.maximize',
+      keywords: ['zoom', 'maximize', 'fullscreen', 'plein écran', 'agrandir'],
+      title: msg('Agrandir / réduire le panneau'),
+      group: 'Panneaux',
+      run: () => {
+        const { tabs, activeTabId } = ws();
+        const tab = tabs.find((x) => x.id === activeTabId);
+        if (tab) ws().toggleZoom(tab.id, tab.activeLeafId);
+      },
     },
     {
       id: 'pane.focusLeft',

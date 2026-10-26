@@ -2,6 +2,7 @@ import {
   Activity,
   Columns2,
   FolderTree,
+  Minimize2,
   PanelLeftOpen,
   Plus,
   Rows2,
@@ -14,7 +15,7 @@ import { cn, SELECTED } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
-import { findLinked, useWorkspace } from '@/stores/workspace';
+import { findLinked, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf } from '@/workspace/tree';
 import { splitPane } from '../actions';
@@ -99,6 +100,7 @@ export function SessionHeader({ platform }: { platform: Platform }) {
   const monitorDocked = sshLeafId !== null && findLinked(tabs, sshLeafId, 'monitor') !== null;
   const peeking = useUi((s) => s.peek !== null && s.peek.sshLeafId === sshLeafId);
   const railHidden = useUi((s) => s.railHidden);
+  const alone = useWorkspace((s) => (tab ? zoomedLeafOf(tab, s.zoomed) : null));
   const where = saved ? describeTarget(saved) : ssh?.kind === 'ssh' ? ssh.target : null;
   const jumps = saved?.proxyJump
     ?.split(',')
@@ -116,14 +118,25 @@ export function SessionHeader({ platform }: { platform: Platform }) {
       className="flex h-11 shrink-0 items-center gap-2 pr-0 pl-3"
       style={{ paddingRight: isMac ? 12 : 0 }}
     >
-      {railHidden && (
+      {tab && alone !== null ? (
+        // A pane shown alone hides the Rail too: one click brings everything back.
         <IconButton
-          label={t('Afficher la barre latérale')}
-          Icon={PanelLeftOpen}
+          label={t('Réduire le panneau')}
+          Icon={Minimize2}
           onClick={() => {
-            useUi.getState().setRailHidden(false);
+            useWorkspace.getState().toggleZoom(tab.id, alone);
           }}
         />
+      ) : (
+        railHidden && (
+          <IconButton
+            label={t('Afficher la barre latérale')}
+            Icon={PanelLeftOpen}
+            onClick={() => {
+              useUi.getState().setRailHidden(false);
+            }}
+          />
+        )
       )}
       {env && (
         <span

@@ -55,6 +55,10 @@ export default {
     'id reserved by a built-in theme: rename the file',
   'themes/{file} : {message}': 'themes/{file}: {message}',
 
+  // src/stores/sftpUsers.ts
+  'Fichiers en tant que {user}': 'Files as {user}',
+  'Impossible de passer en {user} : {error}': "Couldn't switch to {user}: {error}",
+
   // src/stores/transfers.ts
   '« {name} » a été modifié sur le serveur': '“{name}” was changed on the server',
   'Ouvrez les transferts pour choisir la version à garder.':

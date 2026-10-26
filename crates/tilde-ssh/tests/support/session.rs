@@ -183,6 +183,25 @@ impl Bench {
         })
     }
 
+    /// A session with the bench key on another server of the bench, published on `port`.
+    pub async fn open_at(&self, port: u16) -> (Arc<SshShell>, Output) {
+        let mut spec = self.spec(false, false);
+        let text = format!(
+            "Host target\n HostName 127.0.0.1\n Port {port}\n User {}\n IdentitiesOnly yes\n IdentityFile \"{}\"\n",
+            super::USER,
+            self.key.display()
+        );
+        spec.config = Arc::new(parse_str(&text, &self.home.path().join("config")));
+        let (shell, feed) = open_ssh_session(
+            self.connector(Arc::new(Answers::default())),
+            spec,
+            Arc::new(States::default()).callback(),
+        )
+        .await
+        .unwrap();
+        (shell, Output::new(feed))
+    }
+
     pub async fn open(&self, auto_reconnect: bool) -> (Arc<SshShell>, Output, Arc<States>) {
         self.open_with(auto_reconnect, "").await
     }

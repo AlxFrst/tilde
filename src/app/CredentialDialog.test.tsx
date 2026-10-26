@@ -62,3 +62,14 @@ test('cancel answers cancel', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Annuler' }));
   expect(onAnswer).toHaveBeenCalledWith({ kind: 'cancel' });
 });
+
+test('a sudo password says what it is for', async () => {
+  const onAnswer = show({ ...password, secret: 'sudo', sudoUser: 'root', attempt: 1 });
+  expect(
+    screen.getByRole('heading', { name: /Mot de passe sudo pour alice@db/ }),
+  ).toBeInTheDocument();
+  expect(screen.getByText(/en tant que root/)).toBeInTheDocument();
+  await userEvent.type(screen.getByLabelText('Mot de passe'), 'pw');
+  await userEvent.click(screen.getByRole('button', { name: 'Valider' }));
+  expect(onAnswer).toHaveBeenCalledWith({ kind: 'secret', value: 'pw', remember: false });
+});

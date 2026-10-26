@@ -251,3 +251,91 @@ test('closing the SSH pane an unsaved editor depends on asks first', async () =>
     await screen.findByText(/Modifications non enregistrées dans config\.yml/),
   ).toBeInTheDocument();
 });
+
+test('the save button says whether the file is saved', async () => {
+  vi.mocked(editorOpenRemote).mockResolvedValue({ text: 'a\n', stamp: { size: 2, mtime: 1 } });
+  let finish: (s: { size: number; mtime: number }) => void = () => undefined;
+  vi.mocked(editorSaveRemote).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  render(<Pane />);
+  const area = await screen.findByLabelText('Contenu');
+  // Just opened: nothing to save.
+  const saved = screen.getByRole('button', { name: 'Enregistré' });
+  expect(saved).toBeDisabled();
+  // Changed: the button stands out.
+  fireEvent.input(area, { target: { value: 'b\n' } });
+  const save = await screen.findByRole('button', { name: 'Enregistrer' });
+  expect(save).toBeEnabled();
+  expect(save).toHaveAttribute('data-variant', 'default');
+  // Saving, then saved.
+  fireEvent.keyDown(area, { key: 's', ctrlKey: true });
+  expect(await screen.findByRole('button', { name: 'Enregistrement…' })).toBeDisabled();
+  act(() => {
+    finish({ size: 2, mtime: 2 });
+  });
+  expect(await screen.findByRole('button', { name: 'Enregistré' })).toBeDisabled();
+});
+
+test('an editor alone in its session can take the whole window, and give it back', async () => {
+  vi.mocked(editorOpenRemote).mockResolvedValue({ text: 'a\n', stamp: { size: 2, mtime: 1 } });
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
+        activeLeafId: 'ed-1',
+        root: { type: 'leaf', id: 'ed-1', panel: state },
+      },
+    ],
+    activeTabId: 't1',
+    zoomed: {},
+  });
+  render(<Pane />);
+  await screen.findByLabelText('Contenu');
+  await userEvent.click(screen.getByRole('button', { name: 'Agrandir le panneau' }));
+  expect(useWorkspace.getState().zoomed.t1?.leafId).toBe('ed-1');
+  await userEvent.click(screen.getByRole('button', { name: 'Réduire le panneau' }));
+  expect(useWorkspace.getState().zoomed.t1).toBeUndefined();
+});
+
+test('beside other panes, the pane header carries the zoom button instead', async () => {
+  vi.mocked(editorOpenRemote).mockResolvedValue({ text: 'a\n', stamp: { size: 2, mtime: 1 } });
+  useWorkspace.setState({
+    tabs: [
+      {
+        id: 't1',
+        customTitle: null,
+        color: null,
+        spaceId: null,
+        pinnedConnectionId: null,
+        activeLeafId: 'ed-1',
+        root: {
+          type: 'split',
+          id: 's',
+          direction: 'row',
+          sizes: [50, 50],
+          children: [
+            {
+              type: 'leaf',
+              id: 'ssh-1',
+              panel: { kind: 'ssh', target: 'h', connectionId: null, cwd: null, title: null },
+            },
+            { type: 'leaf', id: 'ed-1', panel: state },
+          ],
+        },
+      },
+    ],
+    activeTabId: 't1',
+    zoomed: {},
+  });
+  render(<Pane />);
+  await screen.findByLabelText('Contenu');
+  expect(screen.queryByRole('button', { name: 'Agrandir le panneau' })).toBeNull();
+});

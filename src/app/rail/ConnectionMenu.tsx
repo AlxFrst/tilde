@@ -32,7 +32,7 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
       </ContextMenuItem>
       <ContextMenuItem
         onSelect={() => {
-          useWorkspace.getState().openSshTab(c.host, c.id);
+          useWorkspace.getState().openAnotherSession(c.id, c.host, space);
         }}
       >
         {t('Ouvrir une autre session')}

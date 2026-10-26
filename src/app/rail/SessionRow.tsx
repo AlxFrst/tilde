@@ -171,7 +171,8 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
 /** The field that replaces a row's title while it is renamed. */
 function RenameField({ tab, title, onDone }: { tab: Tab; title: string; onDone: () => void }) {
   const commit = (value: string) => {
-    ws().renameTab(tab.id, value);
+    // Unchanged, the name stays a live one (the connection's, « Session 2 »…).
+    if (value.trim() !== title) ws().renameTab(tab.id, value);
     onDone();
   };
   return (
@@ -307,18 +308,21 @@ export function RowShell({
   );
 }
 
-/** A session of « Aujourd’hui ». */
+/** A session of « Aujourd’hui », or one more session under a pinned connection. */
 export function SessionRow({
   tab,
+  label,
   dragProps,
   buttonRef,
 }: {
   tab: Tab;
+  /** Its name where the context says the rest (« Session 2 » under its connection). */
+  label?: string;
   dragProps?: Record<string, unknown>;
   buttonRef?: (el: HTMLElement | null) => void;
 }) {
   const names = useLabelNames();
-  const title = sessionTitle(tab, names);
+  const title = label && !tab.customTitle ? label : sessionTitle(tab, names);
   const active = useWorkspace((s) => s.activeTabId === tab.id);
   const status = useSessionStatus(tab);
   const Icon = useSessionIcon(tab);

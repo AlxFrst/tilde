@@ -1,8 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { ConfirmDialog } from '@/app/ConfirmDialog';
 import type { RemoteEntry } from '@/ipc/sftp';
-import { sftpCreateFile, sftpList, sftpRemove } from '@/ipc/sftp';
+import { sftpCreateFile, sftpList, sftpRemove, sftpSwitchUser } from '@/ipc/sftp';
+import { useSftpUsers } from '@/stores/sftpUsers';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
 import { registerSession, unregisterSession } from '@/terminal/sessionRegistry';
@@ -48,6 +50,10 @@ vi.mock('@/ipc/sftp', async (orig) => ({
   sftpList: vi.fn((_s: number, path: string) => Promise.resolve(tree[path] ?? [])),
   sftpRemove: vi.fn(() => Promise.resolve(1)),
   sftpCreateFile: vi.fn(() => Promise.resolve()),
+  sftpIdentity: vi.fn(() => Promise.resolve({ login: 'me', user: null })),
+  sftpSwitchUser: vi.fn((_s: number, user: string | null) =>
+    Promise.resolve({ login: 'me', user }),
+  ),
   onTransfer: vi.fn(() => Promise.resolve(() => undefined)),
 }));
 vi.mock('@tauri-apps/api/webview', () => ({
@@ -73,6 +79,8 @@ function View() {
 
 beforeEach(() => {
   vi.mocked(sftpList).mockClear();
+  vi.mocked(sftpSwitchUser).mockClear();
+  useSftpUsers.setState({ bySession: {} });
   useWorkspace.setState({ tabs: [], activeTabId: null, dormant: [] });
   tabId = useWorkspace.getState().openSshTab('prod');
   sshLeaf = useWorkspace.getState().tabs[0]?.activeLeafId ?? '';
@@ -201,4 +209,61 @@ test('a new file never takes the name of an existing entry', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Nouveau fichier' }));
   await userEvent.type(screen.getByRole('textbox', { name: 'Nom' }), 'a.txt{Enter}');
   expect(sftpCreateFile).not.toHaveBeenCalled();
+});
+
+test('a folder the login user may not read offers to open it as root', async () => {
+  // What the command rejects with: a session error of kind « permission ».
+  const refused = Object.assign(new Error('/root : permission refusée'), { kind: 'permission' });
+  vi.mocked(sftpList).mockImplementation((_s: number, path: string) =>
+    path === '/root' && useSftpUsers.getState().bySession[4]?.user !== 'root'
+      ? Promise.reject(refused)
+      : Promise.resolve(tree[path] ?? []),
+  );
+  render(<View />);
+  await screen.findByRole('row', { name: /a\.txt/ });
+  act(() => {
+    useWorkspace.getState().updatePanel(tabId, sftpLeaf().id, { path: '/root', follow: false });
+  });
+  expect(await screen.findByText('/root : permission refusée')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Ouvrir en root (sudo)' }));
+  expect(sftpSwitchUser).toHaveBeenCalledWith(4, 'root');
+  await waitFor(() => {
+    expect(screen.queryByText('/root : permission refusée')).toBeNull();
+  });
+  // The toolbar says who the files are read as.
+  expect(
+    screen.getByRole('button', { name: 'Utilisateur des fichiers : root' }),
+  ).toBeInTheDocument();
+});
+
+test('the user menu goes back to the login user', async () => {
+  useSftpUsers.setState({ bySession: { 4: { login: 'me', user: 'root' } } });
+  render(<View />);
+  await userEvent.click(
+    await screen.findByRole('button', { name: 'Utilisateur des fichiers : root' }),
+  );
+  await userEvent.click(await screen.findByRole('menuitemradio', { name: /^me/ }));
+  expect(sftpSwitchUser).toHaveBeenCalledWith(4, null);
+  expect(
+    await screen.findByRole('button', { name: 'Utilisateur des fichiers : me' }),
+  ).toBeInTheDocument();
+});
+
+test('files that went back to the login user say so, and list as that user again', async () => {
+  const warning = vi.spyOn(toast, 'warning');
+  useSftpUsers.setState({ bySession: { 4: { login: 'me', user: 'root' } } });
+  const fellBack = Object.assign(new Error('mot de passe sudo refusé'), { kind: 'sudo' });
+  vi.mocked(sftpList).mockImplementationOnce(() => Promise.reject(fellBack));
+  render(<View />);
+  // Rust is asked who the files are read as now; they are listed as that user.
+  await waitFor(() => {
+    expect(
+      screen.getByRole('button', { name: 'Utilisateur des fichiers : me' }),
+    ).toBeInTheDocument();
+  });
+  await screen.findByRole('row', { name: /a\.txt/ });
+  const [text, options] = warning.mock.calls[0] ?? [];
+  expect(text).toBe('Les fichiers sont revenus à me : mot de passe sudo refusé');
+  const action = (options as { action?: { label?: string } } | undefined)?.action;
+  expect(action?.label).toBe('Passer en root (sudo)');
 });

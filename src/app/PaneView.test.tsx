@@ -281,3 +281,22 @@ test('pane headers appear with two panes and close one', async () => {
   });
   expect(screen.queryByRole('toolbar', { name: /^Panneau / })).toBeNull();
 });
+
+test('a zoomed pane fills the session; the others stay mounted, hidden', () => {
+  render(<Live />);
+  const [first, second] = leaves(tab().root);
+  if (!first || !second) throw new Error();
+  act(() => {
+    ws().toggleZoom(tab().id, second.id);
+  });
+  const shown = screen.getByTestId(`term-${second.id}`).closest('[style]') as HTMLElement;
+  expect(shown.style.width).toBe('100%');
+  expect(shown.style.left).toBe('0%');
+  const other = screen.getByTestId(`term-${first.id}`);
+  expect(other.closest('.hidden')).not.toBeNull();
+  expect(screen.queryAllByRole('separator')).toHaveLength(0);
+  expect(mounts.get(first.id)).toBe(1);
+  // Its header brings the others back.
+  fireEvent.click(screen.getByRole('button', { name: 'Réduire le panneau' }));
+  expect(screen.getByTestId(`term-${first.id}`).closest('.hidden')).toBeNull();
+});

@@ -181,6 +181,7 @@ pub async fn open_ssh_session(
     let host = spec.target.resolve(&spec.config, &spec.ctx);
     let (input_tx, input_rx) = unbounded_channel();
     let shell = Arc::new(SshShell::new(input_tx, spec.cols, spec.rows));
+    shell.set_login(&host.user, &host.hostname, host.port);
     let (connection, channel) =
         establish(&connector, &spec, &host, &shell, (spec.cols, spec.rows), &on_state).await?;
     shell.attach(Some(Arc::clone(&connection)));

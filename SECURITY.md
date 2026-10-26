@@ -23,6 +23,13 @@ In particular:
 ## Principles
 
 - Secrets are stored only in the OS keyring.
+- Files as another user go through `sudo` on the existing connection. The password `sudo`
+  asks for is sent on its standard input (never on a command line), kept in memory for the
+  session only and wiped when dropped, and stored in the OS keyring only if the user ticks
+  *Remember*. Account names are checked before they reach the command line. A switch tries at
+  most three passwords, as `sudo` itself allows; if `sudo` refuses when the files are opened
+  again later (a password changed), they go back to the login user, and Tilde never tries
+  `sudo` again on its own.
 - The web view has no `fs` or `shell` plugin: everything goes through dedicated Rust
   commands. Local files are opened only through the system's file dialog.
 - No telemetry. The only network request Tilde makes on its own is the update check at

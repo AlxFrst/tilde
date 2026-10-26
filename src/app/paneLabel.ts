@@ -6,6 +6,7 @@ import { t } from '@/i18n';
 import { tRust } from '@/i18n/rust';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
+import { useWorkspace } from '@/stores/workspace';
 import { getPanelModule } from '@/panels/registry';
 import { findLeaf, leaves } from '@/workspace/tree';
 import type { LeafNode, Tab } from '@/workspace/types';
@@ -15,6 +16,11 @@ export interface LabelNames {
   connectionName: (id: string | null) => string | null;
   /** A shell profile's name (detected by Rust: shown with tRust()). */
   profileName: (id: string) => string | null;
+  /**
+   * The place of a session among its connection's (1 for the row's own, 2 for the next…);
+   * 1 for any other session.
+   */
+  rank?: (tab: Tab) => number;
 }
 
 export interface PaneLabel {
@@ -84,7 +90,12 @@ export function sessionTitle(tab: Tab, names: LabelNames): string {
   if (tab.customTitle) return tab.customTitle;
   const all = leaves(tab.root);
   const ssh = all.find((l) => l.panel.kind === 'ssh')?.panel;
-  if (ssh?.kind === 'ssh') return names.connectionName(ssh.connectionId) ?? ssh.title ?? ssh.target;
+  if (ssh?.kind === 'ssh') {
+    const name = names.connectionName(ssh.connectionId) ?? ssh.title ?? ssh.target;
+    // A connection's second session and after: « demo-server (2) ».
+    const rank = names.rank?.(tab) ?? 1;
+    return rank > 1 ? `${name} (${String(rank)})` : name;
+  }
   const term = all.find((l) => l.panel.kind === 'terminal')?.panel;
   if (term?.kind === 'terminal') {
     // The shell's own title (« Administrateur : C:\WINDOWS… ») is noise in the Rail.
@@ -98,7 +109,23 @@ export function sessionTitle(tab: Tab, names: LabelNames): string {
 export function useLabelNames(): LabelNames {
   const connections = useConnections((s) => s.file.connections);
   const profiles = useProfiles((s) => s.profiles);
+  // « tab:connection » of every pinned session, in order: a string, so a cwd change
+  // elsewhere re-renders nothing.
+  const pinned = useWorkspace((s) =>
+    s.tabs
+      .filter((x) => x.pinnedConnectionId !== null)
+      .map((x) => `${x.id}:${x.pinnedConnectionId ?? ''}`)
+      .join(' '),
+  );
   return {
+    rank: (tab) => {
+      if (tab.pinnedConnectionId === null) return 1;
+      const same = pinned
+        .split(' ')
+        .filter((p) => p.endsWith(`:${tab.pinnedConnectionId ?? ''}`))
+        .map((p) => p.slice(0, p.indexOf(':')));
+      return Math.max(1, same.indexOf(tab.id) + 1);
+    },
     connectionName: (id) => (id ? (connections.find((c) => c.id === id)?.name ?? null) : null),
     profileName: (id) => {
       const name = profiles.find((p) => p.id === id)?.name;

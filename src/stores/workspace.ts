@@ -54,9 +54,14 @@ interface WorkspaceState {
   switchSpace: (spaceId: string) => void;
   /** The sessions of a space, in order. */
   spaceTabs: (spaceId: string) => Tab[];
-  /** Shows the session pinned to a saved connection, or opens it (in `spaceId`). */
+  /**
+   * Shows the session pinned to a saved connection (its first one), or opens it (in
+   * `spaceId`).
+   */
   openPinned: (connectionId: string, target: string, spaceId: string) => string;
-  /** Makes a session the pinned one of a connection (unpinning any other). */
+  /** Opens one more session of a saved connection, listed under its row (in `spaceId`). */
+  openAnotherSession: (connectionId: string, target: string, spaceId: string) => string;
+  /** Attaches a session to a saved connection's row, after the sessions it already has. */
   pinTab: (tabId: string, connectionId: string) => void;
   /** Sends a pinned session to « Aujourd'hui », in the space it is in. */
   unpinTab: (tabId: string) => void;
@@ -82,6 +87,10 @@ interface WorkspaceState {
   focusNeighbor: (dir: FocusDirection) => void;
   updatePanel: (tabId: string, leafId: string, patch: PanelPatch) => void;
   setSizes: (tabId: string, splitId: string, sizes: number[]) => void;
+  /** A pane shown alone, by session (not persisted); see {@link zoomedLeafOf}. */
+  zoomed: Record<string, Zoom>;
+  /** Shows a pane alone (focusing it), or the session's panes again if it is. */
+  toggleZoom: (tabId: string, leafId: string) => void;
   /** Restored SSH panes, left disconnected until the user asks (not persisted). */
   dormant: string[];
   wake: (leafId: string) => void;
@@ -91,6 +100,24 @@ interface WorkspaceState {
     availableProfileIds: string[],
     fallbackProfileId: string,
   ) => { replaced: number };
+}
+
+/** The pane shown alone, and how many panes its session had then. */
+export interface Zoom {
+  leafId: string;
+  panes: number;
+}
+
+/**
+ * The pane of `tab` shown alone, or `null`. A zoom lasts while that pane has the focus and
+ * the session keeps its panes: a new pane or a focus change shows them all again, so
+ * nothing ever opens out of sight.
+ */
+export function zoomedLeafOf(tab: Tab, zoomed: Readonly<Record<string, Zoom>>): string | null {
+  const zoom = zoomed[tab.id];
+  if (!zoom || tab.activeLeafId !== zoom.leafId) return null;
+  const all = leaves(tab.root);
+  return all.length === zoom.panes && all.some((l) => l.id === zoom.leafId) ? zoom.leafId : null;
 }
 
 const newLeaf = (profileId: string, cwd: string | null = null): LeafNode => ({
@@ -106,7 +133,7 @@ const newSshLeaf = (target: string, connectionId: string | null = null): LeafNod
 });
 
 /** `record` without `key`. */
-const without = (record: Record<string, string>, key: string) =>
+const without = <T>(record: Readonly<Record<string, T>>, key: string): Record<string, T> =>
   Object.fromEntries(Object.entries(record).filter(([k]) => k !== key));
 
 /** Index of the tab to activate after removing the one at `index`. */
@@ -452,16 +479,17 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       });
     },
 
+    openAnotherSession: (connectionId, target, spaceId) =>
+      addTab(newSshLeaf(target, connectionId), { spaceId, pinnedConnectionId: connectionId }),
+
     pinTab: (tabId, connectionId) => {
-      set((s) => ({
-        tabs: s.tabs.map((t) => {
-          if (t.id === tabId) return { ...t, pinnedConnectionId: connectionId };
-          if (t.pinnedConnectionId === connectionId) {
-            return { ...t, spaceId: spaceOfTab(t), pinnedConnectionId: null };
-          }
-          return t;
-        }),
-      }));
+      // Last of the connection's sessions: the first one stays the row's.
+      set((s) => {
+        const tab = s.tabs.find((t) => t.id === tabId);
+        if (!tab) return s;
+        const rest = s.tabs.filter((t) => t.id !== tabId);
+        return { tabs: [...rest, { ...tab, pinnedConnectionId: connectionId }] };
+      });
     },
 
     unpinTab: (tabId) => {
@@ -610,6 +638,20 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       mapTab(tabId, (t) => ({ ...t, root: setTreeSizes(t.root, splitId, sizes) }));
     },
 
+    zoomed: {},
+
+    toggleZoom: (tabId, leafId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab || !findLeaf(tab.root, leafId)) return;
+      if (zoomedLeafOf(tab, get().zoomed) === leafId) {
+        set((s) => ({ zoomed: without(s.zoomed, tabId) }));
+        return;
+      }
+      get().focusLeaf(tabId, leafId);
+      const panes = leaves(tab.root).length;
+      set((s) => ({ zoomed: { ...s.zoomed, [tabId]: { leafId, panes } } }));
+    },
+
     wake: (leafId) => {
       set((s) => ({ dormant: s.dormant.filter((id) => id !== leafId) }));
     },
@@ -660,4 +702,17 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       return { replaced };
     },
   };
+});
+
+// A zoom that stopped applying (the focus moved, the panes changed, the session closed) is
+// dropped, so it never comes back by itself when things look the same again.
+useWorkspace.subscribe((s) => {
+  const stale = Object.keys(s.zoomed).filter((tabId) => {
+    const tab = s.tabs.find((t) => t.id === tabId);
+    return !tab || zoomedLeafOf(tab, s.zoomed) === null;
+  });
+  if (stale.length === 0) return;
+  useWorkspace.setState({
+    zoomed: Object.fromEntries(Object.entries(s.zoomed).filter(([id]) => !stale.includes(id))),
+  });
 });

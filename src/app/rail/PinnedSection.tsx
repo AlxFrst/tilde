@@ -33,6 +33,7 @@ import type { Connection, Folder } from '@/ipc/connections';
 import { cn } from '@/lib/utils';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
+import { useShallow } from 'zustand/react/shallow';
 import { leaves } from '@/workspace/tree';
 import { closeTab, openConnection } from '../actions';
 import { StatusDot } from '../ConnectionStatus';
@@ -40,7 +41,7 @@ import { confirmAction } from '../confirm';
 import { Section, describeTarget } from '../sidebar/Section';
 import { ConnectionMenu } from './ConnectionMenu';
 import { PaneList } from './PaneList';
-import { RowShell, paneCount } from './SessionRow';
+import { RowShell, SessionRow, paneCount } from './SessionRow';
 import { useSessionStatus } from './sessionStatus';
 
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
@@ -104,6 +105,10 @@ function FolderMenu({ f }: { f: Folder }) {
 /** A saved connection: asleep until its pinned session opens, then live. */
 function PinnedRow({ c }: { c: Connection }) {
   const session = useWorkspace((s) => s.tabs.find((x) => x.pinnedConnectionId === c.id));
+  // Its other sessions (« Ouvrir une autre session »), listed under it.
+  const others = useWorkspace(
+    useShallow((s) => s.tabs.filter((x) => x.pinnedConnectionId === c.id).slice(1)),
+  );
   const active = useWorkspace((s) => session !== undefined && s.activeTabId === session.id);
   const status = useSessionStatus(session);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -141,6 +146,16 @@ function PinnedRow({ c }: { c: Connection }) {
         buttonRef={setNodeRef}
       />
       {session && <PaneList tab={session} />}
+      {others.length > 0 && (
+        <ul
+          aria-label={t('Autres sessions de {name}', { name: c.name })}
+          className="ml-[15px] grid grid-cols-[minmax(0,1fr)] gap-px border-l border-border py-0.5 pl-2"
+        >
+          {others.map((tab, i) => (
+            <SessionRow key={tab.id} tab={tab} label={t('Session {n}', { n: i + 2 })} />
+          ))}
+        </ul>
+      )}
     </li>
   );
 }

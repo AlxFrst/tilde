@@ -8,6 +8,8 @@ export default {
   Aperçu: 'Preview',
   'Ouvrir dans l’éditeur externe': 'Open in external editor',
   Enregistrer: 'Save',
+  'Enregistrement…': 'Saving…',
+  Enregistré: 'Saved',
   'Le fichier a changé sur le serveur depuis son ouverture.':
     'The file has changed on the server since it was opened.',
   Écraser: 'Overwrite',
@@ -111,6 +113,14 @@ export default {
   'Modifier le chemin': 'Edit path',
 
   // sftp/SftpPanel.tsx
+  'Utilisateur (sudo)': 'User (sudo)',
+  'Utilisateur des fichiers : {user}': 'Files user: {user}',
+  'Fichiers lus et écrits en tant que {user} (sudo)': 'Files read and written as {user} (sudo)',
+  '(connexion)': '(login)',
+  'Autre utilisateur (sudo)…': 'Other user (sudo)…',
+  'Passer en root (sudo)': 'Switch to root (sudo)',
+  'Ouvrir en root (sudo)': 'Open as root (sudo)',
+  'Les fichiers sont revenus à {user} : {reason}': 'The files are back to {user}: {reason}',
   'Nouveau dossier': 'New folder',
   'Nouveau fichier': 'New file',
   Renommer: 'Rename',

@@ -262,6 +262,17 @@ const SAMPLES: readonly (readonly [string, string])[] = [
   ['mise à jour impossible : error sending request', 'update failed: error sending request'],
   ['Tilde est déjà à jour', 'Tilde is already up to date'],
   ['seuls les liens http et https peuvent être ouverts', 'only http and https links can be opened'],
+  // tilde-ssh: files through sudo
+  ['/root : permission refusée', '/root: permission denied'],
+  ['mot de passe sudo refusé', 'sudo password refused'],
+  [
+    'sudo refusé : tilde is not in the sudoers file.',
+    'sudo refused: tilde is not in the sudoers file.',
+  ],
+  ["sudo n'est pas installé sur ce serveur", 'sudo is not installed on this server'],
+  ["nom d'utilisateur invalide : a b", 'invalid user name: a b'],
+  ['sudo ne répond pas : pas de réponse', 'sudo is not answering: no answer'],
+  ['sftp-server introuvable sur ce serveur', 'sftp-server not found on this server'],
 ];
 
 /** Text that is not in the table: from the system, a server, or already English. */

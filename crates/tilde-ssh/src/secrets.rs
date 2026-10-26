@@ -22,6 +22,12 @@ pub fn password_account(user: &str, host: &str, port: u16) -> String {
     format!("ssh-password:{user}@{host}:{port}")
 }
 
+/// Keyring account for the login user's password given to `sudo` (the files pane).
+#[must_use]
+pub fn sudo_account(user: &str, host: &str, port: u16) -> String {
+    format!("ssh-sudo:{user}@{host}:{port}")
+}
+
 /// Keyring account for a private key's passphrase (by absolute path).
 #[must_use]
 pub fn passphrase_account(key: &Path) -> String {

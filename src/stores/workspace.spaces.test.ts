@@ -101,13 +101,16 @@ test('opening a pinned connection twice activates the same session and switches 
   expect(ws().activeTabId).toBe(t1);
 });
 
-test('pinning a tab unpins the previous one', () => {
+test('a connection keeps all its sessions: the first is its row, the others go under it', () => {
   const t1 = ws().openPinned('c1', 'prod', 'pro');
   const t2 = ws().openSshTab('prod', 'c1');
   ws().pinTab(t2, 'c1');
-  expect(tab(t1).pinnedConnectionId).toBeNull();
-  expect(tab(t1).spaceId).toBe('pro');
+  expect(tab(t1).pinnedConnectionId).toBe('c1');
   expect(tab(t2).pinnedConnectionId).toBe('c1');
+  expect(ws().openPinned('c1', 'prod', 'pro')).toBe(t1);
+  const t3 = ws().openAnotherSession('c1', 'prod', 'pro');
+  expect(spaceOfTab(tab(t3))).toBe('pro');
+  expect(ws().tabs.map((x) => x.id)).toEqual([t1, t2, t3]);
 });
 
 test('unpinning keeps the session where it is', () => {

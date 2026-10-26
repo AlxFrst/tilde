@@ -11,6 +11,8 @@ export default {
   // src/commands/builtin.ts
   'Les fichiers s’ouvrent depuis un onglet SSH ({keys} pour se connecter).':
     'Files open from an SSH tab ({keys} to connect).',
+  'Agrandir / réduire le panneau': 'Maximize / restore pane',
+  'Plein écran': 'Full screen',
   'Nouvelle session': 'New session',
   'Fermer la session': 'Close session',
   'Session suivante': 'Next session',
@@ -69,6 +71,8 @@ export default {
   'Nouvelle session ({keys})': 'New session ({keys})',
 
   // src/app/rail/PinnedSection.tsx
+  'Autres sessions de {name}': 'Other sessions of {name}',
+  'Session {n}': 'Session {n}',
   'Nouvelle connexion ici…': 'New connection here…',
   'Renommer…': 'Rename…',
   'Supprimer le dossier « {name} » ?': 'Delete folder “{name}”?',
@@ -126,8 +130,10 @@ export default {
   'Ne plus masquer': 'Unhide',
   Masquer: 'Hide',
 
-  // src/app/content/PaneHeader.tsx
+  // src/app/content/PaneHeader.tsx (also the editor's and the session header's)
   'Panneau {name}': 'Pane {name}',
+  'Agrandir le panneau': 'Maximize pane',
+  'Réduire le panneau': 'Restore pane',
   'Fermer ce panneau': 'Close this pane',
 
   // src/app/content/Peek.tsx

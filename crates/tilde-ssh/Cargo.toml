@@ -25,6 +25,8 @@ tilde-session = { path = "../tilde-session" }
 tilde-ssh-config = { path = "../tilde-ssh-config" }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros", "io-util", "process", "fs"] }
 tracing = "0.1"
+# The sudo password kept for the files pane is wiped from memory when dropped.
+zeroize = "1"
 
 [features]
 # Integration tests against the Docker SSH bench (tests/docker).

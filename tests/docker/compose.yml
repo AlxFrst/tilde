@@ -26,6 +26,17 @@ services:
     ports: ["127.0.0.1:2203:22"]
     networks: [back]
 
+  # sudo-rs (Ubuntu): files as root through sudo, on 2204.
+  sudors:
+    build:
+      context: .
+      dockerfile: Dockerfile.sudo-rs
+    volumes:
+      - ./keys:/keys:ro
+    hostname: sudors
+    ports: ["127.0.0.1:2204:22"]
+    networks: [front]
+
 networks:
   front: {}
   mid: {}
