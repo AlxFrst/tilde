@@ -22,8 +22,13 @@ Rien n'est public tant qu'un mainteneur ne la publie pas.
    ne correspond pas à la version des fichiers. Sans terminal : *Actions → Release → Run
    workflow* sur `main`, avec le tag `vX.Y.Z` ; le workflow crée le tag sur le dernier commit
    de `main`, puis tout se passe comme pour un tag poussé.
-5. **Relire la release brouillon** sur GitHub : les installeurs et les sommes SHA-256.
-   L'éditer si besoin, puis la publier.
+5. **Relire la release brouillon** sur GitHub : les installeurs, `latest.json` et les sommes
+   SHA-256. L'éditer si besoin, puis la publier : la mise à jour intégrée ne voit que les
+   releases publiées.
+
+`latest.json`, le fichier que lit la mise à jour intégrée, est écrit par le dernier job, une
+fois les trois plateformes construites, à partir de leurs signatures (`scripts/updater-json.ts`).
+Il manque une plateforme : le job échoue et rien n'est proposé aux utilisateurs.
 
 Si le workflow échoue en route, le relancer (*Re-run all jobs*) : il réutilise le brouillon
 du tag au lieu d'en créer un second.
