@@ -35,7 +35,10 @@ impl TestEnv {
     }
 }
 
-fn reachable(port: u16) -> bool {
+/// The sudo-rs server of the bench (Ubuntu), published directly.
+pub const SUDO_RS_PORT: u16 = 2204;
+
+pub fn reachable(port: u16) -> bool {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     TcpStream::connect_timeout(&addr, Duration::from_secs(1)).is_ok()
 }

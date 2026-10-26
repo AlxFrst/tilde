@@ -3,17 +3,21 @@
 //! `/etc/ssl/private`…). The terminal's `sudo su` cannot be followed (nothing tells which
 //! user a shell is), so the user picks it in the files pane.
 //!
-//! `sudo` reads the password on its standard input (`-S`) and hands the rest of the input
-//! to the program it starts, here `sftp-server`, which speaks SFTP on the same channel.
+//! `sudo` reads the password on its standard input (`-S`, one byte at a time, classic sudo
+//! and sudo-rs alike) and hands the rest of the input to the program it starts. That
+//! program is a shell that finds `sftp-server`, says [`READY`] on its output, then becomes
+//! the server, which speaks SFTP on the same channel. Until [`READY`], what `sudo` says is
+//! read: a refused password stops the attempt at once, so no try is ever wasted, and the
+//! reason is told as it is.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use russh::ChannelMsg;
+use russh::{Channel, ChannelMsg, client};
 use zeroize::Zeroizing;
 
 use crate::{
-    Prompter, SecretAnswer, SecretKind, SecretPrompt, SecretStore, SshShell, password_account,
-    secrets::sudo_account,
+    Prompter, SecretAnswer, SecretKind, SecretPrompt, SecretStore, SftpClient, SftpError, SshShell,
+    chain::Connection, secrets::sudo_account,
 };
 
 /// Who the files are read and written as, when not the login user.
@@ -21,7 +25,7 @@ use crate::{
 pub struct SudoUser {
     /// The account `sudo -u` switches to (`root`).
     pub user: String,
-    /// The login user's password for `sudo`, when it asks for one.
+    /// The password `sudo` asks for, when it asks for one.
     pub password: Option<Zeroizing<String>>,
 }
 
@@ -47,6 +51,8 @@ pub enum SudoError {
     Denied(String),
     #[error("sudo n'est pas installé sur ce serveur")]
     Missing,
+    #[error("sftp-server introuvable sur ce serveur")]
+    NoServer,
     #[error("la session SSH n'est pas connectée")]
     Disconnected,
     #[error("annulé")]
@@ -55,13 +61,21 @@ pub enum SudoError {
     Failed(String),
 }
 
-/// Program candidates for the SFTP server, the distributions' usual places first. The
-/// script is run by `/bin/sh -c '…'`: it must not contain a single quote.
+/// What the shell `sudo` started says once it has found the SFTP server, just before
+/// becoming it.
+pub(crate) const READY: &str = "TILDE_SFTP_READY";
+
+/// Finds the SFTP server (the distributions' usual places), says [`READY`], becomes it.
+/// Run by `/bin/sh -c '…'`: it must not contain a single quote.
 pub(crate) const SFTP_SERVER_SCRIPT: &str = "for p in /usr/lib/openssh/sftp-server \
 /usr/libexec/openssh/sftp-server /usr/lib/ssh/sftp-server /usr/libexec/ssh/sftp-server \
 /usr/libexec/sftp-server /usr/lib/sftp-server /usr/local/libexec/sftp-server \
-/usr/local/lib/sftp-server; do [ -x \"$p\" ] && exec \"$p\"; done; \
-echo sftp-server introuvable >&2; exit 127";
+/usr/local/lib/sftp-server; do if [ -x \"$p\" ]; then echo TILDE_SFTP_READY; exec \"$p\"; \
+fi; done; echo sftp-server introuvable >&2; exit 127";
+
+/// What the check runs: the same program as the server, so a rule that allows one
+/// command but not a shell is seen before any password is asked.
+const CHECK_COMMAND: &str = "/bin/sh -c 'exit 0'";
 
 /// An account name that is safe on a command line: letters, digits, `_`, `.`, `-`, not
 /// starting with `-` or `.`, at most 32 characters.
@@ -81,82 +95,121 @@ pub(crate) fn sudo_command(user: &str, with_password: bool, command: &str) -> St
     format!("env LC_ALL=C sudo {how} -u {user} -- {command}")
 }
 
-/// `sudo` could not run at all.
-fn missing(exit: Option<u32>, output: &str) -> bool {
-    exit == Some(127) || output.contains("command not found") || output.contains("sudo: not found")
+/// `password` and a line break, for `sudo -S`; wiped when dropped. Sized up front: a
+/// buffer that grows would leave copies behind.
+pub(crate) fn password_line(password: &str) -> Zeroizing<Vec<u8>> {
+    let mut line = Vec::with_capacity(password.len() + 1);
+    line.extend_from_slice(password.as_bytes());
+    line.push(b'\n');
+    Zeroizing::new(line)
 }
 
-/// What `sudo -n … true` said: no password needed, or why not.
-pub(crate) fn read_check(exit: Option<u32>, output: &str) -> Result<(), SudoError> {
-    match exit {
-        Some(0) => Ok(()),
-        None => Err(SudoError::Failed("pas de réponse".into())),
-        _ if missing(exit, output) => Err(SudoError::Missing),
-        _ if output.contains("a password is required") => Err(SudoError::PasswordRequired),
-        _ => Err(SudoError::Denied(output.trim().to_owned())),
+/// A locked account (`pam_faillock`, sudo-rs): never taken for a wrong password, so a
+/// remembered password is kept and nothing is tried again.
+fn locked(said: &str) -> bool {
+    said.contains("locked")
+}
+
+/// `sudo` refused the password just given (classic sudo and sudo-rs words).
+pub(crate) fn refused_password(said: &str) -> bool {
+    !locked(said)
+        && (said.contains("Sorry, try again")
+            || said.contains("incorrect password")
+            || said.contains("Authentication failed")
+            || said.contains("incorrect authentication"))
+}
+
+/// The last thing `sudo` said (after the lecture, warnings…), for the user.
+fn last_line(said: &str) -> String {
+    said.lines().map(str::trim).rfind(|l| !l.is_empty()).unwrap_or_default().to_owned()
+}
+
+/// What `sudo` said when it stopped, as an error.
+pub(crate) fn read_refusal(exit: Option<u32>, said: &str) -> SudoError {
+    if locked(said) {
+        SudoError::Denied(last_line(said))
+    } else if said.contains("sftp-server introuvable") {
+        SudoError::NoServer
+    } else if refused_password(said) {
+        SudoError::WrongPassword
+    } else if said.contains("a password is required")
+        || said.contains("interactive authentication is required")
+    {
+        SudoError::PasswordRequired
+    } else if exit == Some(127)
+        || said.contains("command not found")
+        || said.contains("sudo: not found")
+    {
+        SudoError::Missing
+    } else if said.trim().is_empty() {
+        SudoError::Failed("pas de réponse".into())
+    } else {
+        SudoError::Denied(last_line(said))
     }
 }
 
-/// What `sudo -S … true`, given a password, said.
-pub(crate) fn read_validate(exit: Option<u32>, output: &str) -> Result<(), SudoError> {
+/// What `sudo -n …` said: no password needed, or why not.
+pub(crate) fn read_check(exit: Option<u32>, said: &str) -> Result<(), SudoError> {
     match exit {
         Some(0) => Ok(()),
-        None => Err(SudoError::Failed("pas de réponse".into())),
-        _ if missing(exit, output) => Err(SudoError::Missing),
-        _ if output.contains("incorrect password") || output.contains("Sorry, try again") => {
-            Err(SudoError::WrongPassword)
-        }
-        _ => Err(SudoError::Denied(output.trim().to_owned())),
+        _ => Err(read_refusal(exit, said)),
     }
 }
 
-/// Bound on one `sudo` run (a refused password costs about two seconds).
-const SUDO_TIMEOUT: Duration = Duration::from_secs(20);
 /// More than `sudo` ever says.
 const MAX_OUTPUT: usize = 16 * 1024;
-/// Password prompts before giving up, as `sudo` does.
+
+/// Appends `data` to `buf`, at most [`MAX_OUTPUT`] bytes in all.
+fn keep(buf: &mut Vec<u8>, data: &[u8]) {
+    let room = MAX_OUTPUT.saturating_sub(buf.len());
+    buf.extend_from_slice(&data[..data.len().min(room)]);
+}
+
+/// Reads what `sudo` and the shell it started say until the shell announces the server
+/// ([`READY`]). A refused password closes the channel at once: waiting would only let
+/// `sudo` count another failed attempt.
+///
+/// # Errors
+///
+/// What `sudo` refused, or that it stopped without the server starting.
+pub(crate) async fn wait_until_ready(channel: &mut Channel<client::Msg>) -> Result<(), SudoError> {
+    let mut out = Vec::new();
+    let mut said = Vec::new();
+    let mut exit = None;
+    while let Some(msg) = channel.wait().await {
+        match msg {
+            ChannelMsg::Data { data } => {
+                keep(&mut out, &data);
+                if String::from_utf8_lossy(&out).lines().any(|l| l.trim() == READY) {
+                    return Ok(());
+                }
+            }
+            ChannelMsg::ExtendedData { data, .. } => {
+                keep(&mut said, &data);
+                let text = String::from_utf8_lossy(&said);
+                if refused_password(&text) || locked(&text) {
+                    let _ = channel.close().await;
+                    return Err(read_refusal(exit, &text));
+                }
+            }
+            ChannelMsg::ExitStatus { exit_status } => exit = Some(exit_status),
+            ChannelMsg::Close => break,
+            _ => {}
+        }
+    }
+    Err(read_refusal(exit, &String::from_utf8_lossy(&said)))
+}
+
+/// Bound on the check (`sudo -n`).
+const CHECK_TIMEOUT: Duration = Duration::from_secs(15);
+/// Tries per switch, remembered password included: as many as `sudo` itself allows, so
+/// a switch never costs more failed attempts than one `sudo` in a terminal.
 const MAX_ATTEMPTS: u32 = 3;
 
 impl SshShell {
-    /// Runs `command` (a `sudo …`), writing `input` and a newline on its standard input
-    /// first; returns its exit status and what it printed (both streams).
-    async fn run_sudo(
-        &self,
-        command: &str,
-        input: Option<&str>,
-    ) -> Result<(Option<u32>, String), SudoError> {
-        let connection = self.connection().ok_or(SudoError::Disconnected)?;
-        let failed = |e: russh::Error| SudoError::Failed(e.to_string());
-        let run = async {
-            let mut channel = connection.target().channel_open_session().await.map_err(failed)?;
-            channel.exec(true, command).await.map_err(failed)?;
-            if let Some(text) = input {
-                let line = Zeroizing::new(format!("{text}\n"));
-                channel.data(line.as_bytes()).await.map_err(failed)?;
-            }
-            channel.eof().await.map_err(failed)?;
-            let mut out = Vec::new();
-            let mut exit = None;
-            while let Some(msg) = channel.wait().await {
-                match msg {
-                    ChannelMsg::Data { data } | ChannelMsg::ExtendedData { data, .. } => {
-                        let room = MAX_OUTPUT.saturating_sub(out.len());
-                        out.extend_from_slice(&data[..data.len().min(room)]);
-                    }
-                    ChannelMsg::ExitStatus { exit_status } => exit = Some(exit_status),
-                    ChannelMsg::Close => break,
-                    _ => {}
-                }
-            }
-            Ok((exit, String::from_utf8_lossy(&out).into_owned()))
-        };
-        tokio::time::timeout(SUDO_TIMEOUT, run)
-            .await
-            .map_err(|_| SudoError::Failed("le serveur ne répond pas".into()))?
-    }
-
-    /// `Ok` when `sudo -u user` needs no password; else why not
-    /// ([`SudoError::PasswordRequired`] when it needs one).
+    /// `Ok` when `sudo -u user` needs no password for the server's shell; else why not
+    /// ([`SudoError::PasswordRequired`] when it needs one). Never asks for a password, so
+    /// it never counts as a failed attempt.
     ///
     /// # Errors
     ///
@@ -165,84 +218,98 @@ impl SshShell {
         if !valid_user(user) {
             return Err(SudoError::InvalidUser(user.to_owned()));
         }
-        let (exit, output) = self.run_sudo(&sudo_command(user, false, "true"), None).await?;
-        read_check(exit, &output)
+        let connection = self.connection().ok_or(SudoError::Disconnected)?;
+        let failed = |e: russh::Error| SudoError::Failed(e.to_string());
+        let command = sudo_command(user, false, CHECK_COMMAND);
+        let run = async {
+            let mut channel = connection.target().channel_open_session().await.map_err(failed)?;
+            channel.exec(true, command).await.map_err(failed)?;
+            channel.eof().await.map_err(failed)?;
+            let mut said = Vec::new();
+            let mut exit = None;
+            while let Some(msg) = channel.wait().await {
+                match msg {
+                    ChannelMsg::Data { data } | ChannelMsg::ExtendedData { data, .. } => {
+                        keep(&mut said, &data);
+                    }
+                    ChannelMsg::ExitStatus { exit_status } => exit = Some(exit_status),
+                    ChannelMsg::Close => break,
+                    _ => {}
+                }
+            }
+            read_check(exit, &String::from_utf8_lossy(&said))
+        };
+        tokio::time::timeout(CHECK_TIMEOUT, run)
+            .await
+            .map_err(|_| SudoError::Failed("le serveur ne répond pas".into()))?
     }
 
-    /// Checks the login user's `password` for `sudo -u user`.
-    ///
-    /// # Errors
-    ///
-    /// [`SudoError::WrongPassword`], [`SudoError::Denied`] (not allowed), and the rest.
-    pub async fn sudo_validate(&self, user: &str, password: &str) -> Result<(), SudoError> {
-        if !valid_user(user) {
-            return Err(SudoError::InvalidUser(user.to_owned()));
+    /// Opens the files as `user` with `password` and makes them the session's: the open
+    /// itself is the test of the password.
+    async fn adopt(
+        &self,
+        connection: &Arc<Connection>,
+        user: &str,
+        password: Option<Zeroizing<String>>,
+    ) -> Result<(), SudoError> {
+        let who = SudoUser { user: user.to_owned(), password };
+        match SftpClient::open_as(connection, &who).await {
+            Ok(client) => {
+                self.install_sftp(Arc::clone(connection), Some(who), client).await;
+                Ok(())
+            }
+            Err(SftpError::Sudo(e)) => Err(e),
+            Err(e) => Err(SudoError::Failed(e.to_string())),
         }
-        // `sudo` reads one line: anything after a line break would reach the server.
-        if password.contains(['\n', '\r']) {
-            return Err(SudoError::WrongPassword);
-        }
-        let (exit, output) =
-            self.run_sudo(&sudo_command(user, true, "true"), Some(password)).await?;
-        read_validate(exit, &output)
     }
 
     /// From now on the files of this session are read and written as `user`, through
-    /// `sudo` (`None`: as the login user again). A password `sudo` asks for is looked for
-    /// in `secrets` (the one remembered for `sudo`, then the login password), else asked
-    /// through `prompter`, and remembered if the user says so.
+    /// `sudo` (`None`: as the login user again). When `sudo` wants a password, the one
+    /// remembered for it is tried, else the user is asked through `prompter` (and the
+    /// password remembered if they say so); at most three tries in all, as `sudo` allows.
+    /// One switch at a time.
     ///
     /// # Errors
     ///
-    /// The user cannot use `sudo` that way, the password was refused three times, or the
-    /// prompt was cancelled. The files keep their current user then.
+    /// The user cannot use `sudo` that way, the password was refused, or the prompt was
+    /// cancelled. The files keep their current user then.
     pub async fn switch_sftp_user(
         &self,
         user: Option<&str>,
         secrets: &dyn SecretStore,
         prompter: &dyn Prompter,
     ) -> Result<(), SudoError> {
+        let _one_at_a_time = self.switching.lock().await;
         let Some(user) = user else {
             self.set_sftp_as(None).await;
             return Ok(());
         };
-        let as_user = |password: Option<String>| SudoUser {
-            user: user.to_owned(),
-            password: password.map(Zeroizing::new),
-        };
+        let connection = self.connection().ok_or(SudoError::Disconnected)?;
         match self.sudo_check(user).await {
-            Ok(()) => {
-                self.set_sftp_as(Some(as_user(None))).await;
-                return Ok(());
-            }
+            Ok(()) => return self.adopt(&connection, user, None).await,
             Err(SudoError::PasswordRequired) => {}
             Err(e) => return Err(e),
         }
         let (login, host, port) = self.login().ok_or(SudoError::Disconnected)?;
         let (login, host) = (login.to_owned(), host.to_owned());
-        let sudo_acc = sudo_account(&login, &host, port);
-        // The password remembered for sudo, then the login one: sudo asks for the login
-        // user's own password. A remembered sudo password that fails is forgotten.
-        for (account, stale_is_forgotten) in
-            [(sudo_acc.clone(), true), (password_account(&login, &host, port), false)]
-        {
-            let Some(stored) = secrets.get(&account).map(Zeroizing::new) else { continue };
-            match self.sudo_validate(user, &stored).await {
-                Ok(()) => {
-                    self.set_sftp_as(Some(as_user(Some(stored.to_string())))).await;
-                    return Ok(());
-                }
-                Err(SudoError::WrongPassword) if stale_is_forgotten => secrets.delete(&account),
-                Err(SudoError::WrongPassword) => {}
+        let account = sudo_account(&login, &host, port);
+        let mut tries = 0;
+        if let Some(stored) = secrets.get(&account).map(Zeroizing::new) {
+            tries += 1;
+            match self.adopt(&connection, user, Some(stored)).await {
+                Ok(()) => return Ok(()),
+                // A remembered password that no longer works is forgotten, then asked.
+                Err(SudoError::WrongPassword) => secrets.delete(&account),
                 Err(e) => return Err(e),
             }
         }
-        for attempt in 1..=MAX_ATTEMPTS {
+        while tries < MAX_ATTEMPTS {
+            tries += 1;
             let Some(SecretAnswer { value, remember }) = prompter
                 .secret(SecretPrompt {
                     kind: SecretKind::Sudo { user: user.to_owned() },
                     target: format!("{login}@{host}"),
-                    attempt,
+                    attempt: tries,
                     can_remember: secrets.available(),
                 })
                 .await
@@ -250,12 +317,11 @@ impl SshShell {
                 return Err(SudoError::Cancelled);
             };
             let value = Zeroizing::new(value);
-            match self.sudo_validate(user, &value).await {
+            match self.adopt(&connection, user, Some(value.clone())).await {
                 Ok(()) => {
                     if remember {
-                        secrets.set(&sudo_acc, &value);
+                        secrets.set(&account, &value);
                     }
-                    self.set_sftp_as(Some(as_user(Some(value.to_string())))).await;
                     return Ok(());
                 }
                 Err(SudoError::WrongPassword) => {}
@@ -288,17 +354,26 @@ mod tests {
             sudo_command("www-data", true, "true"),
             "env LC_ALL=C sudo -S -k -p '' -u www-data -- true"
         );
+        assert!(!CHECK_COMMAND.contains(';'));
     }
 
     #[test]
-    fn the_server_script_survives_single_quoting() {
+    fn the_server_script_announces_the_server_and_survives_single_quoting() {
         assert!(!SFTP_SERVER_SCRIPT.contains('\''));
+        assert!(SFTP_SERVER_SCRIPT.contains(&format!("echo {READY}; exec")));
         assert!(SFTP_SERVER_SCRIPT.contains("/usr/lib/openssh/sftp-server"));
         assert!(SFTP_SERVER_SCRIPT.contains("/usr/lib/ssh/sftp-server"));
     }
 
     #[test]
-    fn sudo_answers_are_read() {
+    fn the_password_line_is_sized_once() {
+        let line = password_line("s3cret");
+        assert_eq!(&line[..], b"s3cret\n");
+        assert_eq!(line.capacity(), 7);
+    }
+
+    #[test]
+    fn classic_sudo_answers_are_read() {
         assert!(read_check(Some(0), "").is_ok());
         assert!(matches!(
             read_check(Some(1), "sudo: a password is required\n"),
@@ -309,16 +384,57 @@ mod tests {
             read_check(Some(1), "sudo: sorry, you must have a tty to run sudo\n"),
             Err(SudoError::Denied(m)) if m == "sudo: sorry, you must have a tty to run sudo"
         ));
+        assert!(matches!(
+            read_refusal(Some(1), "Sorry, try again.\nsudo: 1 incorrect password attempt\n"),
+            SudoError::WrongPassword
+        ));
+        // The lecture comes first; the reason is the last line.
+        assert!(matches!(
+            read_refusal(
+                Some(1),
+                "\nWe trust you have received the usual lecture.\n\nSorry, user tilde is not \
+                 allowed to execute '/bin/sh -c exit 0' as root on target.\n"
+            ),
+            SudoError::Denied(m) if m.starts_with("Sorry, user tilde is not allowed")
+        ));
+        assert!(matches!(
+            read_refusal(Some(127), "sftp-server introuvable\n"),
+            SudoError::NoServer
+        ));
+        assert!(matches!(read_refusal(None, ""), SudoError::Failed(_)));
+    }
 
-        assert!(read_validate(Some(0), "").is_ok());
+    #[test]
+    fn sudo_rs_answers_are_read() {
         assert!(matches!(
-            read_validate(Some(1), "Sorry, try again.\nsudo: 1 incorrect password attempt\n"),
-            Err(SudoError::WrongPassword)
+            read_check(Some(1), "sudo: interactive authentication is required\n"),
+            Err(SudoError::PasswordRequired)
         ));
         assert!(matches!(
-            read_validate(Some(1), "tilde is not in the sudoers file.\n"),
-            Err(SudoError::Denied(m)) if m == "tilde is not in the sudoers file."
+            read_refusal(
+                Some(1),
+                "sudo: Authentication failed, try again.\nsudo: maximum 3 incorrect \
+                 authentication attempts\n"
+            ),
+            SudoError::WrongPassword
         ));
-        assert!(matches!(read_validate(None, ""), Err(SudoError::Failed(_))));
+        assert!(matches!(
+            read_refusal(Some(1), "sudo: I'm sorry tilde. I'm afraid I can't do that\n"),
+            SudoError::Denied(_)
+        ));
+        assert!(matches!(
+            read_refusal(Some(1), "sudo: user 'nosuchuser' not found\n"),
+            SudoError::Denied(m) if m == "sudo: user 'nosuchuser' not found"
+        ));
+    }
+
+    #[test]
+    fn a_locked_account_is_never_a_wrong_password() {
+        let faillock = "Sorry, try again.\nThe account is locked due to 3 failed logins.\n";
+        assert!(!refused_password(faillock));
+        assert!(matches!(read_refusal(Some(1), faillock), SudoError::Denied(_)));
+        let sudo_rs = "sudo: Account validation failure, is your account locked?\n";
+        assert!(matches!(read_refusal(Some(1), sudo_rs), SudoError::Denied(_)));
+        assert!(refused_password("sudo: Authentication failed, try again."));
     }
 }

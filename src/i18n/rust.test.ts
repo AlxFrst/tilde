@@ -272,6 +272,7 @@ const SAMPLES: readonly (readonly [string, string])[] = [
   ["sudo n'est pas installé sur ce serveur", 'sudo is not installed on this server'],
   ["nom d'utilisateur invalide : a b", 'invalid user name: a b'],
   ['sudo ne répond pas : pas de réponse', 'sudo is not answering: no answer'],
+  ['sftp-server introuvable sur ce serveur', 'sftp-server not found on this server'],
 ];
 
 /** Text that is not in the table: from the system, a server, or already English. */

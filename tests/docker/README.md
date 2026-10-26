@@ -4,7 +4,11 @@ Three OpenSSH containers used by `cargo test -p tilde-ssh --features integration
 
 ```
 host ──2201──▶ bastion1 ──▶ bastion2 ──▶ target (also on 2203; echo server on target:7777)
+host ──2204──▶ sudors (Ubuntu, its sudo is sudo-rs)
 ```
+
+`tilde` may use `sudo` with its password on `target` (classic sudo, Alpine) and on `sudors`
+(sudo-rs): the files-as-root tests run against both.
 
 - User `tilde`. Its password, a key passphrase and the keys are **generated per checkout**
   by `scripts/ssh-test-env.{sh,ps1} up` into `keys/` (git-ignored): `password`,

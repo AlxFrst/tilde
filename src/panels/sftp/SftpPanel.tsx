@@ -8,6 +8,7 @@ import {
   FolderPlus,
   Link2,
   Link2Off,
+  Loader2,
   RotateCw,
   ShieldAlert,
   Unplug,
@@ -79,8 +80,15 @@ const NAMING_TITLES = {
   user: msg('Utilisateur (sudo)'),
 };
 
-/** The server refused a permission: switching to root may help. */
-const refused = (err: unknown) => isSessionError(err) && err.kind === 'permission';
+/**
+ * The server refused a permission, or the files were another user's and are the login
+ * user's again (sudo failed to open them anew): switching to root may help.
+ */
+const refused = (err: unknown) =>
+  isSessionError(err) && (err.kind === 'permission' || err.kind === 'sudo');
+
+/** The files went back to the login user: who they are read as must be read again. */
+const fellBack = (err: unknown) => isSessionError(err) && err.kind === 'sudo';
 
 /** How long to wait for the shell to report its directory before offering the snippet. */
 const OSC7_GRACE_MS = 3000;
@@ -221,11 +229,14 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
 function UserMenu({
   login,
   user,
+  busy,
   onChoose,
   onOther,
 }: {
   login: string | null;
   user: string | null;
+  /** A switch is running: the menu waits for it. */
+  busy: boolean;
   onChoose: (user: string | null) => void;
   onOther: () => void;
 }) {
@@ -237,13 +248,19 @@ function UserMenu({
         <button
           type="button"
           aria-label={t('Utilisateur des fichiers : {user}', { user: shown })}
+          aria-busy={busy || undefined}
+          disabled={busy}
           title={user ? t('Fichiers lus et écrits en tant que {user} (sudo)', { user }) : undefined}
           className={cn(
-            'flex h-7 max-w-28 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs text-text-muted hover:bg-surface-2 hover:text-text',
+            'flex h-7 max-w-28 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs text-text-muted hover:bg-surface-2 hover:text-text disabled:opacity-60',
             user && 'bg-warning/15 text-warning hover:bg-warning/20 hover:text-warning',
           )}
         >
-          <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+          {busy ? (
+            <Loader2 className="size-3.5 shrink-0 animate-spin" strokeWidth={1.75} />
+          ) : (
+            <Icon className="size-3.5 shrink-0" strokeWidth={1.75} />
+          )}
           <span className="truncate">{shown}</span>
         </button>
       </DropdownMenuTrigger>
@@ -300,7 +317,43 @@ export function SftpPanelView({
   const [entries, setEntries] = useState<RemoteEntry[] | null>(null);
   const [error, setError] = useState<{ text: string; refused: boolean } | null>(null);
   const identity = useSftpUsers((s) => (sessionId === null ? undefined : s.bySession[sessionId]));
+  const switching = useSftpUsers((s) => sessionId !== null && s.switching[sessionId] === true);
   const asUser = identity?.user ?? null;
+  /**
+   * Tells that the files went back to the login user (sudo failed to open them anew, a
+   * password changed…), offering root again, and reads who they are read as now.
+   */
+  const wentBack = useCallback(
+    (e: unknown) => {
+      if (sessionId === null) return;
+      void useSftpUsers
+        .getState()
+        .load(sessionId)
+        .then(() => {
+          const login = useSftpUsers.getState().bySession[sessionId]?.login ?? '?';
+          toast.warning(
+            t('Les fichiers sont revenus à {user} : {reason}', { user: login, reason: message(e) }),
+            {
+              action: {
+                label: t('Passer en root (sudo)'),
+                onClick: () => {
+                  void useSftpUsers.getState().switchTo(sessionId, 'root');
+                },
+              },
+            },
+          );
+        });
+    },
+    [sessionId],
+  );
+  /** Shows a failed SFTP call. */
+  const failed = useCallback(
+    (e: unknown) => {
+      setError({ text: message(e), refused: refused(e) });
+      if (fellBack(e)) wentBack(e);
+    },
+    [wentBack],
+  );
   const [reload, setReload] = useState(0);
   const [sort, setSort] = useState<Sort>({ key: 'name', asc: true });
   const [showHidden, setShowHidden] = useState(false);
@@ -350,10 +403,10 @@ export function SftpPanelView({
         update({ path: home });
       },
       (e: unknown) => {
-        setError({ text: message(e), refused: refused(e) });
+        failed(e);
       },
     );
-  }, [sessionId, path, panel.follow, linkedCwd, update]);
+  }, [sessionId, path, panel.follow, linkedCwd, update, failed]);
 
   // Who the files are read as (the login user unless switched through sudo).
   useEffect(() => {
@@ -388,14 +441,14 @@ export function SftpPanelView({
         setError(null);
       },
       (e: unknown) => {
-        if (!cancelled) setError({ text: message(e), refused: refused(e) });
+        if (!cancelled) failed(e);
       },
     );
     return () => {
       cancelled = true;
     };
     // `asUser`: another user may read what the previous one could not.
-  }, [sessionId, path, reload, asUser]);
+  }, [sessionId, path, reload, asUser, failed]);
 
   // Uploads landing in this folder show up as they finish.
   useEffect(() => {
@@ -470,7 +523,11 @@ export function SftpPanelView({
         if (done) toast.success(done);
         refresh();
       },
-      (e: unknown) =>
+      (e: unknown) => {
+        if (fellBack(e)) {
+          wentBack(e);
+          return;
+        }
         toast.error(
           message(e),
           refused(e) && asUser !== 'root'
@@ -483,7 +540,8 @@ export function SftpPanelView({
                 },
               }
             : undefined,
-        ),
+        );
+      },
     );
   };
   const edit = (target: string) => {
@@ -716,6 +774,7 @@ export function SftpPanelView({
         <UserMenu
           login={identity?.login ?? null}
           user={asUser}
+          busy={switching}
           onChoose={becomeUser}
           onOther={() => {
             setNaming({ kind: 'user' });
@@ -784,7 +843,17 @@ export function SftpPanelView({
         menu={menu}
       />
 
-      {naming && path !== null && (
+      {naming?.kind === 'user' && (
+        <NameDialog
+          title={t(NAMING_TITLES.user)}
+          initial=""
+          onDone={(name) => {
+            setNaming(null);
+            if (name) becomeUser(name.trim());
+          }}
+        />
+      )}
+      {naming && naming.kind !== 'user' && path !== null && (
         <NameDialog
           title={t(NAMING_TITLES[naming.kind])}
           initial={naming.kind === 'rename' ? naming.entry.name : ''}
@@ -792,10 +861,6 @@ export function SftpPanelView({
             const current = naming;
             setNaming(null);
             if (!name) return;
-            if (current.kind === 'user') {
-              becomeUser(name.trim());
-              return;
-            }
             const target = joinRemote(path, name);
             // The server would only answer « Failure ».
             if (current.kind !== 'rename' && entries?.some((e) => e.name === name)) {

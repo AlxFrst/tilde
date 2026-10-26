@@ -10,17 +10,21 @@ import { isSessionError } from '@/ipc/session';
 
 interface SftpUsersState {
   bySession: Record<number, SftpIdentity>;
-  /** Reads a session's current user (once it is connected). */
+  /** A switch is running for these sessions (the user menu waits). */
+  switching: Record<number, boolean>;
+  /** Reads a session's current user (once connected, or after it changed in Rust). */
   load: (sessionId: number) => Promise<void>;
   /**
    * Reads and writes the session's files as `user` through sudo (`null`: the login user).
-   * Resolves to false when refused or cancelled; a refusal is told in a toast.
+   * Resolves to false when refused, cancelled, or while another switch runs; a refusal
+   * is told in a toast.
    */
   switchTo: (sessionId: number, user: string | null) => Promise<boolean>;
 }
 
 export const useSftpUsers = create<SftpUsersState>()((set, get) => ({
   bySession: {},
+  switching: {},
 
   load: async (sessionId) => {
     try {
@@ -32,6 +36,9 @@ export const useSftpUsers = create<SftpUsersState>()((set, get) => ({
   },
 
   switchTo: async (sessionId, user) => {
+    // One at a time: two would ask for the password twice and cost twice the tries.
+    if (get().switching[sessionId]) return false;
+    set((s) => ({ switching: { ...s.switching, [sessionId]: true } }));
     try {
       const identity = await sftpSwitchUser(sessionId, user);
       set((s) => ({ bySession: { ...s.bySession, [sessionId]: identity } }));
@@ -48,6 +55,8 @@ export const useSftpUsers = create<SftpUsersState>()((set, get) => ({
         }),
       );
       return false;
+    } finally {
+      set((s) => ({ switching: { ...s.switching, [sessionId]: false } }));
     }
   },
 }));

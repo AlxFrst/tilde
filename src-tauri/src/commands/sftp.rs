@@ -19,8 +19,14 @@ use crate::{commands::session::SessionErrorDto, state::AppState};
 pub const TRANSFER_EVENT: &str = "sftp://transfer";
 
 fn sftp_err(e: &SftpError) -> SessionErrorDto {
-    // A refused permission is told apart: the files pane offers to switch to root.
-    let kind = if matches!(e, SftpError::PermissionDenied(_)) { "permission" } else { "sftp" };
+    let kind = match e {
+        // The files pane offers to switch to root.
+        SftpError::PermissionDenied(_) => "permission",
+        // The files were another user's and are the login user's again: the pane shows it.
+        SftpError::Sudo(SudoError::Cancelled) => "cancelled",
+        SftpError::Sudo(_) => "sudo",
+        _ => "sftp",
+    };
     SessionErrorDto { kind, message: e.to_string() }
 }
 

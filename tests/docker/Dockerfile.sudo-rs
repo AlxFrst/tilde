@@ -1,0 +1,26 @@
+# OpenSSH server whose `sudo` is sudo-rs (the default on Ubuntu 25.10 and later), for the
+# files-as-root tests. Test-only; credentials are injected at startup as for the others
+# (see entrypoint.sh). The build fails if `sudo` is not sudo-rs.
+FROM ubuntu:26.04
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      openssh-server openssh-sftp-server sudo-rs netcat-openbsd \
+ && rm -rf /var/lib/apt/lists/* \
+ && SUDO_RS="$(command -v sudo-rs || echo /usr/lib/cargo/bin/sudo)" \
+ && { [ -x /usr/bin/sudo ] || ln -s "$SUDO_RS" /usr/bin/sudo; } \
+ && sudo --version 2>&1 | grep -qi 'sudo-rs' \
+ && { [ -f /etc/sudoers ] || { printf 'root ALL=(ALL:ALL) ALL\n@includedir /etc/sudoers.d\n' > /etc/sudoers && chmod 440 /etc/sudoers; }; } \
+ && mkdir -p /etc/sudoers.d \
+ && useradd -m -s /bin/sh tilde \
+ && echo 'tilde ALL=(ALL) ALL' > /etc/sudoers.d/tilde && chmod 440 /etc/sudoers.d/tilde \
+ && mkdir -p /run/sshd /home/tilde/.ssh && chown tilde:tilde /home/tilde/.ssh && chmod 700 /home/tilde/.ssh \
+ && ssh-keygen -A
+
+COPY sshd_config /etc/ssh/sshd_config
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+EXPOSE 22
+HEALTHCHECK --interval=1s --timeout=2s --retries=30 CMD nc -z 127.0.0.1 22 || exit 1
+ENTRYPOINT ["/entrypoint.sh"]

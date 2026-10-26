@@ -129,7 +129,6 @@ export const RUST: Readonly<Record<string, string>> = {
   // crates/tilde-ssh/src/sftp.rs
   'SFTP indisponible : {reason}': 'SFTP unavailable: {reason}',
   '{path} : permission refusée': '{path}: permission denied',
-  'utilisateur invalide : {name}': 'invalid user: {name}',
 
   // crates/tilde-ssh/src/sudo.rs
   "nom d'utilisateur invalide : {name}": 'invalid user name: {name}',
@@ -137,6 +136,7 @@ export const RUST: Readonly<Record<string, string>> = {
   'mot de passe sudo refusé': 'sudo password refused',
   'sudo refusé : {reason}': 'sudo refused: {reason}',
   "sudo n'est pas installé sur ce serveur": 'sudo is not installed on this server',
+  'sftp-server introuvable sur ce serveur': 'sftp-server not found on this server',
   annulé: 'cancelled',
   'sudo ne répond pas : {reason}': 'sudo is not answering: {reason}',
   'pas de réponse': 'no answer',

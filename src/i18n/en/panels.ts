@@ -120,6 +120,7 @@ export default {
   'Autre utilisateur (sudo)…': 'Other user (sudo)…',
   'Passer en root (sudo)': 'Switch to root (sudo)',
   'Ouvrir en root (sudo)': 'Open as root (sudo)',
+  'Les fichiers sont revenus à {user} : {reason}': 'The files are back to {user}: {reason}',
   'Nouveau dossier': 'New folder',
   'Nouveau fichier': 'New file',
   Renommer: 'Rename',

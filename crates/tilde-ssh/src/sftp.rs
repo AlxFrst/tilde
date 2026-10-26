@@ -13,11 +13,13 @@ use russh_sftp::{
     protocol::{FileAttributes, FileType, OpenFlags, StatusCode},
 };
 use serde::Serialize;
-use zeroize::Zeroizing;
 
 use crate::{
     chain::Connection,
-    sudo::{SFTP_SERVER_SCRIPT, SudoUser, sudo_command, valid_user},
+    sudo::{
+        SFTP_SERVER_SCRIPT, SudoError, SudoUser, password_line, sudo_command, valid_user,
+        wait_until_ready,
+    },
 };
 
 /// Bound on opening the SFTP subsystem (a server without one may never answer).
@@ -58,6 +60,9 @@ pub enum SftpError {
     Unavailable(String),
     #[error("{0} : permission refusée")]
     PermissionDenied(String),
+    /// Opening the files as another user failed (see [`crate::SudoUser`]).
+    #[error(transparent)]
+    Sudo(#[from] SudoError),
     #[error("{path} : {message}")]
     Io { path: String, message: String },
     #[error("trop d'éléments à supprimer (plus de {MAX_REMOVE}) : opération arrêtée")]
@@ -192,32 +197,39 @@ impl SftpClient {
     }
 
     /// Opens an SFTP server started through `sudo -u` (see [`crate::SudoUser`]) on the
-    /// connection's target.
+    /// connection's target. The SFTP session starts only once the server is running:
+    /// what `sudo` says before is read, and a refusal is an error at once.
     ///
     /// # Errors
     ///
-    /// [`SftpError::Unavailable`] when `sudo` or the server refuses, or does not answer.
+    /// [`SftpError::Sudo`] when `sudo` refuses, stops or does not answer;
+    /// [`SftpError::Unavailable`] when the server then fails.
     pub async fn open_as(connection: &Connection, who: &SudoUser) -> Result<Self, SftpError> {
         let unavailable = |e: &dyn std::fmt::Display| SftpError::Unavailable(e.to_string());
+        let failed = |e: &dyn std::fmt::Display| SftpError::Sudo(SudoError::Failed(e.to_string()));
         if !valid_user(&who.user) {
-            return Err(SftpError::Unavailable(format!("utilisateur invalide : {}", who.user)));
+            return Err(SudoError::InvalidUser(who.user.clone()).into());
+        }
+        // `sudo` reads one line: anything after a line break would reach the server.
+        if who.password.as_ref().is_some_and(|p| p.contains(['\n', '\r'])) {
+            return Err(SudoError::WrongPassword.into());
         }
         let open = async {
-            let channel =
-                connection.target().channel_open_session().await.map_err(|e| unavailable(&e))?;
+            let mut channel =
+                connection.target().channel_open_session().await.map_err(|e| failed(&e))?;
             let server = format!("/bin/sh -c '{SFTP_SERVER_SCRIPT}'");
             let command = sudo_command(&who.user, who.password.is_some(), &server);
-            channel.exec(true, command).await.map_err(|e| unavailable(&e))?;
+            channel.exec(true, command).await.map_err(|e| failed(&e))?;
             // `sudo -S` reads one line, then hands the rest of the input to the server.
             if let Some(password) = &who.password {
-                let line = Zeroizing::new(format!("{}\n", password.as_str()));
-                channel.data(line.as_bytes()).await.map_err(|e| unavailable(&e))?;
+                channel.data(&password_line(password)[..]).await.map_err(|e| failed(&e))?;
             }
+            wait_until_ready(&mut channel).await?;
             SftpSession::new(channel.into_stream()).await.map_err(|e| unavailable(&e))
         };
         let session = tokio::time::timeout(OPEN_TIMEOUT, open)
             .await
-            .map_err(|_| SftpError::Unavailable("le serveur ne répond pas".into()))??;
+            .map_err(|_| SftpError::Sudo(SudoError::Failed("le serveur ne répond pas".into())))??;
         Ok(Self { session, dead: AtomicBool::new(false) })
     }
 

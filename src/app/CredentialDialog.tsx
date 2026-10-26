@@ -84,7 +84,7 @@ export function CredentialDialog({
                   ? t('{key} — pour {target}', { key: prompt.keyPath ?? '', target: prompt.target })
                   : prompt.secret === 'sudo'
                     ? t(
-                        'Votre mot de passe, que sudo demande pour lire et écrire les fichiers en tant que {user}.',
+                        'Le mot de passe que sudo demande (en général le vôtre), pour lire et écrire les fichiers en tant que {user}.',
                         { user: prompt.sudoUser ?? 'root' },
                       )
                     : t('Le mot de passe n’est jamais écrit sur le disque ni dans les journaux.')}
