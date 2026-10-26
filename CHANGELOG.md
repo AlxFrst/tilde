@@ -11,7 +11,9 @@ All notable changes to Tilde are listed here. The format follows
   another user) through `sudo`, and back. A folder you may not read offers *Open as root
   (sudo)*, and a refused operation *Switch to root (sudo)*. Tilde asks for your password when
   `sudo` needs it (and can remember it in the OS keyring); the editor, transfers and external
-  edits of the session follow the chosen user.
+  edits of the session follow the chosen user. Classic sudo and sudo-rs (Ubuntu 25.10 and
+  later) both work. A switch never tries more than three passwords, and if `sudo` refuses
+  later (a password changed), the files go back to your own user instead of trying again.
 - **Maximize a pane**: the button in a pane's header (or the editor's own when it is alone),
   `Ctrl+Shift+Enter`, or the palette. The pane fills the window and the Rail steps aside; the
   other panes keep running. `F11` puts the window in full screen.
