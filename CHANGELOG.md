@@ -4,9 +4,12 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.1]
 
 ### Fixed
+- Windows installs could not check for updates once 0.3.0 was out (« None of the fallback
+  platforms … were found »): the update file of that release listed only Linux and macOS. It
+  was repaired, and releases now write it once every platform is built.
 - The terminal no longer loses its left side. It was sized two columns wider than what shows
   (the padding around it was counted in), so the browser scrolled it sideways when the
   cursor reached those columns, and the shell wrapped lines at a width that did not show.
