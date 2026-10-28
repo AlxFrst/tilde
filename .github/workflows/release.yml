@@ -20,6 +20,7 @@ on:
       - .github/workflows/release.yml
       - src-tauri/tauri.conf.json
       - scripts/check-version.ts
+      - scripts/updater-json.ts
 
 permissions:
   contents: read
@@ -210,6 +211,11 @@ jobs:
         with:
           releaseId: ${{ needs.prepare.outputs.release-id }}
           args: ${{ matrix.args }} ${{ env.EXTRA_ARGS }}
+          # The release stays a draft until a maintainer publishes it.
+          releaseDraft: true
+          # latest.json is written once, by the last job, from every platform's files:
+          # three jobs merging their own entries at once overwrote one another.
+          uploadUpdaterJson: false
 
       - name: Keep the installers (pull requests and manual runs)
         if: env.IS_TAG != 'true'
@@ -226,29 +232,57 @@ jobs:
             target/**/release/bundle/dmg/*.dmg
 
   checksums:
-    name: SHA-256 sums
+    name: Updater file and SHA-256 sums
     needs: [prepare, build]
     if: needs.prepare.outputs.release-id != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_ID: ${{ needs.prepare.outputs.release-id }}
     steps:
-      - name: Hash the release assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_ID: ${{ needs.prepare.outputs.release-id }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # From every platform's signatures, once all are built; the script fails if a
+      # platform is missing, so an incomplete release never reaches the updater.
+      - name: The updater file (latest.json)
         run: |
-          mkdir assets && cd assets
-          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
-            --jq '.[] | "\(.id) \(.name)"' |
+          api="repos/$GITHUB_REPOSITORY/releases"
+          mkdir sigs && cd sigs
+          gh api "$api/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.name | endswith(".sig")) | "\(.id) \(.name)"' |
           while read -r id name; do
-            gh api -H 'Accept: application/octet-stream' \
-              "repos/$GITHUB_REPOSITORY/releases/assets/$id" > "$name"
+            gh api -H 'Accept: application/octet-stream' "$api/assets/$id" > "$name"
+          done
+          gh api "$api/$RELEASE_ID" --jq .body > notes.md
+          node ../scripts/updater-json.ts "$TAG" notes.md > ../latest.json
+          cd ..
+          # A re-run replaces the file.
+          gh api "$api/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.name == "latest.json") | .id' |
+          while read -r id; do gh api -X DELETE "$api/assets/$id"; done
+          upload_url=$(gh api "$api/$RELEASE_ID" --jq .upload_url)
+          gh api -X POST -H 'Content-Type: application/json' \
+            "${upload_url%\{*}?name=latest.json" --input latest.json > /dev/null
+      - name: Hash the release assets
+        run: |
+          api="repos/$GITHUB_REPOSITORY/releases"
+          mkdir assets && cd assets
+          gh api "$api/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.name != "SHA256SUMS.txt") | "\(.id) \(.name)"' |
+          while read -r id name; do
+            gh api -H 'Accept: application/octet-stream' "$api/assets/$id" > "$name"
           done
           sha256sum -- * > ../SHA256SUMS.txt
           cat ../SHA256SUMS.txt
           cd ..
-          upload_url=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .upload_url)
+          gh api "$api/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | select(.name == "SHA256SUMS.txt") | .id' |
+          while read -r id; do gh api -X DELETE "$api/assets/$id"; done
+          upload_url=$(gh api "$api/$RELEASE_ID" --jq .upload_url)
           gh api -X POST -H 'Content-Type: text/plain' \
             "${upload_url%\{*}?name=SHA256SUMS.txt" --input SHA256SUMS.txt > /dev/null

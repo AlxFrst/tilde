@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readVersions, versionProblem } from '../../scripts/check-version.ts';
+import { missingPlatforms, updaterJson } from '../../scripts/updater-json.ts';
 
 const root = join(__dirname, '../..');
 
@@ -68,4 +69,52 @@ test('both Windows uninstallers remove the "Ouvrir dans Tilde" entry', () => {
   expect(w?.wix?.componentRefs).toEqual(['ExplorerMenuCleanup']);
   expect(wxs).toContain('Component Id="ExplorerMenuCleanup"');
   expect(wxs.match(/Action="removeOnUninstall"/g)).toHaveLength(4);
+});
+
+describe('the updater’s latest.json', () => {
+  const sigs = new Map([
+    ['Tilde_0.3.0_x64-setup.exe', 'sig-nsis'],
+    ['Tilde_0.3.0_x64_en-US.msi', 'sig-msi-en'],
+    ['Tilde_0.3.0_x64_fr-FR.msi', 'sig-msi-fr'],
+    ['Tilde_0.3.0_amd64.AppImage', 'sig-appimage'],
+    ['Tilde_0.3.0_amd64.deb', 'sig-deb'],
+    ['Tilde_universal.app.tar.gz', 'sig-mac'],
+  ]);
+  const base = 'https://github.com/AlxFrst/tilde/releases/download/v0.3.0/';
+
+  test('lists every platform from the signed installers, whichever job built them', () => {
+    const json = updaterJson('v0.3.0', sigs, 'Notes', new Date('2026-10-26T16:00:00Z'));
+    expect(json.version).toBe('0.3.0');
+    expect(json.notes).toBe('Notes');
+    expect(json.pub_date).toBe('2026-10-26T16:00:00.000Z');
+    const urls = Object.fromEntries(
+      Object.entries(json.platforms).map(([k, v]) => [k, v.url.slice(base.length)]),
+    );
+    expect(urls).toEqual({
+      'windows-x86_64': 'Tilde_0.3.0_x64-setup.exe',
+      'windows-x86_64-nsis': 'Tilde_0.3.0_x64-setup.exe',
+      'windows-x86_64-msi': 'Tilde_0.3.0_x64_en-US.msi',
+      'linux-x86_64': 'Tilde_0.3.0_amd64.AppImage',
+      'linux-x86_64-appimage': 'Tilde_0.3.0_amd64.AppImage',
+      'linux-x86_64-deb': 'Tilde_0.3.0_amd64.deb',
+      'darwin-x86_64': 'Tilde_universal.app.tar.gz',
+      'darwin-x86_64-app': 'Tilde_universal.app.tar.gz',
+      'darwin-aarch64': 'Tilde_universal.app.tar.gz',
+      'darwin-aarch64-app': 'Tilde_universal.app.tar.gz',
+    });
+    expect(json.platforms['windows-x86_64-nsis']?.signature).toBe('sig-nsis');
+    expect(missingPlatforms(json.platforms)).toEqual([]);
+  });
+
+  test('a release missing a platform is caught before it ships', () => {
+    const linuxOnly = new Map([...sigs].filter(([name]) => /AppImage|deb/.test(name)));
+    const json = updaterJson('v0.3.0', linuxOnly, '', new Date());
+    expect(missingPlatforms(json.platforms)).toEqual([
+      'windows-x86_64',
+      'windows-x86_64-nsis',
+      'windows-x86_64-msi',
+      'darwin-x86_64',
+      'darwin-aarch64',
+    ]);
+  });
 });
