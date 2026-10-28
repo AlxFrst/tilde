@@ -421,3 +421,25 @@ test('the terminal menu splits the pane', async () => {
   await userEvent.click(await screen.findByRole('menuitem', { name: /Diviser en bas/ }));
   expect(splitActive).toHaveBeenLastCalledWith('column');
 });
+
+// The fit reads the width of the element the terminal opens in, padding included
+// (border-box): padding there made the terminal wider than what shows, and the browser
+// scrolled the rest into view, cutting the left side off.
+test('the terminal opens in an element without padding, inside the padded one', () => {
+  const { term } = renderView();
+  const el = term.container;
+  if (!el) throw new Error('not opened');
+  expect(el.className).not.toMatch(/\bp[xytrbl]?-/);
+  expect(el.parentElement?.className).toMatch(/\bpx-2\b/);
+});
+
+test('a terminal scrolled sideways by the browser is put back at once', () => {
+  const { term } = renderView();
+  const box = term.container?.closest('[data-terminal-frame]') as HTMLElement | null;
+  if (!box) throw new Error('no frame');
+  box.scrollLeft = 16;
+  box.scrollTop = 4;
+  fireEvent.scroll(box);
+  expect(box.scrollLeft).toBe(0);
+  expect(box.scrollTop).toBe(0);
+});
