@@ -373,15 +373,29 @@ export function TerminalView(props: TerminalViewProps) {
   };
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-bg">
+    <div
+      data-terminal-frame
+      className="relative h-full w-full overflow-hidden bg-bg"
+      // The browser scrolls this box to keep xterm's input field (at the cursor) in
+      // view; the terminal is sized to fit, so any scroll would only hide its left side.
+      onScroll={(e) => {
+        const box = e.currentTarget;
+        if (box.scrollLeft !== 0) box.scrollLeft = 0;
+        if (box.scrollTop !== 0) box.scrollTop = 0;
+      }}
+    >
       <ContextMenu>
         <ContextMenuTrigger asChild disabled={rightClick !== 'menu'}>
           <div
-            ref={container}
             className="h-full w-full px-2 pt-1"
             style={{ backgroundColor: theme.background }}
             onContextMenu={onContextMenu}
-          />
+          >
+            {/* The terminal opens in an element without padding: the fit reads that
+                element's width padding included (border-box), and padding there made the
+                terminal two columns wider than what shows. */}
+            <div ref={container} className="h-full w-full" />
+          </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem onSelect={copySelection}>

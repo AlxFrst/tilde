@@ -4,6 +4,13 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- The terminal no longer loses its left side. It was sized two columns wider than what shows
+  (the padding around it was counted in), so the browser scrolled it sideways when the
+  cursor reached those columns, and the shell wrapped lines at a width that did not show.
+
 ## [0.3.0]
 
 ### Added
