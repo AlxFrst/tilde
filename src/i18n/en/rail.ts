@@ -169,6 +169,10 @@ export default {
   'En dessous de {name}': 'Below {name}',
   'À la place de {name}': 'In place of {name}',
   'Échanger avec {name}': 'Swap with {name}',
+  'Retirer la session de la vue': 'Remove the session from the view',
+  'Afficher la session seule': 'Show the session alone',
+  Afficher: 'Show',
+  'Que faire avec cette session ?': 'What to do with this session?',
   'Dans la vue côte à côte : clique pour la retrouver':
     'In the side-by-side view: click to bring it back',
   'session active': 'active session',

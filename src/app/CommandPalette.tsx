@@ -6,13 +6,17 @@ import {
   ChevronRight,
   Columns2,
   Copy,
+  Eye,
   FileCode2,
   FolderTree,
   History,
+  Maximize2,
   Pencil,
   Plug,
   Plus,
+  Rows2,
   Search,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -31,13 +35,15 @@ import { fold } from '@/connections/search';
 import { listSpaces, spaceName } from '@/connections/spaces';
 import type { Connection } from '@/ipc/connections';
 import { useConnections } from '@/stores/connections';
+import { cn } from '@/lib/utils';
 import { useKeybindings } from '@/stores/keybindings';
 import { useUi } from '@/stores/ui';
-import { useWorkspace } from '@/stores/workspace';
+import { shownView, useWorkspace } from '@/stores/workspace';
 import { bindingKeys } from '@/terminal/keyLabels';
 import { activeTerminal } from '@/terminal/terminalActions';
 import { knownSpaceIds, spaceOfTab } from '@/workspace/spaces';
 import { leaves } from '@/workspace/tree';
+import { viewHas } from '@/workspace/view';
 import { openConnection } from './actions';
 import { sessionTitle, useLabelNames } from './paneLabel';
 import { describeTarget } from './sidebar/Section';
@@ -145,6 +151,74 @@ interface Action {
   title: string;
   Icon: LucideIcon;
   run: () => void;
+}
+
+/** An open session whose actions are listed (→ on it). */
+interface SessionPage {
+  kind: 'session';
+  tabId: string;
+  label: string;
+}
+
+/**
+ * What can be done with an open session (→ in the palette): show it, open it beside the
+ * active session, or, in the view, show it alone or take it out.
+ */
+export function sessionActions(tabId: string): Action[] {
+  const ws = () => useWorkspace.getState();
+  const active = ws().activeTabId;
+  const actions: Action[] = [
+    {
+      id: 'show',
+      title: t('Afficher'),
+      Icon: Eye,
+      run: () => {
+        ws().activateTab(tabId);
+      },
+    },
+  ];
+  if (active && ws().canPlaceInView(tabId, active, 'right')) {
+    actions.push({
+      id: 'right',
+      title: t('Ouvrir à droite'),
+      Icon: Columns2,
+      run: () => {
+        ws().placeInView(tabId, active, 'right');
+      },
+    });
+  }
+  if (active && ws().canPlaceInView(tabId, active, 'bottom')) {
+    actions.push({
+      id: 'bottom',
+      title: t('Ouvrir en bas'),
+      Icon: Rows2,
+      run: () => {
+        ws().placeInView(tabId, active, 'bottom');
+      },
+    });
+  }
+  const view = shownView(ws());
+  if (view && viewHas(view, tabId)) {
+    actions.push(
+      {
+        id: 'alone',
+        title: t('Afficher seule'),
+        Icon: Maximize2,
+        run: () => {
+          ws().showAlone(tabId);
+        },
+      },
+      {
+        id: 'remove',
+        title: t('Retirer de la vue'),
+        Icon: X,
+        run: () => {
+          ws().removeFromView(tabId);
+        },
+      },
+    );
+  }
+  return actions;
 }
 
 /** What can be done with a host (→ in the palette). */
@@ -271,7 +345,7 @@ export function CommandPalette() {
   const names = useLabelNames();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState('');
-  const [page, setPage] = useState<Target | null>(null);
+  const [page, setPage] = useState<Target | SessionPage | null>(null);
   // Read when the palette opens: commands registered later still show next time.
   const commands = useMemo(() => (open ? listCommands().filter((c) => !c.hidden) : []), [open]);
   // The spaces this window shows (the Quake console has only one).
@@ -296,7 +370,7 @@ export function CommandPalette() {
     close();
     run();
   };
-  const openActions = (target: Target) => {
+  const openActions = (target: Target | SessionPage) => {
     setPage(target);
     setQuery('');
   };
@@ -348,7 +422,9 @@ export function CommandPalette() {
               onValueChange={setQuery}
               placeholder={
                 page
-                  ? t('Que faire avec ce serveur ?')
+                  ? page.kind === 'session'
+                    ? t('Que faire avec cette session ?')
+                    : t('Que faire avec ce serveur ?')
                   : t('Se connecter à… ou lancer une commande')
               }
               className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-text-muted"
@@ -356,10 +432,21 @@ export function CommandPalette() {
                 const input = e.currentTarget;
                 const atEnd = input.selectionStart === input.value.length;
                 if (e.key === 'ArrowRight' && !page && atEnd) {
-                  const target = targets.find((x) => x.key === keyOf(selected));
+                  const key = keyOf(selected);
+                  const target = targets.find((x) => x.key === key);
+                  const tab = key.startsWith('tab:')
+                    ? tabs.find((x) => `tab:${x.id}` === key)
+                    : undefined;
                   if (target) {
                     e.preventDefault();
                     openActions(target);
+                  } else if (tab) {
+                    e.preventDefault();
+                    openActions({
+                      kind: 'session',
+                      tabId: tab.id,
+                      label: sessionTitle(tab, names),
+                    });
                   }
                 } else if (
                   page &&
@@ -381,19 +468,21 @@ export function CommandPalette() {
                 heading={t('Actions · {name}', { name: page.label })}
                 className={groupClass}
               >
-                {targetActions(page).map((a) => (
-                  <Command.Item
-                    key={a.id}
-                    value={`${a.title}${ID_SEPARATOR}action:${a.id}`}
-                    className={itemClass}
-                    onSelect={() => {
-                      choose(a.run);
-                    }}
-                  >
-                    <a.Icon className="size-4 shrink-0 text-text-muted" strokeWidth={1.5} />
-                    <span className="truncate">{a.title}</span>
-                  </Command.Item>
-                ))}
+                {(page.kind === 'session' ? sessionActions(page.tabId) : targetActions(page)).map(
+                  (a) => (
+                    <Command.Item
+                      key={a.id}
+                      value={`${a.title}${ID_SEPARATOR}action:${a.id}`}
+                      className={itemClass}
+                      onSelect={() => {
+                        choose(a.run);
+                      }}
+                    >
+                      <a.Icon className="size-4 shrink-0 text-text-muted" strokeWidth={1.5} />
+                      <span className="truncate">{a.title}</span>
+                    </Command.Item>
+                  ),
+                )}
               </Command.Group>
             ) : (
               <>
@@ -466,6 +555,27 @@ export function CommandPalette() {
                               {spaceName(space)}
                             </span>
                           )}
+                          <button
+                            type="button"
+                            tabIndex={-1}
+                            aria-label={t('Actions de {name}', { name: sessionTitle(tab, names) })}
+                            title={t('Actions (→)')}
+                            className={cn(
+                              'shrink-0 rounded p-0.5 text-text-muted hover:bg-surface-1 hover:text-text',
+                              !(spaces.length > 1 && space) && 'ml-auto',
+                            )}
+                            onPointerDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openActions({
+                                kind: 'session',
+                                tabId: tab.id,
+                                label: sessionTitle(tab, names),
+                              });
+                            }}
+                          >
+                            <ChevronRight className="size-3.5" strokeWidth={1.5} />
+                          </button>
                         </Command.Item>
                       );
                     })}
