@@ -1,3 +1,5 @@
+import type { SpaceView } from './view';
+
 /** `row` = side by side, `column` = stacked. */
 export type Direction = 'row' | 'column';
 
@@ -121,4 +123,6 @@ export interface WorkspaceSnapshot {
   activeSpaceId?: string | null;
   /** The session last shown in each space. */
   activeTabBySpace?: Record<string, string>;
+  /** Each space's side-by-side view (absent in files written before views). */
+  views?: Record<string, SpaceView>;
 }

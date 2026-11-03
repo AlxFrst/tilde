@@ -3,6 +3,7 @@
 
 import { getPanelModule } from '@/panels/registry';
 import type { Direction, LayoutNode, Panel, Tab, WorkspaceSnapshot } from './types';
+import { viewTabs, type SpaceView, type ViewNode } from './view';
 
 type Obj = Record<string, unknown>;
 
@@ -72,6 +73,67 @@ function hasLeaf(n: LayoutNode, id: string): boolean {
   return n.type === 'leaf' ? n.id === id : n.children.some((c) => hasLeaf(c, id));
 }
 
+/** A view's tree, keeping the sessions `free` accepts, each once (`claimed` is filled). */
+function sanitizeViewNode(
+  raw: unknown,
+  free: (tabId: string) => boolean,
+  claimed: Set<string>,
+  splitIds: Set<string>,
+  depth = 0,
+): ViewNode | null {
+  if (!isObj(raw) || depth > 32) return null;
+  if (raw.type === 'leaf') {
+    const tabId = str(raw.tabId);
+    if (!tabId || !free(tabId) || claimed.has(tabId)) return null;
+    claimed.add(tabId);
+    return { type: 'leaf', tabId };
+  }
+  if (raw.type !== 'split' || !Array.isArray(raw.children)) return null;
+  const kept: { node: ViewNode; size: unknown }[] = [];
+  const sizes: unknown[] = Array.isArray(raw.sizes) ? raw.sizes : [];
+  raw.children.forEach((child, i) => {
+    const node = sanitizeViewNode(child, free, claimed, splitIds, depth + 1);
+    if (node) kept.push({ node, size: sizes[i] });
+  });
+  if (kept.length === 0) return null;
+  if (kept.length === 1) return kept[0]?.node ?? null;
+  return {
+    type: 'split',
+    id: uniqueId(raw.id, splitIds),
+    direction: raw.direction === 'column' ? 'column' : 'row',
+    children: kept.map((k) => k.node),
+    sizes: sanitizeSizes(
+      kept.map((k) => k.size),
+      kept.length,
+    ),
+  };
+}
+
+/**
+ * The side-by-side views of `raw`, by space: only sessions in `tabIds`, each in one view;
+ * a view left with fewer than two sessions is dropped.
+ */
+export function sanitizeViews(
+  raw: unknown,
+  tabIds: ReadonlySet<string>,
+): Record<string, SpaceView> {
+  const out: Record<string, SpaceView> = {};
+  if (!isObj(raw)) return out;
+  const used = new Set<string>();
+  const splitIds = new Set<string>();
+  for (const [space, view] of Object.entries(raw)) {
+    if (!isObj(view)) continue;
+    // A view dropped here gives its sessions back to the views after it.
+    const mine = new Set<string>();
+    const free = (id: string) => tabIds.has(id) && !used.has(id);
+    const root = sanitizeViewNode(view.root, free, mine, splitIds);
+    if (!root || viewTabs(root).length < 2) continue;
+    mine.forEach((id) => used.add(id));
+    out[space] = { root, shown: view.shown === true };
+  }
+  return out;
+}
+
 /** A valid snapshot built from whatever is usable in `raw`, or null if nothing is. */
 export function sanitizeSnapshot(raw: unknown): WorkspaceSnapshot | null {
   if (!isObj(raw) || raw.version !== 1 || !Array.isArray(raw.tabs)) return null;
@@ -106,5 +168,6 @@ export function sanitizeSnapshot(raw: unknown): WorkspaceSnapshot | null {
     activeTabId: tabs.some((t) => t.id === active) ? active : (tabs[0]?.id ?? null),
     activeSpaceId: str(raw.activeSpaceId),
     activeTabBySpace,
+    views: sanitizeViews(raw.views, new Set(tabs.map((t) => t.id))),
   };
 }
