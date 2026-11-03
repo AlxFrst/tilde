@@ -157,4 +157,8 @@ export default {
   // Side-by-side view (src/app/content/SlotHeader.tsx and what follows)
   'Retirer {name} de la vue': 'Remove {name} from the view',
   'Retirer de la vue': 'Remove from view',
+  'Séparation des sessions': 'Session divider',
+  'session active': 'active session',
+  'Les boutons de cette barre agissent sur la session active':
+    'The buttons of this bar act on the active session',
 } satisfies Record<string, string>;

@@ -25,6 +25,7 @@ import { QuickConnectDialog } from './QuickConnectDialog';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { Peek } from './content/Peek';
 import { SessionHeader } from './content/SessionHeader';
+import { ViewDividers } from './content/ViewDividers';
 import { sessionEnv } from './content/sessionEnv';
 import { Rail } from './rail/Rail';
 import { SpaceDialog } from './spaces/SpaceDialog';
@@ -50,14 +51,18 @@ function useWindowCloseGuard(enabled: boolean) {
   }, [enabled]);
 }
 
-/** The Rail is hidden: by the user, or while the shown session has a pane alone. */
+/**
+ * The Rail is hidden: by the user, or while the shown session has a pane alone (not when
+ * sessions show side by side: the pane fills only its session's slot).
+ */
 export function useRailHidden(): boolean {
   const hidden = useUi((s) => s.railHidden);
   const zoomed = useWorkspace((s) => {
     const tab = s.tabs.find((t) => t.id === s.activeTabId);
     return tab ? zoomedLeafOf(tab, s.zoomed) !== null : false;
   });
-  return hidden || zoomed;
+  const sideBySide = useWorkspace((s) => shownView(s) !== null);
+  return hidden || (zoomed && !sideBySide);
 }
 
 /**
@@ -140,6 +145,7 @@ export function AppShell({
   useWindowCloseGuard(!quake);
   useQuakeTabs(quake);
 
+  const area = useRef<HTMLElement>(null);
   const isMac = appInfo.platform === 'macos';
   const sidebar = (
     <Rail
@@ -191,6 +197,7 @@ export function AppShell({
           >
             <SessionHeader platform={appInfo.platform} />
             <main
+              ref={area}
               data-view-area
               className={cn(
                 'relative mx-1.5 mb-1.5 min-h-0 flex-1 overflow-hidden rounded-lg border bg-background',
@@ -203,6 +210,7 @@ export function AppShell({
               }
             >
               {panes}
+              {view && <ViewDividers view={view} area={area} />}
               <Peek />
             </main>
           </div>

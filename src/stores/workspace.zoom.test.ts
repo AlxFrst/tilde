@@ -123,3 +123,15 @@ test('hiding the Rail while a pane is alone shows everything instead', () => {
   expect(useUi.getState().railHidden).toBe(false);
   off();
 });
+
+test('zooming a pane in a side-by-side view keeps the Rail', () => {
+  useWorkspace.setState({ views: {} });
+  const other = ws().openTab('pwsh');
+  ws().placeInView(tab().id, other, 'left');
+  const { result } = renderHook(() => useRailHidden());
+  act(() => {
+    ws().toggleZoom(tab().id, tab().activeLeafId);
+  });
+  expect(zoomed()).toBe(tab().activeLeafId);
+  expect(result.current).toBe(false);
+});

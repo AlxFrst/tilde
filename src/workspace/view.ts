@@ -206,6 +206,20 @@ export function viewHandles(root: ViewNode): SplitHandle[] {
   return out;
 }
 
+/** The split `splitId` of the view, if it is still there. */
+export function viewSplitOf(
+  root: ViewNode,
+  splitId: string,
+): Extract<ViewNode, { type: 'split' }> | null {
+  if (root.type === 'leaf') return null;
+  if (root.id === splitId) return root;
+  for (const child of root.children) {
+    const found = viewSplitOf(child, splitId);
+    if (found) return found;
+  }
+  return null;
+}
+
 export function viewSetSizes(root: ViewNode, splitId: string, sizes: number[]): ViewNode {
   if (root.type === 'leaf') return root;
   if (root.id === splitId && sizes.length === root.children.length) {

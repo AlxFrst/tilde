@@ -79,3 +79,33 @@ test('a mouse down in another slot makes its session active', () => {
   expect(ws().activeTabId).toBe(a);
   expect(shownView(ws())).not.toBeNull();
 });
+
+describe('resizing the view', () => {
+  const area = new DOMRect(0, 0, 1000, 600);
+
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      return this.hasAttribute('data-view-area') ? area : new DOMRect(0, 0, 0, 0);
+    });
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('a view of two has one separator between the sessions', () => {
+    render(shell());
+    expect(screen.getAllByRole('separator', { name: 'Séparation des sessions' })).toHaveLength(1);
+  });
+
+  test('dragging the separator resizes the sessions', () => {
+    render(shell());
+    const separator = screen.getByRole('separator', { name: 'Séparation des sessions' });
+    fireEvent.pointerDown(separator, { clientX: 500, clientY: 300, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(window, { clientX: 700, clientY: 300, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 700, clientY: 300, pointerId: 1 });
+    const root = ws().views.main?.root;
+    expect(root?.type === 'split' && root.sizes.map(Math.round)).toEqual([70, 30]);
+  });
+});
