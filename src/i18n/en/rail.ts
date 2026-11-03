@@ -173,7 +173,7 @@ export default {
   'Afficher la session seule': 'Show the session alone',
   Afficher: 'Show',
   'Que faire avec cette session ?': 'What to do with this session?',
-  'Dans la vue côte à côte : clique pour la retrouver':
+  'Dans la vue côte à côte : cliquez pour la retrouver':
     'In the side-by-side view: click to bring it back',
   'session active': 'active session',
   'Les boutons de cette barre agissent sur la session active':

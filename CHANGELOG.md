@@ -17,6 +17,11 @@ All notable changes to Tilde are listed here. The format follows
   view aside; showing one of its sessions brings it back. One view per space, restored at
   startup.
 
+### Security
+- The in-app updater's archive library moves to zip 9 (RUSTSEC-2026-0429: a crafted
+  update archive could crash Tilde while it was extracted). Only updates signed with
+  Tilde's key are ever extracted, so no one else could have sent such an archive.
+
 ## [0.3.1]
 
 ### Fixed
