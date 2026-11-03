@@ -46,7 +46,8 @@ export function useSessionConnectionId(tab: Tab): string | null {
   return id && connections.some((c) => c.id === id) ? id : null;
 }
 
-function useSessionIcon(tab: Tab): LucideIcon {
+/** The icon of a session: a server for SSH, else its shell's or its first pane's. */
+export function useSessionIcon(tab: Tab): LucideIcon {
   const profiles = useProfiles((s) => s.profiles);
   const names = useLabelNames();
   const first = leaves(tab.root)[0];

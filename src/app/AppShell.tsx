@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { registerBuiltins } from '@/commands/builtin';
@@ -8,7 +8,8 @@ import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/stores/ui';
-import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
+import { shownView, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
+import { viewRects } from '@/workspace/view';
 import { allSessions } from '@/terminal/sessionRegistry';
 import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
@@ -129,7 +130,11 @@ export function AppShell({
   const railHidden = useRailHidden();
   const activeTab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const file = useConnections((s) => s.file);
-  const env = activeTab ? sessionEnv(activeTab, file) : null;
+  // The sessions shown side by side (never in the Quake console), each in its slot.
+  const view = useWorkspace((s) => (quake ? null : shownView(s)));
+  const slots = useMemo(() => (view ? viewRects(view) : null), [view]);
+  // With a view each slot has its own environment frame; the content area has none.
+  const env = activeTab && !slots ? sessionEnv(activeTab, file) : null;
   useShortcuts();
   useEffect(() => registerBuiltins(), []);
   useWindowCloseGuard(!quake);
@@ -150,7 +155,13 @@ export function AppShell({
   const panes = (
     <>
       {tabs.map((t) => (
-        <PaneView key={t.id} tab={t} visible={t.id === activeTabId} />
+        <PaneView
+          key={t.id}
+          tab={t}
+          visible={slots ? slots.has(t.id) : t.id === activeTabId}
+          focused={t.id === activeTabId}
+          slot={slots?.get(t.id) ?? null}
+        />
       ))}
       {(tabs.length === 0 || activeTabId === null) && (
         <div className="absolute inset-0 overflow-auto">
@@ -180,7 +191,11 @@ export function AppShell({
           >
             <SessionHeader platform={appInfo.platform} />
             <main
-              className="relative mx-1.5 mb-1.5 min-h-0 flex-1 overflow-hidden rounded-lg border bg-background"
+              data-view-area
+              className={cn(
+                'relative mx-1.5 mb-1.5 min-h-0 flex-1 overflow-hidden rounded-lg border bg-background',
+                slots && 'border-transparent bg-transparent',
+              )}
               style={
                 env
                   ? { borderColor: `color-mix(in srgb, ${env.color} 55%, transparent)` }

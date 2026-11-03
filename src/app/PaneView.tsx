@@ -2,7 +2,11 @@ import { Component, useRef, type ReactNode } from 'react';
 import { t } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getPanelModule } from '@/panels/registry';
+import { useConnections } from '@/stores/connections';
 import { PaneHeader } from './content/PaneHeader';
+import { sessionEnv } from './content/sessionEnv';
+import { SlotHeader } from './content/SlotHeader';
+import { slotStyle } from './content/slot';
 import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import {
   layoutRects,
@@ -60,6 +64,7 @@ function Leaf({
   rect,
   multi,
   visible,
+  focused,
   zoomed,
 }: {
   tab: Tab;
@@ -67,11 +72,14 @@ function Leaf({
   rect: Rect;
   multi: boolean;
   visible: boolean;
+  /** Its session is the active one (several sessions show side by side). */
+  focused: boolean;
   /** Shown alone (`true`), hidden behind another pane shown alone (`false`), or neither. */
   zoomed: boolean | null;
 }) {
   const ws = useWorkspace.getState;
   const active = tab.activeLeafId === leaf.id;
+  const live = visible && focused && active;
   const module = getPanelModule(leaf.panel.kind);
   const Module = module?.component;
   return (
@@ -88,9 +96,7 @@ function Leaf({
       }}
     >
       <div className="flex h-full flex-col">
-        {multi && (
-          <PaneHeader tab={tab} leaf={leaf} active={visible && active} zoomed={zoomed === true} />
-        )}
+        {multi && <PaneHeader tab={tab} leaf={leaf} active={live} zoomed={zoomed === true} />}
         <div className="relative min-h-0 flex-1">
           {Module ? (
             <PaneErrorBoundary
@@ -103,7 +109,7 @@ function Leaf({
                 tabId={tab.id}
                 leafId={leaf.id}
                 state={leaf.panel}
-                active={visible && active}
+                active={live}
                 visible={visible && zoomed !== false}
                 update={(patch) => {
                   ws().updatePanel(tab.id, leaf.id, patch);
@@ -201,9 +207,26 @@ function findSplit(node: Tab['root'], id: string): Extract<Tab['root'], { type: 
  * as a flat, absolutely positioned list keyed by pane id, so splitting or closing a pane
  * never remounts (and restarts) the others.
  * Hidden tabs stay mounted so their shells keep running.
+ *
+ * In a side-by-side view the session sits in `slot`, with a strip on top. The elements
+ * stay the same with or without a slot: only styles change, so nothing is remounted.
  */
-export function PaneView({ tab, visible }: { tab: Tab; visible: boolean }) {
+export function PaneView({
+  tab,
+  visible,
+  focused = visible,
+  slot = null,
+}: {
+  tab: Tab;
+  visible: boolean;
+  /** The active session (default: whether it is visible, as when sessions show alone). */
+  focused?: boolean;
+  /** Its place in the side-by-side view, in fractions of the content area. */
+  slot?: Rect | null;
+}) {
   const container = useRef<HTMLDivElement>(null);
+  const file = useConnections((s) => s.file);
+  const env = slot ? sessionEnv(tab, file) : null;
   const zoom = useWorkspace((s) => s.zoomed[tab.id]);
   const alone = zoom ? zoomedLeafOf(tab, { [tab.id]: zoom }) : null;
   const all = leaves(tab.root);
@@ -211,27 +234,52 @@ export function PaneView({ tab, visible }: { tab: Tab; visible: boolean }) {
   const multi = all.length > 1;
   const full: Rect = { x: 0, y: 0, w: 1, h: 1 };
   return (
-    <div ref={container} className={cn('absolute inset-0', !visible && 'hidden')}>
-      {all.map((leaf) => (
-        <Leaf
-          key={leaf.id}
-          tab={tab}
-          leaf={leaf}
-          rect={alone === leaf.id ? full : (rects.get(leaf.id) ?? full)}
-          multi={multi}
-          visible={visible}
-          zoomed={alone === null ? null : alone === leaf.id}
-        />
-      ))}
-      {alone === null &&
-        splitHandles(tab.root).map((h) => (
-          <Divider
-            key={`${h.splitId}:${String(h.index)}`}
+    <div
+      data-slot={slot ? tab.id : undefined}
+      className={cn(
+        'absolute',
+        slot
+          ? 'flex flex-col overflow-hidden rounded-lg border bg-background transition-shadow duration-150'
+          : 'inset-0',
+        slot && focused && 'shadow-[0_0_0_1px_var(--tilde-accent)]',
+        !visible && 'hidden',
+      )}
+      style={
+        slot
+          ? {
+              ...slotStyle(slot),
+              borderColor: env ? `color-mix(in srgb, ${env.color} 55%, transparent)` : undefined,
+            }
+          : undefined
+      }
+      onMouseDownCapture={() => {
+        if (slot && !focused) useWorkspace.getState().activateTab(tab.id);
+      }}
+    >
+      {slot && <SlotHeader tab={tab} focused={focused} />}
+      <div ref={container} className={cn('relative min-h-0', slot ? 'flex-1' : 'h-full')}>
+        {all.map((leaf) => (
+          <Leaf
+            key={leaf.id}
             tab={tab}
-            handle={h}
-            container={container}
+            leaf={leaf}
+            rect={alone === leaf.id ? full : (rects.get(leaf.id) ?? full)}
+            multi={multi}
+            visible={visible}
+            focused={focused}
+            zoomed={alone === null ? null : alone === leaf.id}
           />
         ))}
+        {alone === null &&
+          splitHandles(tab.root).map((h) => (
+            <Divider
+              key={`${h.splitId}:${String(h.index)}`}
+              tab={tab}
+              handle={h}
+              container={container}
+            />
+          ))}
+      </div>
     </div>
   );
 }

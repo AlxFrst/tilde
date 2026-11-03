@@ -20,10 +20,9 @@ import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf } from '@/workspace/tree';
 import { splitPane } from '../actions';
 import { sessionTitle, useLabelNames } from '../paneLabel';
-import { describeTarget } from '../sidebar/Section';
 import { TransfersButton } from '../TransfersButton';
 import { WindowControls } from '../WindowControls';
-import { activeSshLeafId, sessionEnv } from './sessionEnv';
+import { activeSshLeafId, sessionEnv, sessionWhere } from './sessionEnv';
 
 function HeaderButton({
   label,
@@ -101,7 +100,7 @@ export function SessionHeader({ platform }: { platform: Platform }) {
   const peeking = useUi((s) => s.peek !== null && s.peek.sshLeafId === sshLeafId);
   const railHidden = useUi((s) => s.railHidden);
   const alone = useWorkspace((s) => (tab ? zoomedLeafOf(tab, s.zoomed) : null));
-  const where = saved ? describeTarget(saved) : ssh?.kind === 'ssh' ? ssh.target : null;
+  const where = tab ? sessionWhere(tab, file) : null;
   const jumps = saved?.proxyJump
     ?.split(',')
     .map((j) => j.trim())

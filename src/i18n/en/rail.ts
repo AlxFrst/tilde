@@ -153,4 +153,8 @@ export default {
   'Redirections de ports de cette session': 'Port forwards of this session',
   'Nouveau shell': 'New shell',
   'Un autre shell sur ce serveur': 'Another shell on this server',
+
+  // Side-by-side view (src/app/content/SlotHeader.tsx and what follows)
+  'Retirer {name} de la vue': 'Remove {name} from the view',
+  'Retirer de la vue': 'Remove from view',
 } satisfies Record<string, string>;
