@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MAIN_SPACE } from '@/connections/spaces';
 import type { ConnectionsFile } from '@/ipc/connections';
@@ -77,6 +77,7 @@ beforeEach(() => {
     dormant: [],
     activeSpaceId: MAIN_SPACE.id,
     activeTabBySpace: {},
+    views: {},
   });
   useProfiles.setState({ profiles: [profile], loaded: true });
   useSettings.setState({ settings: defaultSettings, readOnly: false, error: null });
@@ -173,4 +174,15 @@ test('a pane shown alone can always be brought back from the header', async () =
   await userEvent.click(within(header()).getByRole('button', { name: 'Réduire le panneau' }));
   expect(ws().zoomed[activeTab().id]).toBeUndefined();
   expect(within(header()).queryByRole('button', { name: 'Réduire le panneau' })).toBeNull();
+});
+
+test('the header says which session it acts on while sessions show side by side', () => {
+  const a = ws().openTab('pwsh');
+  const b = ws().openTab('pwsh');
+  render(<SessionHeader platform="windows" />);
+  expect(within(header()).queryByText('session active')).toBeNull();
+  act(() => {
+    ws().placeInView(b, a, 'right');
+  });
+  expect(within(header()).getByText('session active')).toBeInTheDocument();
 });

@@ -4,6 +4,7 @@
 import { serializePanel } from '@/panels/registry';
 import { leaves, removeLeaf } from './tree';
 import type { LayoutNode, Panel, Tab, WorkspaceSnapshot } from './types';
+import { viewKeep, viewTabs, type SpaceView } from './view';
 
 function mapLeaves(node: LayoutNode): LayoutNode {
   if (node.type === 'leaf') return { ...node, panel: serializePanel(node.panel) as Panel };
@@ -24,6 +25,7 @@ export function serializeSnapshot(
   activeTabId: string | null,
   activeSpaceId: string | null = null,
   activeTabBySpace: Record<string, string> = {},
+  views: Record<string, SpaceView> = {},
 ): WorkspaceSnapshot {
   const kept: Tab[] = [];
   for (const tab of tabs) {
@@ -37,11 +39,19 @@ export function serializeSnapshot(
   const bySpace = Object.fromEntries(
     Object.entries(activeTabBySpace).filter(([, id]) => kept.some((t) => t.id === id)),
   );
+  // A session that is not saved (an editor alone) leaves its view.
+  const saved = new Set(kept.map((t) => t.id));
+  const keptViews: Record<string, SpaceView> = {};
+  for (const [space, view] of Object.entries(views)) {
+    const root = viewKeep(view.root, (id) => saved.has(id));
+    if (root && viewTabs(root).length >= 2) keptViews[space] = { root, shown: view.shown };
+  }
   return {
     version: 1,
     tabs: kept,
     activeTabId: active,
     activeSpaceId,
     activeTabBySpace: bySpace,
+    views: keptViews,
   };
 }

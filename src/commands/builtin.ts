@@ -104,6 +104,26 @@ export function registerBuiltins(): () => void {
       },
     },
     {
+      id: 'view.removeActive',
+      keywords: ['split', 'side by side', 'côte à côte', 'vue', 'view', 'remove'],
+      title: msg('Retirer la session de la vue'),
+      group: 'Sessions',
+      run: () => {
+        const { activeTabId } = ws();
+        if (activeTabId) ws().removeFromView(activeTabId);
+      },
+    },
+    {
+      id: 'view.showAlone',
+      keywords: ['split', 'side by side', 'côte à côte', 'vue', 'view', 'alone', 'seule'],
+      title: msg('Afficher la session seule'),
+      group: 'Sessions',
+      run: () => {
+        const { activeTabId } = ws();
+        if (activeTabId) ws().showAlone(activeTabId);
+      },
+    },
+    {
       id: 'library.open',
       keywords: ['library', 'hosts', 'ssh config', 'connexions'],
       title: msg('Bibliothèque'),

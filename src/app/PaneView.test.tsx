@@ -300,3 +300,39 @@ test('a zoomed pane fills the session; the others stay mounted, hidden', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Réduire le panneau' }));
   expect(screen.getByTestId(`term-${first.id}`).closest('.hidden')).toBeNull();
 });
+
+describe('in a side-by-side view', () => {
+  const slot = { x: 0, y: 0, w: 0.5, h: 1 };
+
+  test('a session entering and leaving a slot keeps its terminal mounted', () => {
+    const { rerender } = render(<PaneView tab={tab()} visible />);
+    rerender(<PaneView tab={tab()} visible focused slot={slot} />);
+    rerender(<PaneView tab={tab()} visible />);
+    for (const l of leaves(tab().root)) expect(mounts.get(l.id)).toBe(1);
+  });
+
+  test('only the focused session has an active pane', () => {
+    const { rerender } = render(<PaneView tab={tab()} visible focused={false} slot={slot} />);
+    const active = () => screen.getByTestId(`term-${tab().activeLeafId}`).dataset.active;
+    expect(active()).toBe('false');
+    rerender(<PaneView tab={tab()} visible focused slot={slot} />);
+    expect(active()).toBe('true');
+  });
+
+  test('a session in a slot has a strip that takes it out of the view', () => {
+    render(<PaneView tab={tab()} visible focused slot={slot} />);
+    expect(screen.getByRole('button', { name: /^Retirer .+ de la vue$/ })).toBeInTheDocument();
+  });
+});
+
+test('in a view, only the active session rings its active pane', () => {
+  const slot = { x: 0, y: 0, w: 0.5, h: 1 };
+  const ringed = () =>
+    (
+      screen.getByTestId(`term-${tab().activeLeafId}`).closest('[style*="left"]') as HTMLElement
+    ).className.includes('inset_0_0_0_1px');
+  const { rerender } = render(<PaneView tab={tab()} visible focused={false} slot={slot} />);
+  expect(ringed()).toBe(false);
+  rerender(<PaneView tab={tab()} visible focused slot={slot} />);
+  expect(ringed()).toBe(true);
+});

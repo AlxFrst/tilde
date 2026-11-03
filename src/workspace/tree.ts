@@ -108,7 +108,11 @@ export interface Rect {
   h: number;
 }
 
-function childRects(node: SplitNode, r: Rect): Rect[] {
+/** The rectangles of a split's children (any tree with the same shape: panes or sessions). */
+export function childRects(
+  node: { direction: Direction; sizes: number[]; children: readonly unknown[] },
+  r: Rect,
+): Rect[] {
   let offset = 0;
   return node.children.map((_, i) => {
     const share = (node.sizes[i] ?? 0) / 100;
@@ -194,13 +198,21 @@ const EPS = 1e-6;
  * then the top/left-most.
  */
 export function neighbor(root: LayoutNode, leafId: string, dir: FocusDirection): string | null {
-  const all = rects(root, { x: 0, y: 0, w: 1, h: 1 }, new Map());
-  const cur = all.get(leafId);
+  return neighborIn(layoutRects(root), leafId, dir);
+}
+
+/** The same choice among any rectangles (the panes of several sessions shown together). */
+export function neighborIn(
+  all: ReadonlyMap<string, Rect>,
+  id: string,
+  dir: FocusDirection,
+): string | null {
+  const cur = all.get(id);
   if (!cur) return null;
   const horizontal = dir === 'left' || dir === 'right';
   let best: { id: string; edge: number; center: number; pos: number } | null = null;
-  for (const [id, r] of all) {
-    if (id === leafId) continue;
+  for (const [other, r] of all) {
+    if (other === id) continue;
     const edge =
       dir === 'right'
         ? r.x - (cur.x + cur.w)
@@ -223,7 +235,7 @@ export function neighbor(root: LayoutNode, leafId: string, dir: FocusDirection):
       edge < best.edge - EPS ||
       (Math.abs(edge - best.edge) <= EPS &&
         (center < best.center - EPS || (Math.abs(center - best.center) <= EPS && pos < best.pos)));
-    if (better) best = { id, edge, center, pos };
+    if (better) best = { id: other, edge, center, pos };
   }
   return best?.id ?? null;
 }

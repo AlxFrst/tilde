@@ -1,4 +1,4 @@
-import { Server, X, type LucideIcon } from 'lucide-react';
+import { Columns2, Server, X, type LucideIcon } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
   ContextMenu,
@@ -28,6 +28,7 @@ import { focusSibling } from '../sidebar/ConnectionItem';
 import { moveSessionToSpace } from '../spaces/spaceActions';
 import { TAB_COLORS } from '../tabColors';
 import { PaneList } from './PaneList';
+import { useViewMark, ViewMenuItems } from './ViewMenu';
 import { useSessionStatus } from './sessionStatus';
 
 const ws = () => useWorkspace.getState();
@@ -46,7 +47,8 @@ export function useSessionConnectionId(tab: Tab): string | null {
   return id && connections.some((c) => c.id === id) ? id : null;
 }
 
-function useSessionIcon(tab: Tab): LucideIcon {
+/** The icon of a session: a server for SSH, else its shell's or its first pane's. */
+export function useSessionIcon(tab: Tab): LucideIcon {
   const profiles = useProfiles((s) => s.profiles);
   const names = useLabelNames();
   const first = leaves(tab.root)[0];
@@ -91,6 +93,7 @@ export function SessionMenuItems({ tab, onRename }: { tab: Tab; onRename: () => 
   const first = leaves(tab.root)[0]?.panel;
   return (
     <>
+      <ViewMenuItems tabId={tab.id} />
       <ContextMenuItem onSelect={onRename}>{t('Renommer')}</ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuLabel>{t('Couleur')}</ContextMenuLabel>
@@ -212,6 +215,8 @@ export interface RowShellProps {
   /** Spread onto the button (drag handle). */
   dragProps?: Record<string, unknown>;
   buttonRef?: (el: HTMLElement | null) => void;
+  /** In the side-by-side view: shown, or set aside. */
+  view?: 'shown' | 'aside' | null;
 }
 
 /** One row of the Rail: a click opens, a middle click closes, a double click renames. */
@@ -232,6 +237,7 @@ export function RowShell({
   accent,
   dragProps,
   buttonRef,
+  view,
 }: RowShellProps) {
   return (
     <ContextMenu>
@@ -242,6 +248,7 @@ export function RowShell({
             ref={buttonRef}
             data-sidebar-row
             data-state={state}
+            data-view={view ?? undefined}
             aria-label={label}
             aria-current={active || undefined}
             {...dragProps}
@@ -249,6 +256,7 @@ export function RowShell({
               'flex min-h-8 w-full min-w-0 items-center gap-2.5 rounded-lg border border-transparent px-2 py-1 text-left outline-none',
               'hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-ring',
               active && 'border-border bg-surface-2',
+              view === 'shown' && !active && 'bg-primary/5',
               state === 'asleep' && 'text-text-muted',
             )}
             onClick={onOpen}
@@ -274,6 +282,22 @@ export function RowShell({
                 <span className="block truncate text-xs text-text-muted">{subtitle}</span>
               )}
             </span>
+            {view && (
+              <span
+                aria-hidden
+                title={
+                  view === 'shown'
+                    ? t('Affichée côte à côte')
+                    : t('Dans la vue côte à côte : clique pour la retrouver')
+                }
+                className={cn(
+                  'flex shrink-0',
+                  view === 'shown' ? 'text-primary' : 'text-text-muted',
+                )}
+              >
+                <Columns2 className="size-3.5" strokeWidth={1.75} />
+              </span>
+            )}
             {/* The close button appears over this spot: the dot gives way to it. */}
             <span
               className={cn(
@@ -326,6 +350,7 @@ export function SessionRow({
   const active = useWorkspace((s) => s.activeTabId === tab.id);
   const status = useSessionStatus(tab);
   const Icon = useSessionIcon(tab);
+  const view = useViewMark(tab.id);
   const [editing, setEditing] = useState(false);
   const shells = leaves(tab.root).length;
   const first = leaves(tab.root)[0];
@@ -358,6 +383,7 @@ export function SessionRow({
           }}
           dragProps={dragProps}
           buttonRef={buttonRef}
+          view={view}
           menu={
             <ContextMenuContent className="min-w-52">
               <SessionMenuItems

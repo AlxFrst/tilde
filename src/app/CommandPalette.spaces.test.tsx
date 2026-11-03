@@ -2,6 +2,7 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { registerBuiltins } from '@/commands/builtin';
+import { runCommand } from '@/commands/registry';
 import { MAIN_SPACE } from '@/connections/spaces';
 import type { ConnectionsFile } from '@/ipc/connections';
 import type { ResolvedProfile } from '@/ipc/profiles';
@@ -10,10 +11,11 @@ import { blankConnection, useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { useUi } from '@/stores/ui';
-import { useWorkspace } from '@/stores/workspace';
+import { shownView, useWorkspace } from '@/stores/workspace';
 import { defaultSettings } from '@/test/fixtures';
 import { defaultSpaceResolver, makeSpaceResolver, setSpaceResolver } from '@/workspace/spaces';
 import { leaves } from '@/workspace/tree';
+import { viewTabs } from '@/workspace/view';
 import { CommandPalette, sshCommand } from './CommandPalette';
 
 vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({
@@ -67,6 +69,7 @@ beforeEach(() => {
     dormant: [],
     activeSpaceId: 'main',
     activeTabBySpace: {},
+    views: {},
   });
   useProfiles.setState({ profiles: [profile], loaded: true });
   useSettings.setState({ settings: defaultSettings, readOnly: false, error: null });
@@ -155,4 +158,80 @@ test('english words find french commands', async () => {
   render(<CommandPalette />);
   await userEvent.type(combobox(), 'split');
   expect(screen.getByRole('option', { name: /Diviser à droite/ })).toBeInTheDocument();
+});
+
+describe('side by side', () => {
+  const sessions = (...names: string[]) =>
+    names.map((n) => {
+      const id = ws().openTab('pwsh');
+      ws().renameTab(id, n);
+      return id;
+    });
+  const shown = () => {
+    const view = shownView(ws());
+    return view ? viewTabs(view) : [];
+  };
+
+  test('arrow right on a session lists what can be done with it', async () => {
+    let alpha = '';
+    act(() => {
+      [alpha = ''] = sessions('alpha', 'beta');
+      ws().activateTab(alpha);
+    });
+    render(<CommandPalette />);
+    await userEvent.type(combobox(), 'beta');
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+      expect.stringContaining('Afficher'),
+      expect.stringContaining('Ouvrir à droite'),
+      expect.stringContaining('Ouvrir en bas'),
+    ]);
+  });
+
+  test('open on the right from the palette forms a view', async () => {
+    let ids: string[] = [];
+    act(() => {
+      ids = sessions('alpha', 'beta');
+      ws().activateTab(ids[0] ?? '');
+    });
+    render(<CommandPalette />);
+    await userEvent.type(combobox(), 'beta');
+    await userEvent.keyboard('{ArrowRight}');
+    await userEvent.click(screen.getByRole('option', { name: /Ouvrir à droite/ }));
+    expect(shown()).toEqual(ids);
+  });
+
+  test('a session of the view can be shown alone or taken out of it', async () => {
+    act(() => {
+      const [a = '', b = ''] = sessions('alpha', 'beta');
+      ws().placeInView(b, a, 'right');
+    });
+    render(<CommandPalette />);
+    await userEvent.type(combobox(), 'alpha');
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByRole('option', { name: /Afficher seule/ })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('option', { name: /Retirer de la vue/ }));
+    expect(shown()).toEqual([]);
+  });
+
+  test('the remove and show-alone commands act on the active session', () => {
+    const [a = '', b = ''] = sessions('alpha', 'beta');
+    ws().placeInView(b, a, 'right');
+    runCommand('view.showAlone');
+    expect(shown()).toEqual([]);
+    expect(ws().activeTabId).toBe(b);
+    ws().activateTab(b);
+    expect(shown()).toEqual([a, b]);
+    runCommand('view.removeActive');
+    expect(shown()).toEqual([]);
+    expect(ws().tabs).toHaveLength(2);
+  });
+
+  test('side by side words find the view commands', async () => {
+    render(<CommandPalette />);
+    await userEvent.type(combobox(), 'side by side');
+    expect(
+      screen.getByRole('option', { name: /Retirer la session de la vue/ }),
+    ).toBeInTheDocument();
+  });
 });

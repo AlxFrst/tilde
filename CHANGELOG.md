@@ -4,6 +4,19 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Sessions side by side.** Show up to four sessions of a space at once: right-click a
+  session in the Rail (*Open on the right*, *Open below*), drag it onto the content (near an
+  edge it goes beside the session there, in the centre it takes its place), or use the
+  palette (→ on a session). Each session keeps its row, its panes and its environment frame,
+  and nothing restarts: shells and SSH connections keep running whatever you rearrange.
+  The separators resize the view; the strip on top of each session takes it out of the
+  view without closing it. Showing a session outside the view shows it alone and sets the
+  view aside; showing one of its sessions brings it back. One view per space, restored at
+  startup.
+
 ## [0.3.1]
 
 ### Fixed

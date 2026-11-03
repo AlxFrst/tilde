@@ -1,5 +1,6 @@
 import type { ConnectionsFile } from '@/ipc/connections';
 import { findLeaf } from '@/workspace/tree';
+import { describeTarget } from '../sidebar/Section';
 import type { Tab } from '@/workspace/types';
 
 /** The SSH pane the active pane is, or belongs to (files, server monitor). */
@@ -11,6 +12,20 @@ export function activeSshLeafId(tab: Tab): string | null {
     return panel.source.linkedLeafId;
   }
   return null;
+}
+
+/**
+ * Where the active pane is connected (`user@host:port` of its saved connection, else the
+ * SSH target), or `null` for a local pane.
+ */
+export function sessionWhere(tab: Tab, file: Pick<ConnectionsFile, 'connections'>): string | null {
+  const leafId = activeSshLeafId(tab);
+  const ssh = leafId ? findLeaf(tab.root, leafId)?.panel : undefined;
+  if (ssh?.kind !== 'ssh') return null;
+  const saved = ssh.connectionId
+    ? file.connections.find((c) => c.id === ssh.connectionId)
+    : undefined;
+  return saved ? describeTarget(saved) : ssh.target;
 }
 
 /**

@@ -15,15 +15,14 @@ import { cn, SELECTED } from '@/lib/utils';
 import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
-import { findLinked, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
+import { findLinked, shownView, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf } from '@/workspace/tree';
 import { splitPane } from '../actions';
 import { sessionTitle, useLabelNames } from '../paneLabel';
-import { describeTarget } from '../sidebar/Section';
 import { TransfersButton } from '../TransfersButton';
 import { WindowControls } from '../WindowControls';
-import { activeSshLeafId, sessionEnv } from './sessionEnv';
+import { activeSshLeafId, sessionEnv, sessionWhere } from './sessionEnv';
 
 function HeaderButton({
   label,
@@ -101,7 +100,8 @@ export function SessionHeader({ platform }: { platform: Platform }) {
   const peeking = useUi((s) => s.peek !== null && s.peek.sshLeafId === sshLeafId);
   const railHidden = useUi((s) => s.railHidden);
   const alone = useWorkspace((s) => (tab ? zoomedLeafOf(tab, s.zoomed) : null));
-  const where = saved ? describeTarget(saved) : ssh?.kind === 'ssh' ? ssh.target : null;
+  const sideBySide = useWorkspace((s) => shownView(s) !== null);
+  const where = tab ? sessionWhere(tab, file) : null;
   const jumps = saved?.proxyJump
     ?.split(',')
     .map((j) => j.trim())
@@ -156,6 +156,14 @@ export function SessionHeader({ platform }: { platform: Platform }) {
       {where && where !== title && (
         <span data-tauri-drag-region className="min-w-0 shrink truncate text-xs text-text-muted">
           {where}
+        </span>
+      )}
+      {tab && sideBySide && (
+        <span
+          title={t('Les boutons de cette barre agissent sur la session active')}
+          className="shrink-0 rounded-full border border-primary/40 px-2 py-0.5 text-[0.7rem] text-primary"
+        >
+          {t('session active')}
         </span>
       )}
       {jumps && (

@@ -3,12 +3,15 @@ import { serializeSnapshot } from '@/workspace/serialize';
 import { create } from 'zustand';
 import {
   findLeaf,
+  layoutRects,
   leaves,
   neighbor,
+  neighborIn,
   removeLeaf,
   setSizes as setTreeSizes,
   splitLeaf,
   updatePanel as updateTreePanel,
+  type Rect,
 } from '@/workspace/tree';
 import type {
   Direction,
@@ -23,6 +26,20 @@ import type {
   WorkspaceSnapshot,
 } from '@/workspace/types';
 import { sanitizeSnapshot } from '@/workspace/sanitize';
+import {
+  MAX_VIEW_SESSIONS,
+  fixViews,
+  viewHas,
+  viewPlace,
+  viewRemove,
+  viewReplace,
+  viewSetSizes,
+  viewRects,
+  viewTabs,
+  type DropZone,
+  type SpaceView,
+  type ViewNode,
+} from '@/workspace/view';
 import { isPinnedTab, knownSpaceIds, spaceOfTab, spacesReady } from '@/workspace/spaces';
 import { MAIN_SPACE } from '@/connections/spaces';
 
@@ -87,6 +104,38 @@ interface WorkspaceState {
   focusNeighbor: (dir: FocusDirection) => void;
   updatePanel: (tabId: string, leafId: string, patch: PanelPatch) => void;
   setSizes: (tabId: string, splitId: string, sizes: number[]) => void;
+  /**
+   * Each space's side-by-side view: sessions shown together. A view is shown, or set aside
+   * while a session outside it is shown alone (showing one of its sessions brings it back).
+   */
+  views: Record<string, SpaceView>;
+  /**
+   * Puts a session beside `targetTabId` (an edge) or in its place (`center`; the two swap
+   * if it was already in the view), then makes it the active session.
+   */
+  placeInView: (tabId: string, targetTabId: string, zone: DropZone) => void;
+  /** Whether `placeInView` would do something (`tabId` `null`: a session about to open). */
+  canPlaceInView: (tabId: string | null, targetTabId: string, zone: DropZone) => boolean;
+  /**
+   * Opens a saved connection's pinned session straight into the view, beside (or in place
+   * of) `targetTabId`, without showing it alone first. `null` if it cannot go there.
+   */
+  openPinnedInView: (
+    connectionId: string,
+    target: string,
+    spaceId: string,
+    targetTabId: string,
+    zone: DropZone,
+  ) => string | null;
+  /** Side-by-side views can be made (not in the Quake console). */
+  viewsEnabled: boolean;
+  /** No view in this window, ever (the Quake console). */
+  disableViews: () => void;
+  /** Takes a session of the shown view out of it, without closing it. */
+  removeFromView: (tabId: string) => void;
+  /** Shows a session of the shown view alone; the view is set aside. */
+  showAlone: (tabId: string) => void;
+  setViewSizes: (splitId: string, sizes: number[]) => void;
   /** A pane shown alone, by session (not persisted); see {@link zoomedLeafOf}. */
   zoomed: Record<string, Zoom>;
   /** Shows a pane alone (focusing it), or the session's panes again if it is. */
@@ -100,6 +149,12 @@ interface WorkspaceState {
     availableProfileIds: string[],
     fallbackProfileId: string,
   ) => { replaced: number };
+}
+
+/** The view shown in the active space, or `null` (the stored tree: a stable selector). */
+export function shownView(s: Pick<WorkspaceState, 'views' | 'activeSpaceId'>): ViewNode | null {
+  const view = s.views[s.activeSpaceId];
+  return view?.shown ? view.root : null;
 }
 
 /** The pane shown alone, and how many panes its session had then. */
@@ -165,16 +220,67 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
   };
   const activeTab = () => get().tabs.find((t) => t.id === get().activeTabId);
   const spaceTabsOf = (spaceId: string) => get().tabs.filter((t) => spaceOfTab(t) === spaceId);
-  /** Shows a session and its space, remembering it as that space's last one. */
+  /**
+   * Shows a session and its space, remembering it as that space's last one. A session of
+   * the space's view shows the whole view; any other session sets the view aside.
+   */
   const activate = (tabId: string) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (!tab) return;
     const space = spaceOfTab(tab);
-    set((s) => ({
-      activeTabId: tab.id,
-      activeSpaceId: space,
-      activeTabBySpace: { ...s.activeTabBySpace, [space]: tab.id },
-    }));
+    set((s) => {
+      const view = s.views[space];
+      const shown = view ? viewHas(view.root, tab.id) : false;
+      return {
+        activeTabId: tab.id,
+        activeSpaceId: space,
+        activeTabBySpace: { ...s.activeTabBySpace, [space]: tab.id },
+        views: view && view.shown !== shown ? { ...s.views, [space]: { ...view, shown } } : s.views,
+      };
+    });
+  };
+  /**
+   * What placing `tabId` at `zone` of `targetTabId` gives: the new view (`null` when it
+   * would hold one session), or `null` when it cannot be done. `tabId` `null`: a session
+   * about to be opened, checked against the maximum only.
+   */
+  const placement = (
+    tabId: string | null,
+    targetTabId: string,
+    zone: DropZone,
+  ): { space: string; root: ViewNode | null } | null => {
+    if (tabId === targetTabId || !get().viewsEnabled) return null;
+    const { tabs, views } = get();
+    const target = tabs.find((t) => t.id === targetTabId);
+    if (!target) return null;
+    const space = spaceOfTab(target);
+    const tab = tabId === null ? null : tabs.find((t) => t.id === tabId);
+    if (tab === undefined || (tab && spaceOfTab(tab) !== space)) return null;
+    // The view shown with the target, else the target alone: beside a session shown alone,
+    // a new view forms (and replaces one set aside).
+    const view = views[space];
+    const base: ViewNode =
+      view?.shown && viewHas(view.root, targetTabId)
+        ? view.root
+        : { type: 'leaf', tabId: targetTabId };
+    const inBase = tabId !== null && viewHas(base, tabId);
+    if (zone !== 'center' && !inBase && viewTabs(base).length >= MAX_VIEW_SESSIONS) return null;
+    if (tabId === null) return { space, root: null };
+    const root =
+      zone === 'center'
+        ? viewReplace(base, targetTabId, tabId)
+        : viewPlace(base, targetTabId, tabId, zone);
+    return { space, root: viewTabs(root).length >= 2 ? root : null };
+  };
+  /**
+   * The session to show when `tabId`, shown in its space's view, leaves it: the first other
+   * one of the view, so the view stays on screen. `undefined` when it is not in a shown view.
+   */
+  const viewSuccessorOf = (tabId: string, spaceId: string): Tab | undefined => {
+    const view = get().views[spaceId];
+    if (!view?.shown || !viewHas(view.root, tabId)) return undefined;
+    const next = viewTabs(view.root).find((id) => id !== tabId);
+    return get().tabs.find((t) => t.id === next);
   };
   /** The neighbour to show when `tabId` leaves its space's list. */
   const neighbourOf = (tabId: string, spaceId: string): Tab | null => {
@@ -192,7 +298,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
   };
   const addTab = (
     leaf: LeafNode,
-    place: { spaceId?: string; pinnedConnectionId?: string } = {},
+    place: { spaceId?: string; pinnedConnectionId?: string; background?: boolean } = {},
   ) => {
     const tab: Tab = {
       id: crypto.randomUUID(),
@@ -204,7 +310,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       pinnedConnectionId: place.pinnedConnectionId ?? null,
     };
     set((s) => ({ tabs: [...s.tabs, tab] }));
-    activate(tab.id);
+    if (!place.background) activate(tab.id);
     return tab.id;
   };
 
@@ -212,7 +318,10 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (!tab) return;
     const space = spaceOfTab(tab);
-    const next = get().activeTabId === tabId ? neighbourOf(tabId, space) : undefined;
+    const next =
+      get().activeTabId === tabId
+        ? (viewSuccessorOf(tabId, space) ?? neighbourOf(tabId, space))
+        : undefined;
     set((s) => {
       const bySpace =
         s.activeTabBySpace[space] === tabId
@@ -438,6 +547,80 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       closeOrphans();
     },
 
+    views: {},
+
+    placeInView: (tabId, targetTabId, zone) => {
+      const placed = placement(tabId, targetTabId, zone);
+      if (!placed) return;
+      const { space, root } = placed;
+      // A new view replaces the one set aside: one view per space.
+      if (root) set((s) => ({ views: { ...s.views, [space]: { root, shown: true } } }));
+      activate(tabId);
+    },
+
+    canPlaceInView: (tabId, targetTabId, zone) => placement(tabId, targetTabId, zone) !== null,
+
+    openPinnedInView: (connectionId, target, spaceId, targetTabId, zone) => {
+      if (!placement(null, targetTabId, zone)) return null;
+      // Not shown alone first: that would set the view aside.
+      const tabId = addTab(newSshLeaf(target, connectionId), {
+        spaceId,
+        pinnedConnectionId: connectionId,
+        background: true,
+      });
+      get().placeInView(tabId, targetTabId, zone);
+      // It could not join (another space): it is shown, as any session just opened.
+      if (get().activeTabId !== tabId) activate(tabId);
+      return tabId;
+    },
+
+    viewsEnabled: true,
+
+    disableViews: () => {
+      set({ viewsEnabled: false, views: {} });
+    },
+
+    removeFromView: (tabId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      const space = spaceOfTab(tab);
+      const view = get().views[space];
+      if (!view?.shown || !viewHas(view.root, tabId)) return;
+      const root = viewRemove(view.root, tabId);
+      const rest = root ? viewTabs(root) : [];
+      set((s) => ({
+        views:
+          root && rest.length >= 2
+            ? { ...s.views, [space]: { root, shown: true } }
+            : without(s.views, space),
+      }));
+      const [first] = rest;
+      if (get().activeTabId === tabId && first) activate(first);
+    },
+
+    showAlone: (tabId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      const space = spaceOfTab(tab);
+      const view = get().views[space];
+      if (!view?.shown || !viewHas(view.root, tabId)) return;
+      set((s) => ({
+        views: { ...s.views, [space]: { ...view, shown: false } },
+        activeTabId: tabId,
+        activeSpaceId: space,
+        activeTabBySpace: { ...s.activeTabBySpace, [space]: tabId },
+      }));
+    },
+
+    setViewSizes: (splitId, sizes) => {
+      const space = get().activeSpaceId;
+      const view = get().views[space];
+      if (!view) return;
+      set((s) => ({
+        views: { ...s.views, [space]: { ...view, root: viewSetSizes(view.root, splitId, sizes) } },
+      }));
+    },
+
     activateTab: (tabId) => {
       activate(tabId);
     },
@@ -501,12 +684,16 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       if (!tab) return;
       const from = spaceOfTab(tab);
       const leaving = get().activeTabId === tabId && spaceId !== get().activeSpaceId;
-      const next = leaving ? neighbourOf(tabId, from) : null;
-      mapTab(tabId, (t) => ({ ...t, spaceId, pinnedConnectionId: null }));
-      if (!leaving) return;
+      const next = leaving ? (viewSuccessorOf(tabId, from) ?? neighbourOf(tabId, from)) : null;
+      // One update: the views are checked against a session shown that is already the next.
       set((s) => {
+        const tabs = s.tabs.map((t) =>
+          t.id === tabId ? { ...t, spaceId, pinnedConnectionId: null } : t,
+        );
+        if (!leaving) return { tabs };
         const bySpace = { ...s.activeTabBySpace, [spaceId]: tabId };
         return {
+          tabs,
           activeTabId: next?.id ?? null,
           activeTabBySpace: next ? { ...bySpace, [from]: next.id } : without(bySpace, from),
         };
@@ -532,11 +719,13 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       const { activeSpaceId } = get();
       if (!known.includes(activeSpaceId)) {
         get().switchSpace(known[0] ?? MAIN_SPACE.id);
-        return;
+      } else {
+        // The shown session moved (its connection changed space): follow it.
+        const shown = activeTab();
+        if (shown && spaceOfTab(shown) !== activeSpaceId) activate(shown.id);
       }
-      // The shown session moved (its connection changed space): follow it.
-      const shown = activeTab();
-      if (shown && spaceOfTab(shown) !== activeSpaceId) activate(shown.id);
+      // Sessions may have changed space without any change here: check the views now.
+      repairViews();
     },
 
     moveTab: (from, to) => {
@@ -626,8 +815,33 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     focusNeighbor: (dir) => {
       const tab = activeTab();
       if (!tab) return;
-      const target = neighbor(tab.root, tab.activeLeafId, dir);
-      if (target) get().focusLeaf(tab.id, target);
+      const view = shownView(get());
+      if (!view) {
+        const target = neighbor(tab.root, tab.activeLeafId, dir);
+        if (target) get().focusLeaf(tab.id, target);
+        return;
+      }
+      // Every pane of the view, placed in its session's slot: the focus crosses sessions.
+      const owner = new Map<string, string>();
+      const all = new Map<string, Rect>();
+      for (const [tabId, slot] of viewRects(view)) {
+        const session = get().tabs.find((t) => t.id === tabId);
+        if (!session) continue;
+        for (const [leafId, r] of layoutRects(session.root)) {
+          owner.set(leafId, tabId);
+          all.set(leafId, {
+            x: slot.x + r.x * slot.w,
+            y: slot.y + r.y * slot.h,
+            w: r.w * slot.w,
+            h: r.h * slot.h,
+          });
+        }
+      }
+      const target = neighborIn(all, tab.activeLeafId, dir);
+      const targetTab = target ? owner.get(target) : undefined;
+      if (!target || !targetTab) return;
+      if (targetTab !== tab.id) activate(targetTab);
+      get().focusLeaf(targetTab, target);
     },
 
     updatePanel: (tabId, leafId, patch) => {
@@ -657,7 +871,13 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
 
     snapshot: () =>
-      serializeSnapshot(get().tabs, get().activeTabId, get().activeSpaceId, get().activeTabBySpace),
+      serializeSnapshot(
+        get().tabs,
+        get().activeTabId,
+        get().activeSpaceId,
+        get().activeTabBySpace,
+        get().views,
+      ),
 
     hydrate: (raw, available, fallback) => {
       // The snapshot comes from a user-reachable file: sanitize, never trust.
@@ -695,6 +915,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         dormant,
         activeSpaceId: snap.activeSpaceId ?? MAIN_SPACE.id,
         activeTabBySpace: snap.activeTabBySpace ?? {},
+        views: get().viewsEnabled ? (snap.views ?? {}) : {},
       });
       // A space removed (or a connections.json unreadable) since: hand over to the first.
       // Before connections.json is read, its loading does this check.
@@ -703,6 +924,25 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
   };
 });
+
+/**
+ * Keeps the views in step with the sessions (closed, moved to another space) and with the
+ * session shown. Sessions are checked against their space only once spaces are known: a
+ * view restored before connections.json is read keeps its pinned sessions.
+ */
+function repairViews(): void {
+  const s = useWorkspace.getState();
+  const views = fixViews(
+    s.views,
+    s.tabs,
+    spacesReady() ? spaceOfTab : null,
+    s.activeSpaceId,
+    s.activeTabId,
+  );
+  if (views !== s.views) useWorkspace.setState({ views });
+}
+
+useWorkspace.subscribe(repairViews);
 
 // A zoom that stopped applying (the focus moved, the panes changed, the session closed) is
 // dropped, so it never comes back by itself when things look the same again.

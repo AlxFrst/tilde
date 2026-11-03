@@ -46,6 +46,10 @@ Réglages → Général.
   couleur ; **Bibliothèque** (Ctrl+Maj+L) pour toutes les connexions et `~/.ssh/config`
 - En-tête de session (Fichiers, Moniteur, Tunnels, Nouveau shell, Diviser), en-têtes de
   panneau (diviser, fermer), cadre de couleur d'environnement, moniteur en aperçu
+- **Sessions côte à côte** : clic droit sur une session (*Ouvrir à droite*, *Ouvrir en
+  bas*) ou glisser une session du Rail sur le contenu pour en afficher jusqu'à quatre à la
+  fois ; chacune garde sa ligne, ses panneaux et son cadre d'environnement, rien ne
+  redémarre, et la vue revient au redémarrage
 - **Splits** redimensionnables, sessions renommables et colorables
 - Rendu WebGL (xterm.js), Unicode/emoji, recherche dans le scrollback, liens cliquables,
   copie à la sélection, confirmation avant de coller plusieurs lignes

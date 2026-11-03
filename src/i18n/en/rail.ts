@@ -153,4 +153,29 @@ export default {
   'Redirections de ports de cette session': 'Port forwards of this session',
   'Nouveau shell': 'New shell',
   'Un autre shell sur ce serveur': 'Another shell on this server',
+
+  // Side-by-side view (src/app/content/SlotHeader.tsx and what follows)
+  'Retirer {name} de la vue': 'Remove {name} from the view',
+  'Retirer de la vue': 'Remove from view',
+  'Séparation des sessions': 'Session divider',
+  'Ouvrir à droite': 'Open on the right',
+  'Ouvrir en bas': 'Open below',
+  'Afficher seule': 'Show alone',
+  '{n} sessions au plus dans une vue': 'At most {n} sessions in a view',
+  'Affichée côte à côte': 'Shown side by side',
+  'À gauche de {name}': 'Left of {name}',
+  'À droite de {name}': 'Right of {name}',
+  'Au-dessus de {name}': 'Above {name}',
+  'En dessous de {name}': 'Below {name}',
+  'À la place de {name}': 'In place of {name}',
+  'Échanger avec {name}': 'Swap with {name}',
+  'Retirer la session de la vue': 'Remove the session from the view',
+  'Afficher la session seule': 'Show the session alone',
+  Afficher: 'Show',
+  'Que faire avec cette session ?': 'What to do with this session?',
+  'Dans la vue côte à côte : clique pour la retrouver':
+    'In the side-by-side view: click to bring it back',
+  'session active': 'active session',
+  'Les boutons de cette barre agissent sur la session active':
+    'The buttons of this bar act on the active session',
 } satisfies Record<string, string>;

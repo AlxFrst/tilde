@@ -67,6 +67,9 @@ drop connections without saying why. Tilde starts from the other end.
 - A **session header** shows where you are (`user@host`, jump hosts) and offers *Files*,
   *Monitor*, *Tunnels*, *New shell* and *Split*; each pane has its own small header to split
   or close it. The server monitor opens **over** the session (*Peek*) and can be docked.
+- **Sessions side by side**: right-click a session (*Open on the right*, *Open below*) or
+  drag it from the Rail onto the content to show up to four sessions at once. Each keeps its
+  row, panes and environment frame; nothing restarts, and the view comes back at startup.
 - The Rail hides (`Ctrl+Shift+B`) and slides back when the mouse reaches the edge.
 - **Maximize a pane** (`Ctrl+Shift+Enter`, or the button in its header): it fills the window,
   the other panes keep running. `F11` for full screen.

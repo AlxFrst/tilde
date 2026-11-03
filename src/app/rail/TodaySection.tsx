@@ -17,6 +17,8 @@ import { isPinnedTab, spaceOfTab } from '@/workspace/spaces';
 import { bindingKeys } from '@/terminal/keyLabels';
 import type { Tab } from '@/workspace/types';
 import { openDefaultTab } from '../actions';
+import { useLabelNames } from '../paneLabel';
+import { viewDragHandlers } from '../viewDrop';
 import { NewTabMenu } from '../NewTabMenu';
 import { SessionRow } from './SessionRow';
 
@@ -47,8 +49,13 @@ export function TodaySection() {
     [tabs, space, file],
   );
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const names = useLabelNames();
+  // A session dragged onto the content goes beside (or in place of) a session shown.
+  const viewDrag = viewDragHandlers((active) => ({ tabId: String(active.id) }), names);
 
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
+  const onDragEnd = (e: DragEndEvent) => {
+    if (viewDrag.onDragEnd(e)) return;
+    const { active, over } = e;
     if (!over || active.id === over.id) return;
     const ids = useWorkspace.getState().tabs.map((x) => x.id);
     useWorkspace.getState().moveTab(ids.indexOf(String(active.id)), ids.indexOf(String(over.id)));
@@ -62,7 +69,14 @@ export function TodaySection() {
         </h3>
         <span className="h-px flex-1 bg-border" />
       </div>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={viewDrag.onDragStart}
+        onDragMove={viewDrag.onDragMove}
+        onDragCancel={viewDrag.onDragCancel}
+        onDragEnd={onDragEnd}
+      >
         <SortableContext items={today.map((x) => x.id)} strategy={verticalListSortingStrategy}>
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-px">
             {today.map((x) => (

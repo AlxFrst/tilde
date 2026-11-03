@@ -10,10 +10,11 @@ import { blankConnection, useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
 import { useSsh } from '@/stores/ssh';
-import { useWorkspace } from '@/stores/workspace';
+import { shownView, useWorkspace } from '@/stores/workspace';
 import { defaultSettings } from '@/test/fixtures';
 import { defaultSpaceResolver, makeSpaceResolver, setSpaceResolver } from '@/workspace/spaces';
 import { leaves } from '@/workspace/tree';
+import { viewTabs } from '@/workspace/view';
 import { ConfirmCloseDialog } from '../ConfirmCloseDialog';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { sessionTitle, useLabelNames } from '../paneLabel';
@@ -99,6 +100,7 @@ beforeEach(() => {
     dormant: [],
     activeSpaceId: 'main',
     activeTabBySpace: {},
+    views: {},
   });
   useConnections.setState({ editing: null, editingFolder: null });
   useProfiles.setState({ profiles: [profile], loaded: true });
@@ -433,4 +435,87 @@ test('leaving the rename field unchanged keeps the name a live one', async () =>
   expect(field).toHaveValue('Session 2');
   fireEvent.blur(field);
   expect(ws().tabs.find((x) => x.id === second)?.customTitle).toBeNull();
+});
+
+describe('side by side', () => {
+  const shown = () => {
+    const view = shownView(ws());
+    return view ? viewTabs(view) : [];
+  };
+  const sessions = (...names: string[]) =>
+    names.map((n) => {
+      const id = ws().openTab('pwsh');
+      ws().renameTab(id, n);
+      return id;
+    });
+  const today = (name: string) => within(group('Aujourd’hui')).getByRole('button', { name });
+  const item = (name: RegExp | string) => screen.findByRole('menuitem', { name });
+
+  test('Open on the right from a Today session forms a view', async () => {
+    setFile({});
+    const [a = '', b = ''] = sessions('a', 'b', 'c');
+    ws().activateTab(a);
+    show();
+    fireEvent.contextMenu(today('b'));
+    await userEvent.click(await item('Ouvrir à droite'));
+    expect(shown()).toEqual([a, b]);
+  });
+
+  test('the active session cannot be opened beside itself', async () => {
+    setFile({});
+    const [a = ''] = sessions('a', 'b');
+    ws().activateTab(a);
+    show();
+    fireEvent.contextMenu(today('a'));
+    expect(await item('Ouvrir à droite')).toHaveAttribute('aria-disabled', 'true');
+    expect(await item('Ouvrir en bas')).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('a full view disables the items and says why', async () => {
+    setFile({});
+    const [a = '', b = '', c = '', d = ''] = sessions('a', 'b', 'c', 'd', 'e');
+    ws().placeInView(b, a, 'right');
+    ws().placeInView(c, b, 'right');
+    ws().placeInView(d, c, 'right');
+    show();
+    fireEvent.contextMenu(today('e'));
+    expect(await item('Ouvrir à droite')).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByText('4 sessions au plus dans une vue')).toBeInTheDocument();
+  });
+
+  test('a session of the view offers Show alone and Remove from view', async () => {
+    setFile({});
+    const [a = '', b = ''] = sessions('a', 'b');
+    ws().placeInView(b, a, 'right');
+    show();
+    fireEvent.contextMenu(today('a'));
+    expect(await item('Afficher seule')).toBeInTheDocument();
+    await userEvent.click(await item('Retirer de la vue'));
+    expect(shown()).toEqual([]);
+    expect(ws().tabs).toHaveLength(2);
+  });
+
+  test('rows of the view are marked, shown or set aside', () => {
+    setFile({});
+    const [a = '', b = '', c = ''] = sessions('a', 'b', 'c');
+    ws().placeInView(b, a, 'right');
+    show();
+    expect(today('a')).toHaveAttribute('data-view', 'shown');
+    expect(today('c')).not.toHaveAttribute('data-view');
+    act(() => {
+      ws().activateTab(c);
+    });
+    expect(today('a')).toHaveAttribute('data-view', 'aside');
+  });
+
+  test('Open on the right on an asleep pinned connection opens its session beside the active one', async () => {
+    setFile({ connections: [conn('a', 'alpha')] });
+    const [one = ''] = sessions('un');
+    show();
+    fireEvent.contextMenu(within(group('Épinglés')).getByRole('button', { name: /^alpha/ }));
+    await userEvent.click(await item('Ouvrir à droite'));
+    const pinned = ws().tabs.find((t) => t.pinnedConnectionId === 'a');
+    expect(pinned).toBeDefined();
+    expect(shown()).toEqual([one, pinned?.id]);
+  });
 });

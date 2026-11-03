@@ -1,5 +1,5 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { registerBuiltins } from '@/commands/builtin';
@@ -8,7 +8,8 @@ import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/stores/ui';
-import { useWorkspace, zoomedLeafOf } from '@/stores/workspace';
+import { shownView, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
+import { viewRects } from '@/workspace/view';
 import { allSessions } from '@/terminal/sessionRegistry';
 import { flushWorkspace } from '@/workspace/persistence';
 import { confirmClose } from './closeGuard';
@@ -24,6 +25,8 @@ import { QuickConnectDialog } from './QuickConnectDialog';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { Peek } from './content/Peek';
 import { SessionHeader } from './content/SessionHeader';
+import { ViewDividers } from './content/ViewDividers';
+import { ViewDropOverlay } from './content/ViewDropOverlay';
 import { sessionEnv } from './content/sessionEnv';
 import { Rail } from './rail/Rail';
 import { SpaceDialog } from './spaces/SpaceDialog';
@@ -49,14 +52,18 @@ function useWindowCloseGuard(enabled: boolean) {
   }, [enabled]);
 }
 
-/** The Rail is hidden: by the user, or while the shown session has a pane alone. */
+/**
+ * The Rail is hidden: by the user, or while the shown session has a pane alone (not when
+ * sessions show side by side: the pane fills only its session's slot).
+ */
 export function useRailHidden(): boolean {
   const hidden = useUi((s) => s.railHidden);
   const zoomed = useWorkspace((s) => {
     const tab = s.tabs.find((t) => t.id === s.activeTabId);
     return tab ? zoomedLeafOf(tab, s.zoomed) !== null : false;
   });
-  return hidden || zoomed;
+  const sideBySide = useWorkspace((s) => shownView(s) !== null);
+  return hidden || (zoomed && !sideBySide);
 }
 
 /**
@@ -66,16 +73,29 @@ export function useRailHidden(): boolean {
 function HiddenRail({ side, children }: { side: 'left' | 'right'; children: ReactNode }) {
   const [shown, setShown] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hovered = useRef(false);
+  // A row dragged out of the Rail (onto the content) leaves it: the drag belongs to the
+  // Rail, so it stays out until the row is dropped.
+  const dragging = useUi((s) => s.railDragging);
   const show = () => {
+    hovered.current = true;
     clearTimeout(timer.current);
     setShown(true);
   };
   const hideSoon = () => {
+    hovered.current = false;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      if (!useUi.getState().railDragging) setShown(false);
+    }, 300);
+  };
+  useEffect(() => {
+    if (dragging || hovered.current) return;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       setShown(false);
     }, 300);
-  };
+  }, [dragging]);
   useEffect(
     () => () => {
       clearTimeout(timer.current);
@@ -129,12 +149,17 @@ export function AppShell({
   const railHidden = useRailHidden();
   const activeTab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const file = useConnections((s) => s.file);
-  const env = activeTab ? sessionEnv(activeTab, file) : null;
+  // The sessions shown side by side (never in the Quake console), each in its slot.
+  const view = useWorkspace((s) => (quake ? null : shownView(s)));
+  const slots = useMemo(() => (view ? viewRects(view) : null), [view]);
+  // With a view each slot has its own environment frame; the content area has none.
+  const env = activeTab && !slots ? sessionEnv(activeTab, file) : null;
   useShortcuts();
   useEffect(() => registerBuiltins(), []);
   useWindowCloseGuard(!quake);
   useQuakeTabs(quake);
 
+  const area = useRef<HTMLElement>(null);
   const isMac = appInfo.platform === 'macos';
   const sidebar = (
     <Rail
@@ -150,7 +175,13 @@ export function AppShell({
   const panes = (
     <>
       {tabs.map((t) => (
-        <PaneView key={t.id} tab={t} visible={t.id === activeTabId} />
+        <PaneView
+          key={t.id}
+          tab={t}
+          visible={slots ? slots.has(t.id) : t.id === activeTabId}
+          focused={t.id === activeTabId}
+          slot={slots?.get(t.id) ?? null}
+        />
       ))}
       {(tabs.length === 0 || activeTabId === null) && (
         <div className="absolute inset-0 overflow-auto">
@@ -180,7 +211,12 @@ export function AppShell({
           >
             <SessionHeader platform={appInfo.platform} />
             <main
-              className="relative mx-1.5 mb-1.5 min-h-0 flex-1 overflow-hidden rounded-lg border bg-background"
+              ref={area}
+              data-view-area
+              className={cn(
+                'relative mx-1.5 mb-1.5 min-h-0 flex-1 overflow-hidden rounded-lg border bg-background',
+                slots && 'border-transparent bg-transparent',
+              )}
               style={
                 env
                   ? { borderColor: `color-mix(in srgb, ${env.color} 55%, transparent)` }
@@ -188,6 +224,8 @@ export function AppShell({
               }
             >
               {panes}
+              {view && <ViewDividers view={view} area={area} />}
+              <ViewDropOverlay />
               <Peek />
             </main>
           </div>
