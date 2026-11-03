@@ -25,6 +25,10 @@ export function useQuakeTabs(enabled = true): void {
   const shuttingDown = useRef(false);
 
   useEffect(() => {
+    if (enabled) useWorkspace.getState().disableViews();
+  }, [enabled]);
+
+  useEffect(() => {
     if (!enabled) return;
     const off = listen('quake://shutdown', () => {
       shuttingDown.current = true;

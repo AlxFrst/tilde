@@ -205,3 +205,31 @@ test('a hidden rail comes back over the content when the mouse reaches the edge'
     useUi.getState().setRailHidden(false);
   });
 });
+
+test('a hidden rail stays out while a session is dragged from it', async () => {
+  mockBackend();
+  render(<App />);
+  const rail = await screen.findByRole('complementary', { name: 'Barre latérale' });
+  await userEvent.click(within(rail).getByRole('button', { name: 'Masquer la barre latérale' }));
+  fireEvent.mouseEnter(document.querySelector('[data-rail-edge]') as HTMLElement);
+  const shown = screen.getByRole('complementary', { name: 'Barre latérale' });
+  act(() => {
+    useUi.getState().setRailDragging(true);
+  });
+  const overlay = shown.parentElement as HTMLElement;
+  fireEvent.mouseLeave(overlay);
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 400));
+  });
+  expect(screen.getByRole('complementary', { name: 'Barre latérale' })).toBeInTheDocument();
+  act(() => {
+    useUi.getState().setRailDragging(false);
+  });
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 400));
+  });
+  expect(screen.queryByRole('complementary')).toBeNull();
+  act(() => {
+    useUi.getState().setRailHidden(false);
+  });
+});

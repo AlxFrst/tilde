@@ -337,3 +337,69 @@ describe('moving the focus across the sessions of a view', () => {
     expect(ws().activeTabId).toBe(b);
   });
 });
+
+describe('a view set aside', () => {
+  test('opening beside a session shown alone forms a new view of two', () => {
+    const [a = '', b = '', c = '', e = ''] = open(4);
+    ws().placeInView(b, a, 'right');
+    ws().placeInView(c, b, 'right');
+    ws().showAlone(a);
+    ws().placeInView(e, a, 'right');
+    expect(shown()).toEqual([a, e]);
+  });
+
+  test('its sessions do not count for the maximum', () => {
+    const [a = '', b = '', c = '', d = '', e = ''] = open(5);
+    ws().placeInView(b, a, 'right');
+    ws().placeInView(c, b, 'right');
+    ws().placeInView(d, c, 'right');
+    ws().showAlone(a);
+    expect(ws().canPlaceInView(e, a, 'right')).toBe(true);
+  });
+
+  test('an asleep connection opens beside a shown view without setting it aside', () => {
+    const conn = blankConnection({ id: 'c1', name: 'prod', host: 'prod' });
+    setSpaceResolver(makeSpaceResolver({ ...file(), connections: [conn] }));
+    const [a = '', b = ''] = open(2);
+    ws().placeInView(b, a, 'right');
+    const p = ws().openPinnedInView('c1', 'prod', 'main', b, 'right');
+    expect(p).not.toBeNull();
+    expect(shown()).toEqual([a, b, p]);
+    expect(ws().activeTabId).toBe(p);
+  });
+});
+
+test('the Quake console never has a view', () => {
+  const [a = '', b = ''] = open(2);
+  ws().placeInView(b, a, 'right');
+  ws().disableViews();
+  expect(ws().views).toEqual({});
+  expect(ws().canPlaceInView(a, b, 'right')).toBe(false);
+  ws().placeInView(a, b, 'right');
+  expect(ws().views).toEqual({});
+  ws().hydrate(
+    {
+      version: 1,
+      tabs: ws().tabs,
+      activeTabId: a,
+      views: {
+        main: {
+          root: {
+            type: 'split',
+            id: 'v',
+            direction: 'row',
+            children: [
+              { type: 'leaf', tabId: a },
+              { type: 'leaf', tabId: b },
+            ],
+            sizes: [50, 50],
+          },
+          shown: true,
+        },
+      },
+    },
+    ['cmd'],
+    'cmd',
+  );
+  expect(ws().views).toEqual({});
+});

@@ -40,11 +40,12 @@ export function openConnection(c: Connection): void {
 export function placeConnectionInView(c: Connection, targetTabId: string, zone: DropZone): void {
   const ws = useWorkspace.getState();
   const open = ws.tabs.find((t) => t.pinnedConnectionId === c.id);
-  if (!ws.canPlaceInView(open?.id ?? null, targetTabId, zone)) return;
-  // Opening it shows it alone and sets the view aside; placing it brings the view back.
+  if (open) {
+    ws.placeInView(open.id, targetTabId, zone);
+    return;
+  }
   const space = connectionSpace(c, useConnections.getState().file);
-  const tabId = open?.id ?? ws.openPinned(c.id, c.host, space);
-  useWorkspace.getState().placeInView(tabId, targetTabId, zone);
+  ws.openPinnedInView(c.id, c.host, space, targetTabId, zone);
 }
 
 /**

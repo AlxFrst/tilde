@@ -122,16 +122,21 @@ export function viewDragHandlers(
     return { source, target: source && p ? viewDropTarget(p.x, p.y) : null };
   };
   return {
+    onDragStart: () => {
+      useUi.getState().setRailDragging(true);
+    },
     onDragMove: (e: DragMoveEvent) => {
       const { source, target } = targetOf(e);
       useUi.getState().setViewDrop(source ? previewFor(source, target, names) : null);
     },
     onDragCancel: () => {
       useUi.getState().setViewDrop(null);
+      useUi.getState().setRailDragging(false);
     },
     onDragEnd: (e: DragEndEvent): boolean => {
       const { source, target } = targetOf(e);
       useUi.getState().setViewDrop(null);
+      useUi.getState().setRailDragging(false);
       if (!source || !target) return false;
       const preview = previewFor(source, target, names);
       if (preview && !preview.bad) dropOnView(source, target);

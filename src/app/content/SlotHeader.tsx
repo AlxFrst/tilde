@@ -42,9 +42,14 @@ export function SlotHeader({ tab, focused }: { tab: Tab; focused: boolean }) {
       <span className="min-w-2 flex-1" />
       <button
         type="button"
+        data-slot-close
         aria-label={t('Retirer {name} de la vue', { name: title })}
         title={t('Retirer de la vue')}
         className="flex size-5 shrink-0 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
+        // The keyboard stays in the active session's terminal.
+        onMouseDown={(e) => {
+          e.preventDefault();
+        }}
         onClick={() => {
           useWorkspace.getState().removeFromView(tab.id);
         }}

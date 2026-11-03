@@ -116,6 +116,21 @@ interface WorkspaceState {
   placeInView: (tabId: string, targetTabId: string, zone: DropZone) => void;
   /** Whether `placeInView` would do something (`tabId` `null`: a session about to open). */
   canPlaceInView: (tabId: string | null, targetTabId: string, zone: DropZone) => boolean;
+  /**
+   * Opens a saved connection's pinned session straight into the view, beside (or in place
+   * of) `targetTabId`, without showing it alone first. `null` if it cannot go there.
+   */
+  openPinnedInView: (
+    connectionId: string,
+    target: string,
+    spaceId: string,
+    targetTabId: string,
+    zone: DropZone,
+  ) => string | null;
+  /** Side-by-side views can be made (not in the Quake console). */
+  viewsEnabled: boolean;
+  /** No view in this window, ever (the Quake console). */
+  disableViews: () => void;
   /** Takes a session of the shown view out of it, without closing it. */
   removeFromView: (tabId: string) => void;
   /** Shows a session of the shown view alone; the view is set aside. */
@@ -234,17 +249,20 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     targetTabId: string,
     zone: DropZone,
   ): { space: string; root: ViewNode | null } | null => {
-    if (tabId === targetTabId) return null;
+    if (tabId === targetTabId || !get().viewsEnabled) return null;
     const { tabs, views } = get();
     const target = tabs.find((t) => t.id === targetTabId);
     if (!target) return null;
     const space = spaceOfTab(target);
     const tab = tabId === null ? null : tabs.find((t) => t.id === tabId);
     if (tab === undefined || (tab && spaceOfTab(tab) !== space)) return null;
-    // The target's view (shown or set aside), else the target alone.
+    // The view shown with the target, else the target alone: beside a session shown alone,
+    // a new view forms (and replaces one set aside).
     const view = views[space];
     const base: ViewNode =
-      view && viewHas(view.root, targetTabId) ? view.root : { type: 'leaf', tabId: targetTabId };
+      view?.shown && viewHas(view.root, targetTabId)
+        ? view.root
+        : { type: 'leaf', tabId: targetTabId };
     const inBase = tabId !== null && viewHas(base, tabId);
     if (zone !== 'center' && !inBase && viewTabs(base).length >= MAX_VIEW_SESSIONS) return null;
     if (tabId === null) return { space, root: null };
@@ -280,7 +298,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
   };
   const addTab = (
     leaf: LeafNode,
-    place: { spaceId?: string; pinnedConnectionId?: string } = {},
+    place: { spaceId?: string; pinnedConnectionId?: string; background?: boolean } = {},
   ) => {
     const tab: Tab = {
       id: crypto.randomUUID(),
@@ -292,7 +310,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       pinnedConnectionId: place.pinnedConnectionId ?? null,
     };
     set((s) => ({ tabs: [...s.tabs, tab] }));
-    activate(tab.id);
+    if (!place.background) activate(tab.id);
     return tab.id;
   };
 
@@ -541,6 +559,26 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
 
     canPlaceInView: (tabId, targetTabId, zone) => placement(tabId, targetTabId, zone) !== null,
+
+    openPinnedInView: (connectionId, target, spaceId, targetTabId, zone) => {
+      if (!placement(null, targetTabId, zone)) return null;
+      // Not shown alone first: that would set the view aside.
+      const tabId = addTab(newSshLeaf(target, connectionId), {
+        spaceId,
+        pinnedConnectionId: connectionId,
+        background: true,
+      });
+      get().placeInView(tabId, targetTabId, zone);
+      // It could not join (another space): it is shown, as any session just opened.
+      if (get().activeTabId !== tabId) activate(tabId);
+      return tabId;
+    },
+
+    viewsEnabled: true,
+
+    disableViews: () => {
+      set({ viewsEnabled: false, views: {} });
+    },
 
     removeFromView: (tabId) => {
       const tab = get().tabs.find((t) => t.id === tabId);
@@ -877,7 +915,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         dormant,
         activeSpaceId: snap.activeSpaceId ?? MAIN_SPACE.id,
         activeTabBySpace: snap.activeTabBySpace ?? {},
-        views: snap.views ?? {},
+        views: get().viewsEnabled ? (snap.views ?? {}) : {},
       });
       // A space removed (or a connections.json unreadable) since: hand over to the first.
       // Before connections.json is read, its loading does this check.

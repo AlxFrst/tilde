@@ -73,16 +73,29 @@ export function useRailHidden(): boolean {
 function HiddenRail({ side, children }: { side: 'left' | 'right'; children: ReactNode }) {
   const [shown, setShown] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const hovered = useRef(false);
+  // A row dragged out of the Rail (onto the content) leaves it: the drag belongs to the
+  // Rail, so it stays out until the row is dropped.
+  const dragging = useUi((s) => s.railDragging);
   const show = () => {
+    hovered.current = true;
     clearTimeout(timer.current);
     setShown(true);
   };
   const hideSoon = () => {
+    hovered.current = false;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      if (!useUi.getState().railDragging) setShown(false);
+    }, 300);
+  };
+  useEffect(() => {
+    if (dragging || hovered.current) return;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       setShown(false);
     }, 300);
-  };
+  }, [dragging]);
   useEffect(
     () => () => {
       clearTimeout(timer.current);

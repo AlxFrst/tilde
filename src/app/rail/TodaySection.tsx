@@ -72,6 +72,7 @@ export function TodaySection() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={viewDrag.onDragStart}
         onDragMove={viewDrag.onDragMove}
         onDragCancel={viewDrag.onDragCancel}
         onDragEnd={onDragEnd}

@@ -59,6 +59,9 @@ interface UiState {
   /** A session is dragged over the content: where it would land. */
   viewDrop: ViewDropPreview | null;
   setViewDrop: (p: ViewDropPreview | null) => void;
+  /** A row of the Rail is being dragged (a hidden Rail stays out until it is dropped). */
+  railDragging: boolean;
+  setRailDragging: (dragging: boolean) => void;
 }
 
 export const useUi = create<UiState>()((set) => ({
@@ -95,5 +98,9 @@ export const useUi = create<UiState>()((set) => ({
   viewDrop: null,
   setViewDrop: (viewDrop) => {
     set({ viewDrop });
+  },
+  railDragging: false,
+  setRailDragging: (railDragging) => {
+    set({ railDragging });
   },
 }));

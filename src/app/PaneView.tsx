@@ -86,7 +86,7 @@ function Leaf({
     <div
       className={cn(
         'absolute transition-shadow duration-150',
-        multi && active && !zoomed && 'z-[1] shadow-[inset_0_0_0_1px_var(--tilde-accent)]',
+        multi && live && !zoomed && 'z-[1] shadow-[inset_0_0_0_1px_var(--tilde-accent)]',
         // Hidden, not unmounted: its shell keeps running.
         zoomed === false && 'hidden',
       )}
@@ -252,8 +252,10 @@ export function PaneView({
             }
           : undefined
       }
-      onMouseDownCapture={() => {
-        if (slot && !focused) useWorkspace.getState().activateTab(tab.id);
+      onMouseDownCapture={(e) => {
+        // Its × takes it out of the view: that must not make it the active session first.
+        const closing = e.target instanceof Element && e.target.closest('[data-slot-close]');
+        if (slot && !focused && !closing) useWorkspace.getState().activateTab(tab.id);
       }}
     >
       {slot && <SlotHeader tab={tab} focused={focused} />}

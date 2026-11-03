@@ -324,3 +324,15 @@ describe('in a side-by-side view', () => {
     expect(screen.getByRole('button', { name: /^Retirer .+ de la vue$/ })).toBeInTheDocument();
   });
 });
+
+test('in a view, only the active session rings its active pane', () => {
+  const slot = { x: 0, y: 0, w: 0.5, h: 1 };
+  const ringed = () =>
+    (
+      screen.getByTestId(`term-${tab().activeLeafId}`).closest('[style*="left"]') as HTMLElement
+    ).className.includes('inset_0_0_0_1px');
+  const { rerender } = render(<PaneView tab={tab()} visible focused={false} slot={slot} />);
+  expect(ringed()).toBe(false);
+  rerender(<PaneView tab={tab()} visible focused slot={slot} />);
+  expect(ringed()).toBe(true);
+});

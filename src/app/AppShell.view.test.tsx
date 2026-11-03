@@ -1,10 +1,12 @@
 // The main window with a side-by-side view: every session of the view on screen at once.
 
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { TerminalViewProps } from '@/terminal/TerminalView';
 import { registerCorePanels } from '@/panels/core';
 import { shownView, useWorkspace } from '@/stores/workspace';
 import { defaultSettings } from '@/test/fixtures';
+import { viewTabs } from '@/workspace/view';
 import { AppShell } from './AppShell';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn(() => Promise.resolve(null)) }));
@@ -108,4 +110,17 @@ describe('resizing the view', () => {
     const root = ws().views.main?.root;
     expect(root?.type === 'split' && root.sizes.map(Math.round)).toEqual([70, 30]);
   });
+});
+
+test('removing a session that is not the active one keeps the active one', async () => {
+  const c = ws().tabs[2]?.id ?? '';
+  ws().placeInView(c, b, 'right');
+  expect(ws().activeTabId).toBe(c);
+  render(shell());
+  const [, second] = screen.getAllByRole('button', { name: /^Retirer .+ de la vue$/ });
+  if (!second) throw new Error('no strip');
+  await userEvent.click(second);
+  const view = shownView(ws());
+  expect(view && viewTabs(view)).toEqual([a, c]);
+  expect(ws().activeTabId).toBe(c);
 });

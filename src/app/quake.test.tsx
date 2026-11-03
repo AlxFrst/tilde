@@ -193,3 +193,11 @@ test('the quake console is one list of sessions, whatever their space', async ()
   });
   expect(ws().activeTabId).toBe(local);
 });
+
+test('the quake console has no side-by-side view', () => {
+  useWorkspace.setState({ viewsEnabled: true });
+  renderHook(() => {
+    useQuakeTabs();
+  });
+  expect(useWorkspace.getState().viewsEnabled).toBe(false);
+});

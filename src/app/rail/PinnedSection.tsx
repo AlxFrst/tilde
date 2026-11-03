@@ -316,6 +316,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
     <DndContext
       sensors={sensors}
       collisionDetection={collisions}
+      onDragStart={viewDrag.onDragStart}
       onDragMove={viewDrag.onDragMove}
       onDragCancel={viewDrag.onDragCancel}
       onDragEnd={onDragEnd}
