@@ -23,6 +23,18 @@ import type {
   WorkspaceSnapshot,
 } from '@/workspace/types';
 import { sanitizeSnapshot } from '@/workspace/sanitize';
+import {
+  MAX_VIEW_SESSIONS,
+  viewHas,
+  viewPlace,
+  viewRemove,
+  viewReplace,
+  viewSetSizes,
+  viewTabs,
+  type DropZone,
+  type SpaceView,
+  type ViewNode,
+} from '@/workspace/view';
 import { isPinnedTab, knownSpaceIds, spaceOfTab, spacesReady } from '@/workspace/spaces';
 import { MAIN_SPACE } from '@/connections/spaces';
 
@@ -87,6 +99,23 @@ interface WorkspaceState {
   focusNeighbor: (dir: FocusDirection) => void;
   updatePanel: (tabId: string, leafId: string, patch: PanelPatch) => void;
   setSizes: (tabId: string, splitId: string, sizes: number[]) => void;
+  /**
+   * Each space's side-by-side view: sessions shown together. A view is shown, or set aside
+   * while a session outside it is shown alone (showing one of its sessions brings it back).
+   */
+  views: Record<string, SpaceView>;
+  /**
+   * Puts a session beside `targetTabId` (an edge) or in its place (`center`; the two swap
+   * if it was already in the view), then makes it the active session.
+   */
+  placeInView: (tabId: string, targetTabId: string, zone: DropZone) => void;
+  /** Whether `placeInView` would do something (`tabId` `null`: a session about to open). */
+  canPlaceInView: (tabId: string | null, targetTabId: string, zone: DropZone) => boolean;
+  /** Takes a session of the shown view out of it, without closing it. */
+  removeFromView: (tabId: string) => void;
+  /** Shows a session of the shown view alone; the view is set aside. */
+  showAlone: (tabId: string) => void;
+  setViewSizes: (splitId: string, sizes: number[]) => void;
   /** A pane shown alone, by session (not persisted); see {@link zoomedLeafOf}. */
   zoomed: Record<string, Zoom>;
   /** Shows a pane alone (focusing it), or the session's panes again if it is. */
@@ -100,6 +129,12 @@ interface WorkspaceState {
     availableProfileIds: string[],
     fallbackProfileId: string,
   ) => { replaced: number };
+}
+
+/** The view shown in the active space, or `null` (the stored tree: a stable selector). */
+export function shownView(s: Pick<WorkspaceState, 'views' | 'activeSpaceId'>): ViewNode | null {
+  const view = s.views[s.activeSpaceId];
+  return view?.shown ? view.root : null;
 }
 
 /** The pane shown alone, and how many panes its session had then. */
@@ -165,16 +200,54 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
   };
   const activeTab = () => get().tabs.find((t) => t.id === get().activeTabId);
   const spaceTabsOf = (spaceId: string) => get().tabs.filter((t) => spaceOfTab(t) === spaceId);
-  /** Shows a session and its space, remembering it as that space's last one. */
+  /**
+   * Shows a session and its space, remembering it as that space's last one. A session of
+   * the space's view shows the whole view; any other session sets the view aside.
+   */
   const activate = (tabId: string) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (!tab) return;
     const space = spaceOfTab(tab);
-    set((s) => ({
-      activeTabId: tab.id,
-      activeSpaceId: space,
-      activeTabBySpace: { ...s.activeTabBySpace, [space]: tab.id },
-    }));
+    set((s) => {
+      const view = s.views[space];
+      const shown = view ? viewHas(view.root, tab.id) : false;
+      return {
+        activeTabId: tab.id,
+        activeSpaceId: space,
+        activeTabBySpace: { ...s.activeTabBySpace, [space]: tab.id },
+        views: view && view.shown !== shown ? { ...s.views, [space]: { ...view, shown } } : s.views,
+      };
+    });
+  };
+  /**
+   * What placing `tabId` at `zone` of `targetTabId` gives: the new view (`null` when it
+   * would hold one session), or `null` when it cannot be done. `tabId` `null`: a session
+   * about to be opened, checked against the maximum only.
+   */
+  const placement = (
+    tabId: string | null,
+    targetTabId: string,
+    zone: DropZone,
+  ): { space: string; root: ViewNode | null } | null => {
+    if (tabId === targetTabId) return null;
+    const { tabs, views } = get();
+    const target = tabs.find((t) => t.id === targetTabId);
+    if (!target) return null;
+    const space = spaceOfTab(target);
+    const tab = tabId === null ? null : tabs.find((t) => t.id === tabId);
+    if (tab === undefined || (tab && spaceOfTab(tab) !== space)) return null;
+    // The target's view (shown or set aside), else the target alone.
+    const view = views[space];
+    const base: ViewNode =
+      view && viewHas(view.root, targetTabId) ? view.root : { type: 'leaf', tabId: targetTabId };
+    const inBase = tabId !== null && viewHas(base, tabId);
+    if (zone !== 'center' && !inBase && viewTabs(base).length >= MAX_VIEW_SESSIONS) return null;
+    if (tabId === null) return { space, root: null };
+    const root =
+      zone === 'center'
+        ? viewReplace(base, targetTabId, tabId)
+        : viewPlace(base, targetTabId, tabId, zone);
+    return { space, root: viewTabs(root).length >= 2 ? root : null };
   };
   /** The neighbour to show when `tabId` leaves its space's list. */
   const neighbourOf = (tabId: string, spaceId: string): Tab | null => {
@@ -438,6 +511,60 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       closeOrphans();
     },
 
+    views: {},
+
+    placeInView: (tabId, targetTabId, zone) => {
+      const placed = placement(tabId, targetTabId, zone);
+      if (!placed) return;
+      const { space, root } = placed;
+      // A new view replaces the one set aside: one view per space.
+      if (root) set((s) => ({ views: { ...s.views, [space]: { root, shown: true } } }));
+      activate(tabId);
+    },
+
+    canPlaceInView: (tabId, targetTabId, zone) => placement(tabId, targetTabId, zone) !== null,
+
+    removeFromView: (tabId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      const space = spaceOfTab(tab);
+      const view = get().views[space];
+      if (!view?.shown || !viewHas(view.root, tabId)) return;
+      const root = viewRemove(view.root, tabId);
+      const rest = root ? viewTabs(root) : [];
+      set((s) => ({
+        views:
+          root && rest.length >= 2
+            ? { ...s.views, [space]: { root, shown: true } }
+            : without(s.views, space),
+      }));
+      const [first] = rest;
+      if (get().activeTabId === tabId && first) activate(first);
+    },
+
+    showAlone: (tabId) => {
+      const tab = get().tabs.find((t) => t.id === tabId);
+      if (!tab) return;
+      const space = spaceOfTab(tab);
+      const view = get().views[space];
+      if (!view?.shown || !viewHas(view.root, tabId)) return;
+      set((s) => ({
+        views: { ...s.views, [space]: { ...view, shown: false } },
+        activeTabId: tabId,
+        activeSpaceId: space,
+        activeTabBySpace: { ...s.activeTabBySpace, [space]: tabId },
+      }));
+    },
+
+    setViewSizes: (splitId, sizes) => {
+      const space = get().activeSpaceId;
+      const view = get().views[space];
+      if (!view) return;
+      set((s) => ({
+        views: { ...s.views, [space]: { ...view, root: viewSetSizes(view.root, splitId, sizes) } },
+      }));
+    },
+
     activateTab: (tabId) => {
       activate(tabId);
     },
@@ -657,7 +784,13 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
 
     snapshot: () =>
-      serializeSnapshot(get().tabs, get().activeTabId, get().activeSpaceId, get().activeTabBySpace),
+      serializeSnapshot(
+        get().tabs,
+        get().activeTabId,
+        get().activeSpaceId,
+        get().activeTabBySpace,
+        get().views,
+      ),
 
     hydrate: (raw, available, fallback) => {
       // The snapshot comes from a user-reachable file: sanitize, never trust.
@@ -695,6 +828,7 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         dormant,
         activeSpaceId: snap.activeSpaceId ?? MAIN_SPACE.id,
         activeTabBySpace: snap.activeTabBySpace ?? {},
+        views: snap.views ?? {},
       });
       // A space removed (or a connections.json unreadable) since: hand over to the first.
       // Before connections.json is read, its loading does this check.
