@@ -3,12 +3,15 @@ import { serializeSnapshot } from '@/workspace/serialize';
 import { create } from 'zustand';
 import {
   findLeaf,
+  layoutRects,
   leaves,
   neighbor,
+  neighborIn,
   removeLeaf,
   setSizes as setTreeSizes,
   splitLeaf,
   updatePanel as updateTreePanel,
+  type Rect,
 } from '@/workspace/tree';
 import type {
   Direction,
@@ -31,6 +34,7 @@ import {
   viewRemove,
   viewReplace,
   viewSetSizes,
+  viewRects,
   viewTabs,
   type DropZone,
   type SpaceView,
@@ -773,8 +777,33 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     focusNeighbor: (dir) => {
       const tab = activeTab();
       if (!tab) return;
-      const target = neighbor(tab.root, tab.activeLeafId, dir);
-      if (target) get().focusLeaf(tab.id, target);
+      const view = shownView(get());
+      if (!view) {
+        const target = neighbor(tab.root, tab.activeLeafId, dir);
+        if (target) get().focusLeaf(tab.id, target);
+        return;
+      }
+      // Every pane of the view, placed in its session's slot: the focus crosses sessions.
+      const owner = new Map<string, string>();
+      const all = new Map<string, Rect>();
+      for (const [tabId, slot] of viewRects(view)) {
+        const session = get().tabs.find((t) => t.id === tabId);
+        if (!session) continue;
+        for (const [leafId, r] of layoutRects(session.root)) {
+          owner.set(leafId, tabId);
+          all.set(leafId, {
+            x: slot.x + r.x * slot.w,
+            y: slot.y + r.y * slot.h,
+            w: r.w * slot.w,
+            h: r.h * slot.h,
+          });
+        }
+      }
+      const target = neighborIn(all, tab.activeLeafId, dir);
+      const targetTab = target ? owner.get(target) : undefined;
+      if (!target || !targetTab) return;
+      if (targetTab !== tab.id) activate(targetTab);
+      get().focusLeaf(targetTab, target);
     },
 
     updatePanel: (tabId, leafId, patch) => {

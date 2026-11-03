@@ -307,3 +307,33 @@ describe('the view follows its sessions', () => {
     expect(view && viewTabs(view.root)).toEqual(['x', 'y']);
   });
 });
+
+describe('moving the focus across the sessions of a view', () => {
+  test('right goes to the next session, and stops at the last one', () => {
+    const [a = '', b = ''] = open(2);
+    ws().activateTab(a);
+    ws().placeInView(b, a, 'right');
+    ws().activateTab(a);
+    ws().focusNeighbor('right');
+    expect(ws().activeTabId).toBe(b);
+    ws().focusNeighbor('right');
+    expect(ws().activeTabId).toBe(b);
+    expect(shown()).toEqual([a, b]);
+  });
+
+  test('inside a split session the panes come first, then the next session', () => {
+    const [a = '', b = ''] = open(2);
+    ws().activateTab(a);
+    ws().placeInView(b, a, 'right');
+    ws().activateTab(a);
+    const first = ws().tabs.find((t) => t.id === a)?.activeLeafId ?? '';
+    ws().splitActive('row');
+    const second = ws().tabs.find((t) => t.id === a)?.activeLeafId ?? '';
+    ws().focusLeaf(a, first);
+    ws().focusNeighbor('right');
+    expect(ws().activeTabId).toBe(a);
+    expect(ws().tabs.find((t) => t.id === a)?.activeLeafId).toBe(second);
+    ws().focusNeighbor('right');
+    expect(ws().activeTabId).toBe(b);
+  });
+});
