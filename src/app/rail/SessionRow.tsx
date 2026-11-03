@@ -288,7 +288,7 @@ export function RowShell({
                 title={
                   view === 'shown'
                     ? t('Affichée côte à côte')
-                    : t('Dans la vue côte à côte : clique pour la retrouver')
+                    : t('Dans la vue côte à côte : cliquez pour la retrouver')
                 }
                 className={cn(
                   'flex shrink-0',
