@@ -26,6 +26,7 @@ import { SettingsDialog } from './settings/SettingsDialog';
 import { Peek } from './content/Peek';
 import { SessionHeader } from './content/SessionHeader';
 import { ViewDividers } from './content/ViewDividers';
+import { ViewDropOverlay } from './content/ViewDropOverlay';
 import { sessionEnv } from './content/sessionEnv';
 import { Rail } from './rail/Rail';
 import { SpaceDialog } from './spaces/SpaceDialog';
@@ -211,6 +212,7 @@ export function AppShell({
             >
               {panes}
               {view && <ViewDividers view={view} area={area} />}
+              <ViewDropOverlay />
               <Peek />
             </main>
           </div>

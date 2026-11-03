@@ -1,5 +1,15 @@
 import { create } from 'zustand';
 import type { Space } from '@/ipc/connections';
+import type { Rect } from '@/workspace/tree';
+
+/** Where a session dragged from the Rail would land on the content, and what it says. */
+export interface ViewDropPreview {
+  /** In fractions of the content area. */
+  rect: Rect;
+  label: string;
+  /** The drop would do nothing (the view is full). */
+  bad: boolean;
+}
 
 const RAIL_HIDDEN_KEY = 'tilde.rail.hidden';
 
@@ -46,6 +56,9 @@ interface UiState {
   /** The space being created (`'new'`) or edited. */
   spaceDialog: Space | 'new' | null;
   setSpaceDialog: (s: Space | 'new' | null) => void;
+  /** A session is dragged over the content: where it would land. */
+  viewDrop: ViewDropPreview | null;
+  setViewDrop: (p: ViewDropPreview | null) => void;
 }
 
 export const useUi = create<UiState>()((set) => ({
@@ -78,5 +91,9 @@ export const useUi = create<UiState>()((set) => ({
   spaceDialog: null,
   setSpaceDialog: (spaceDialog) => {
     set({ spaceDialog });
+  },
+  viewDrop: null,
+  setViewDrop: (viewDrop) => {
+    set({ viewDrop });
   },
 }));

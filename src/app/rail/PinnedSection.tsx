@@ -44,6 +44,8 @@ import { PaneList } from './PaneList';
 import { RowShell, SessionRow, paneCount } from './SessionRow';
 import { useSessionStatus } from './sessionStatus';
 import { useViewMark } from './ViewMenu';
+import { useLabelNames } from '../paneLabel';
+import { viewDragHandlers, type DragSource } from '../viewDrop';
 
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
 
@@ -276,9 +278,19 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
     saveCollapsed(next);
     setCollapsed(next);
   };
+  const names = useLabelNames();
+  // A connection dragged onto the content: its session (opened if asleep) goes there.
+  const viewDrag = viewDragHandlers((active): DragSource | null => {
+    const id: unknown = active.data.current?.connectionId;
+    if (typeof id !== 'string') return null;
+    const open = useWorkspace.getState().tabs.find((x) => x.pinnedConnectionId === id);
+    return open ? { tabId: open.id } : { connectionId: id };
+  }, names);
   /** The folder a connection is listed in (`null`: the root). */
   const listOf = (c: Connection) => (folders.some((f) => f.id === c.folderId) ? c.folderId : null);
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
+  const onDragEnd = (e: DragEndEvent) => {
+    if (viewDrag.onDragEnd(e)) return;
+    const { active, over } = e;
     const id: unknown = active.data.current?.connectionId;
     const target = typeof over?.id === 'string' ? over.id : '';
     const c = typeof id === 'string' ? file.connections.find((x) => x.id === id) : undefined;
@@ -301,7 +313,13 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={collisions} onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={collisions}
+      onDragMove={viewDrag.onDragMove}
+      onDragCancel={viewDrag.onDragCancel}
+      onDragEnd={onDragEnd}
+    >
       <RootDropZone>
         <div className="flex items-center justify-between px-2 pt-3 pb-1">
           <h3 className="text-[0.7rem] font-medium tracking-wider text-text-muted uppercase">

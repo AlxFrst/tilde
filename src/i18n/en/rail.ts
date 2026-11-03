@@ -163,6 +163,12 @@ export default {
   'Afficher seule': 'Show alone',
   '{n} sessions au plus dans une vue': 'At most {n} sessions in a view',
   'Affichée côte à côte': 'Shown side by side',
+  'À gauche de {name}': 'Left of {name}',
+  'À droite de {name}': 'Right of {name}',
+  'Au-dessus de {name}': 'Above {name}',
+  'En dessous de {name}': 'Below {name}',
+  'À la place de {name}': 'In place of {name}',
+  'Échanger avec {name}': 'Swap with {name}',
   'Dans la vue côte à côte : clique pour la retrouver':
     'In the side-by-side view: click to bring it back',
   'session active': 'active session',
