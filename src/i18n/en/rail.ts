@@ -158,6 +158,13 @@ export default {
   'Retirer {name} de la vue': 'Remove {name} from the view',
   'Retirer de la vue': 'Remove from view',
   'Séparation des sessions': 'Session divider',
+  'Ouvrir à droite': 'Open on the right',
+  'Ouvrir en bas': 'Open below',
+  'Afficher seule': 'Show alone',
+  '{n} sessions au plus dans une vue': 'At most {n} sessions in a view',
+  'Affichée côte à côte': 'Shown side by side',
+  'Dans la vue côte à côte : clique pour la retrouver':
+    'In the side-by-side view: click to bring it back',
   'session active': 'active session',
   'Les boutons de cette barre agissent sur la session active':
     'The buttons of this bar act on the active session',

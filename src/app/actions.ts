@@ -11,6 +11,7 @@ import { useWorkspace } from '@/stores/workspace';
 import { sessionsFor } from '@/terminal/sessionRegistry';
 import { findLeaf, leaves } from '@/workspace/tree';
 import type { Direction } from '@/workspace/types';
+import type { DropZone } from '@/workspace/view';
 import { confirmClose } from './closeGuard';
 
 export function defaultProfileId(): string | null {
@@ -30,6 +31,20 @@ export function openDefaultTab(): void {
 export function openConnection(c: Connection): void {
   const { file } = useConnections.getState();
   useWorkspace.getState().openPinned(c.id, c.host, connectionSpace(c, file));
+}
+
+/**
+ * Puts a saved connection's session beside `targetTabId` (or in its place), opening that
+ * session first if it is asleep.
+ */
+export function placeConnectionInView(c: Connection, targetTabId: string, zone: DropZone): void {
+  const ws = useWorkspace.getState();
+  const open = ws.tabs.find((t) => t.pinnedConnectionId === c.id);
+  if (!ws.canPlaceInView(open?.id ?? null, targetTabId, zone)) return;
+  // Opening it shows it alone and sets the view aside; placing it brings the view back.
+  const space = connectionSpace(c, useConnections.getState().file);
+  const tabId = open?.id ?? ws.openPinned(c.id, c.host, space);
+  useWorkspace.getState().placeInView(tabId, targetTabId, zone);
 }
 
 /**

@@ -14,6 +14,7 @@ import { useWorkspace } from '@/stores/workspace';
 import type { Tab } from '@/workspace/types';
 import { closeTab, openConnection } from '../actions';
 import { confirmAction } from '../confirm';
+import { ViewMenuItems } from './ViewMenu';
 
 /** Context menu of a saved connection (and of its pinned session, when it is open). */
 export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab }) {
@@ -23,6 +24,7 @@ export function ConnectionMenu({ c, session }: { c: Connection; session?: Tab })
   const folders = file.folders.filter((f) => spaceIdOf(f, spaces) === space);
   return (
     <ContextMenuContent className="min-w-52">
+      <ViewMenuItems tabId={session?.id ?? null} connection={c} />
       <ContextMenuItem
         onSelect={() => {
           openConnection(c);

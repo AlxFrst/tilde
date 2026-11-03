@@ -43,6 +43,7 @@ import { ConnectionMenu } from './ConnectionMenu';
 import { PaneList } from './PaneList';
 import { RowShell, SessionRow, paneCount } from './SessionRow';
 import { useSessionStatus } from './sessionStatus';
+import { useViewMark } from './ViewMenu';
 
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
 
@@ -111,6 +112,7 @@ function PinnedRow({ c }: { c: Connection }) {
   );
   const active = useWorkspace((s) => session !== undefined && s.activeTabId === session.id);
   const status = useSessionStatus(session);
+  const view = useViewMark(session?.id);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `pinned:${c.id}`,
     data: { connectionId: c.id },
@@ -144,6 +146,7 @@ function PinnedRow({ c }: { c: Connection }) {
         menu={<ConnectionMenu c={c} session={session} />}
         dragProps={{ ...attributes, ...listeners }}
         buttonRef={setNodeRef}
+        view={view}
       />
       {session && <PaneList tab={session} />}
       {others.length > 0 && (
