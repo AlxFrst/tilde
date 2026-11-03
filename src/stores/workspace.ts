@@ -25,6 +25,7 @@ import type {
 import { sanitizeSnapshot } from '@/workspace/sanitize';
 import {
   MAX_VIEW_SESSIONS,
+  fixViews,
   viewHas,
   viewPlace,
   viewRemove,
@@ -249,6 +250,16 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
         : viewPlace(base, targetTabId, tabId, zone);
     return { space, root: viewTabs(root).length >= 2 ? root : null };
   };
+  /**
+   * The session to show when `tabId`, shown in its space's view, leaves it: the first other
+   * one of the view, so the view stays on screen. `undefined` when it is not in a shown view.
+   */
+  const viewSuccessorOf = (tabId: string, spaceId: string): Tab | undefined => {
+    const view = get().views[spaceId];
+    if (!view?.shown || !viewHas(view.root, tabId)) return undefined;
+    const next = viewTabs(view.root).find((id) => id !== tabId);
+    return get().tabs.find((t) => t.id === next);
+  };
   /** The neighbour to show when `tabId` leaves its space's list. */
   const neighbourOf = (tabId: string, spaceId: string): Tab | null => {
     const siblings = spaceTabsOf(spaceId);
@@ -285,7 +296,10 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     const tab = get().tabs.find((t) => t.id === tabId);
     if (!tab) return;
     const space = spaceOfTab(tab);
-    const next = get().activeTabId === tabId ? neighbourOf(tabId, space) : undefined;
+    const next =
+      get().activeTabId === tabId
+        ? (viewSuccessorOf(tabId, space) ?? neighbourOf(tabId, space))
+        : undefined;
     set((s) => {
       const bySpace =
         s.activeTabBySpace[space] === tabId
@@ -628,12 +642,16 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       if (!tab) return;
       const from = spaceOfTab(tab);
       const leaving = get().activeTabId === tabId && spaceId !== get().activeSpaceId;
-      const next = leaving ? neighbourOf(tabId, from) : null;
-      mapTab(tabId, (t) => ({ ...t, spaceId, pinnedConnectionId: null }));
-      if (!leaving) return;
+      const next = leaving ? (viewSuccessorOf(tabId, from) ?? neighbourOf(tabId, from)) : null;
+      // One update: the views are checked against a session shown that is already the next.
       set((s) => {
+        const tabs = s.tabs.map((t) =>
+          t.id === tabId ? { ...t, spaceId, pinnedConnectionId: null } : t,
+        );
+        if (!leaving) return { tabs };
         const bySpace = { ...s.activeTabBySpace, [spaceId]: tabId };
         return {
+          tabs,
           activeTabId: next?.id ?? null,
           activeTabBySpace: next ? { ...bySpace, [from]: next.id } : without(bySpace, from),
         };
@@ -659,11 +677,13 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
       const { activeSpaceId } = get();
       if (!known.includes(activeSpaceId)) {
         get().switchSpace(known[0] ?? MAIN_SPACE.id);
-        return;
+      } else {
+        // The shown session moved (its connection changed space): follow it.
+        const shown = activeTab();
+        if (shown && spaceOfTab(shown) !== activeSpaceId) activate(shown.id);
       }
-      // The shown session moved (its connection changed space): follow it.
-      const shown = activeTab();
-      if (shown && spaceOfTab(shown) !== activeSpaceId) activate(shown.id);
+      // Sessions may have changed space without any change here: check the views now.
+      repairViews();
     },
 
     moveTab: (from, to) => {
@@ -837,6 +857,25 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => {
     },
   };
 });
+
+/**
+ * Keeps the views in step with the sessions (closed, moved to another space) and with the
+ * session shown. Sessions are checked against their space only once spaces are known: a
+ * view restored before connections.json is read keeps its pinned sessions.
+ */
+function repairViews(): void {
+  const s = useWorkspace.getState();
+  const views = fixViews(
+    s.views,
+    s.tabs,
+    spacesReady() ? spaceOfTab : null,
+    s.activeSpaceId,
+    s.activeTabId,
+  );
+  if (views !== s.views) useWorkspace.setState({ views });
+}
+
+useWorkspace.subscribe(repairViews);
 
 // A zoom that stopped applying (the focus moved, the panes changed, the session closed) is
 // dropped, so it never comes back by itself when things look the same again.

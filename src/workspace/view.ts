@@ -3,7 +3,7 @@
 // non-mutating operations, like ./tree.
 
 import { childRects, type Rect, type SplitHandle } from './tree';
-import type { Direction } from './types';
+import type { Direction, Tab } from './types';
 
 export type ViewNode =
   | { type: 'leaf'; tabId: string }
@@ -124,6 +124,44 @@ export function viewKeep(root: ViewNode, keep: (tabId: string) => boolean): View
 
 export function viewRemove(root: ViewNode, tabId: string): ViewNode | null {
   return viewKeep(root, (t) => t !== tabId);
+}
+
+/**
+ * The views once sessions have closed or changed space: each keeps the sessions that
+ * still exist in its space (the space is checked only once `spaceOf` is known), a view
+ * left with one session is dropped, and the active space's view is set aside when the
+ * session shown is not in it. The same object when nothing changes.
+ */
+export function fixViews(
+  views: Record<string, SpaceView>,
+  tabs: readonly Tab[],
+  spaceOf: ((tab: Tab) => string) | null,
+  activeSpaceId: string,
+  activeTabId: string | null,
+): Record<string, SpaceView> {
+  const byId = new Map(tabs.map((t) => [t.id, t]));
+  let changed = false;
+  const out: Record<string, SpaceView> = {};
+  for (const [space, view] of Object.entries(views)) {
+    const root = viewKeep(view.root, (id) => {
+      const tab = byId.get(id);
+      return tab !== undefined && (spaceOf === null || spaceOf(tab) === space);
+    });
+    if (!root || viewTabs(root).length < 2) {
+      changed = true;
+      continue;
+    }
+    const elsewhere =
+      space === activeSpaceId && (activeTabId === null || !viewHas(root, activeTabId));
+    const shown = view.shown && !elsewhere;
+    if (root === view.root && shown === view.shown) {
+      out[space] = view;
+    } else {
+      changed = true;
+      out[space] = { root, shown };
+    }
+  }
+  return changed ? out : views;
 }
 
 /** Each session's rectangle, in fractions of the content area. */

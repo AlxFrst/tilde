@@ -1,6 +1,8 @@
+import type { Tab } from './types';
 import {
   dropPreview,
   dropZoneAt,
+  fixViews,
   viewHandles,
   viewHas,
   viewKeep,
@@ -122,4 +124,50 @@ test('the preview is the part the session will take', () => {
   expect(dropPreview(full, 'right')).toEqual({ x: 0.5, y: 0, w: 0.5, h: 1 });
   expect(dropPreview(full, 'top')).toEqual({ x: 0, y: 0, w: 1, h: 0.5 });
   expect(dropPreview(full, 'center')).toEqual(full);
+});
+
+describe('fixViews', () => {
+  const tab = (id: string, spaceId: string | null = null): Tab => ({
+    id,
+    customTitle: null,
+    color: null,
+    root: {
+      type: 'leaf',
+      id: `${id}-1`,
+      panel: { kind: 'terminal', profileId: 'cmd', cwd: null, title: null },
+    },
+    activeLeafId: `${id}-1`,
+    spaceId,
+    pinnedConnectionId: null,
+  });
+  const spaceOf = (t: Tab) => t.spaceId ?? 'main';
+  const tabs = [tab('a'), tab('b'), tab('c'), tab('p', 'pro')];
+  const tabsOf = (v: ReturnType<typeof fixViews>, space: string) => {
+    const root = v[space]?.root;
+    return root ? viewTabs(root) : [];
+  };
+
+  test('a valid set of views is returned as it is', () => {
+    const views = { main: { root: row('a', 'b'), shown: true } };
+    expect(fixViews(views, tabs, spaceOf, 'main', 'a')).toBe(views);
+  });
+
+  test('a session that no longer exists leaves its view, a view of one is dropped', () => {
+    const views = { main: { root: row('a', 'b', 'gone'), shown: true } };
+    expect(tabsOf(fixViews(views, tabs, spaceOf, 'main', 'a'), 'main')).toEqual(['a', 'b']);
+    const two = { main: { root: row('a', 'gone'), shown: true } };
+    expect(fixViews(two, tabs, spaceOf, 'main', 'a')).toEqual({});
+  });
+
+  test('a session of another space leaves the view only once spaces are known', () => {
+    const views = { main: { root: row('a', 'b', 'p'), shown: true } };
+    expect(fixViews(views, tabs, null, 'main', 'a')).toBe(views);
+    expect(tabsOf(fixViews(views, tabs, spaceOf, 'main', 'a'), 'main')).toEqual(['a', 'b']);
+  });
+
+  test('a shown view whose space shows another session is set aside', () => {
+    const views = { main: { root: row('a', 'b'), shown: true } };
+    expect(fixViews(views, tabs, spaceOf, 'main', 'c').main?.shown).toBe(false);
+    expect(fixViews(views, tabs, spaceOf, 'pro', 'p')).toBe(views);
+  });
 });
