@@ -250,7 +250,8 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     };
   }, [canShow, quake]);
 
-  // "Ouvrir dans Tilde": a terminal in the folder this launch, or a later one, names.
+  // "Ouvrir dans Tilde" and the jump list: a terminal in the folder this launch, or a later
+  // one, names; the recent connection it names.
   useEffect(() => {
     if (!ready || quake) return;
     return startLaunchHandling();

@@ -4,6 +4,7 @@ mod autofill;
 mod commands;
 #[cfg(windows)]
 mod explorer_menu;
+mod jump_list;
 mod launch;
 mod locale;
 mod logging;
@@ -102,6 +103,8 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
             explorer_menu::apply(enabled, &handle.state::<AppState>().locale);
         });
     }
+    // Settings and connections are loaded: the taskbar's jump list can list the recents.
+    jump_list::refresh(app);
     let handle = app.clone();
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
@@ -129,6 +132,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::app::app_info,
         commands::app::app_set_locale,
         launch::launch_take_dir,
+        launch::launch_take_connection,
         commands::app::open_logs_dir,
         commands::app::open_settings_file,
         commands::app::open_connections_file,
@@ -218,6 +222,8 @@ pub fn run() {
     let log_dir = dirs::data_local_dir().map(|d| d.join("Tilde").join("logs"));
     let _log_guard = logging::init(log_dir.as_deref());
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "starting Tilde");
+    // Before any window exists: the taskbar groups them, and finds their jump list, by it.
+    jump_list::claim_app_id();
 
     // Without an OS config dir (exotic systems only) we still start, keeping settings
     // in a temp folder rather than refusing to launch.
@@ -240,6 +246,7 @@ pub fn run() {
     let args: Vec<String> = std::env::args().collect();
     let launch_dir =
         std::env::current_dir().ok().and_then(|cwd| launch::dir_from_args(&args, &cwd));
+    let launch_connection = launch::connect_from_args(&args);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
@@ -285,6 +292,7 @@ pub fn run() {
             monitor_local: Arc::default(),
             monitor_remote: Mutex::default(),
             launch_dir: launch::LaunchDir(Mutex::new(launch_dir)),
+            launch_connection: launch::LaunchConnection(Mutex::new(launch_connection)),
             locale: locale::UiLocale::default(),
             windows: windows::Windows::default(),
         })

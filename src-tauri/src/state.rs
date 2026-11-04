@@ -43,7 +43,9 @@ pub struct AppState {
     pub monitor_remote: Mutex<HashMap<u32, tilde_monitor::RemoteMonitor>>,
     /// The folder Tilde was started on (`--open`), until the front-end takes it.
     pub launch_dir: crate::launch::LaunchDir,
-    /// The interface's language, for native dialogs and Explorer's context menu.
+    /// The recent connection Tilde was started on (`--connect`), until the front-end takes it.
+    pub launch_connection: crate::launch::LaunchConnection,
+    /// The interface's language, for native dialogs, Explorer's context menu and the jump list.
     pub locale: UiLocale,
     /// The Tilde windows' sessions and whether a closed one is to be forgotten.
     pub windows: crate::windows::Windows,

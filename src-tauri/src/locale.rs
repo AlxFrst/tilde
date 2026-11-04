@@ -1,6 +1,6 @@
-//! The interface's language, for the little text Rust shows itself: native dialogs and
-//! Explorer's context menu. Messages sent to the web view stay French; the front-end
-//! translates them.
+//! The interface's language, for the little text Rust shows itself: native dialogs,
+//! Explorer's context menu and the taskbar's jump list. Messages sent to the web view stay
+//! French; the front-end translates them.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
