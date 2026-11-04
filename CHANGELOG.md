@@ -4,6 +4,15 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Dragging a session from the Rail onto the content no longer slides the Rail away: it
+  scrolled sideways out of sight and stayed there, and the drop missed. The dragged row now
+  stays in the Rail's column, and the Rail scrolls only while the row is over it.
+- A session opened from a menu (*Open another session*, *Show session*, a shell from the
+  menu next to *New session*) takes the keyboard: no need to click it before typing.
+
 ## [0.4.0]
 
 ### Added
