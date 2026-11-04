@@ -45,7 +45,7 @@ import { RowShell, SessionRow, paneCount } from './SessionRow';
 import { useSessionStatus } from './sessionStatus';
 import { useViewMark } from './ViewMenu';
 import { useLabelNames } from '../paneLabel';
-import { railRowTransform, viewDragHandlers, type DragSource } from '../viewDrop';
+import { railCollisions, railRowTransform, viewDragHandlers, type DragSource } from '../viewDrop';
 
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
 
@@ -212,8 +212,11 @@ function AddMenu() {
 
 const isRow = (d: { id: unknown }) => String(d.id).startsWith('pinned:');
 
-/** Over a row: that row, to reorder. Elsewhere: the folder (or root) under the drag. */
-const collisions: CollisionDetection = (args) => {
+/**
+ * Over a row: that row, to reorder. Elsewhere: the folder (or root) under the drag. Over the
+ * content: nothing (the drop goes there).
+ */
+const collisions: CollisionDetection = railCollisions((args) => {
   const rows = pointerWithin({
     ...args,
     droppableContainers: args.droppableContainers.filter(isRow),
@@ -223,7 +226,7 @@ const collisions: CollisionDetection = (args) => {
     ...args,
     droppableContainers: args.droppableContainers.filter((d) => !isRow(d)),
   });
-};
+});
 
 /** The rows of one list, sortable among themselves. */
 function PinnedList({ items }: { items: Connection[] }) {

@@ -163,10 +163,22 @@ function setupInRail(height = 600) {
   return { rail, row };
 }
 
-test('a row dragged onto the content stays in the Rail’s column', async () => {
+test('a row dragged over the content stays in its place in the Rail, and so do the others', async () => {
   const row = setup();
-  await drag(row('beta'), 1250, 300, false);
-  expect(moved(row('beta'))).toMatch(/^translate3d\(0px, /);
+  // Down the content, far below the Rail's rows: the drop goes to the content, not the list.
+  await drag(row('beta'), 1250, 500, false);
+  expect(moved(row('beta'))).toBe('');
+  expect(moved(row('alpha'))).toBe('');
+});
+
+test('back over the Rail, the row moves up and down its list again', async () => {
+  const row = setup();
+  await drag(row('beta'), 1250, 500, false);
+  await act(async () => {
+    fireEvent.pointerMove(row('beta'), at(100, 45));
+    await new Promise((r) => setTimeout(r, 20));
+  });
+  expect(moved(row('beta'))).toMatch(/^translate3d\(0px, -/);
 });
 
 test('the drop lands under the pointer even if the Rail scrolled meanwhile', async () => {

@@ -5,6 +5,7 @@
 import type {
   Active,
   AutoScrollOptions,
+  CollisionDetection,
   DragEndEvent,
   DragMoveEvent,
   DragStartEvent,
@@ -143,11 +144,32 @@ const autoScroll: AutoScrollOptions = {
   },
 };
 
+/** Whether the pointer of the Rail drag going on is over the content area. */
+function overContent(): boolean {
+  if (!pointer) return false;
+  const area = document.querySelector('[data-view-area]');
+  if (!area) return false;
+  const box = area.getBoundingClientRect();
+  const { x, y } = pointer;
+  return box.width > 0 && x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+}
+
 /**
- * Where a dragged Rail row is drawn: up and down its list only. Carried sideways, it widened
- * the list, which dnd-kit then scrolled after it: the Rail slid away and stayed there.
+ * A Rail section's collision detection, set aside while the row is over the content: the
+ * drop goes there, so the rows level with the pointer must not make room for it.
+ */
+export function railCollisions(detect: CollisionDetection): CollisionDetection {
+  return (args) => (overContent() ? [] : detect(args));
+}
+
+/**
+ * Where a dragged Rail row is drawn: up and down its list only, and not at all while it is
+ * over the content (it would slide down the Rail as the pointer goes down the content).
+ * Carried sideways, it widened the list, which dnd-kit then scrolled after it: the Rail slid
+ * away and stayed there.
  */
 export function railRowTransform(transform: Transform | null): string | undefined {
+  if (overContent()) return undefined;
   return CSS.Translate.toString(transform && { ...transform, x: 0 });
 }
 

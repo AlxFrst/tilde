@@ -17,9 +17,11 @@ import { bindingKeys } from '@/terminal/keyLabels';
 import type { Tab } from '@/workspace/types';
 import { openDefaultTab } from '../actions';
 import { useLabelNames } from '../paneLabel';
-import { railRowTransform, viewDragHandlers } from '../viewDrop';
+import { railCollisions, railRowTransform, viewDragHandlers } from '../viewDrop';
 import { NewTabMenu } from '../NewTabMenu';
 import { SessionRow } from './SessionRow';
+
+const todayCollisions = railCollisions(closestCenter);
 
 function SortableSession({ tab }: { tab: Tab }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -70,7 +72,7 @@ export function TodaySection() {
       </div>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={todayCollisions}
         autoScroll={viewDrag.autoScroll}
         onDragStart={viewDrag.onDragStart}
         onDragMove={viewDrag.onDragMove}
