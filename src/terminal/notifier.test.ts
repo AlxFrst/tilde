@@ -135,16 +135,19 @@ test('a program spamming the bell or OSC 9 gets one notification every few secon
     n.osc9(`step ${String(i)}`);
     clock += 10;
   }
-  expect(notifyDesktop).toHaveBeenCalledTimes(1);
-  expect(notifyDesktop).toHaveBeenCalledWith('build box', 'Signal sonore');
-  expect(requestAttention).toHaveBeenCalledTimes(1);
+  // One bell and one message at most: neither hides the other.
+  expect(vi.mocked(notifyDesktop).mock.calls).toEqual([
+    ['build box', 'Signal sonore'],
+    ['build box', 'step 0'],
+  ]);
+  expect(requestAttention).toHaveBeenCalledTimes(2);
   clock += NOTIFY_INTERVAL_MS;
   n.osc9('finally');
-  expect(notifyDesktop).toHaveBeenCalledTimes(2);
+  expect(notifyDesktop).toHaveBeenCalledTimes(3);
   expect(notifyDesktop).toHaveBeenLastCalledWith('build box', 'finally');
   // Each session has its own allowance.
   notifier('shown').osc9('elsewhere');
-  expect(notifyDesktop).toHaveBeenCalledTimes(3);
+  expect(notifyDesktop).toHaveBeenCalledTimes(4);
 });
 
 test('ConEmu progress (OSC 9;4) is not a message', () => {
@@ -205,4 +208,14 @@ test('a title set by the remote shell is cleaned and cut short', () => {
   const [shownTitle] = vi.mocked(notifyDesktop).mock.calls[0] ?? [];
   expect(shownTitle).toMatch(/^\[31mx+…$/);
   expect(Array.from(shownTitle ?? '')).toHaveLength(80);
+});
+
+test('a bell rung just before a command ends does not hide why it ended', () => {
+  // `make; tput bel`: the bell comes first, then the shell's end-of-command mark.
+  const n = notifier('build');
+  n.shellMark('C');
+  clock += 20_000;
+  n.bell();
+  n.shellMark('D;2');
+  expect(notifyDesktop).toHaveBeenLastCalledWith('build box', 'Commande échouée (code 2) en 20 s');
 });

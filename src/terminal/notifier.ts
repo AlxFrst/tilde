@@ -17,7 +17,11 @@ import {
   react,
 } from './shellSignals';
 
-/** At most one system notification per session in this time, whatever it sends. */
+/**
+ * At most one system notification per terminal pane in this time for bells, and one for
+ * messages (a command's end, OSC 9/777): a bell rung just before a command ends
+ * (`make; tput bel`) must not hide why it ended.
+ */
 export const NOTIFY_INTERVAL_MS = 5000;
 
 /** A session name can be a title the remote shell set (OSC 0/2): kept short. */
@@ -45,10 +49,15 @@ function sessionName(tabId: string): string {
 export function createSessionNotifier(
   tabId: () => string,
   settings: () => Notifications | undefined,
-  now: () => number = Date.now,
+  // Not the wall clock: setting the system's time back or forth must not block
+  // notifications or make a short command look long.
+  now: () => number = () => performance.now(),
 ): SessionNotifier {
   const timer = createCommandTimer();
-  const allow = createRateLimit(NOTIFY_INTERVAL_MS);
+  const allow = {
+    bell: createRateLimit(NOTIFY_INTERVAL_MS),
+    message: createRateLimit(NOTIFY_INTERVAL_MS),
+  };
 
   const signal = (kind: 'bell' | 'message', message: string) => {
     const prefs = settings();
@@ -58,7 +67,7 @@ export function createSessionNotifier(
     const onScreen = tabsOnScreen(useWorkspace.getState()).includes(id);
     const reaction = react(kind, { windowFocused, onScreen }, prefs);
     if (reaction.badge) useAttention.getState().mark(id);
-    if (!reaction.notify || !allow(now())) return;
+    if (!reaction.notify || !allow[kind](now())) return;
     void notifyDesktop(sessionName(id), message);
     if (reaction.attention) requestAttention();
   };

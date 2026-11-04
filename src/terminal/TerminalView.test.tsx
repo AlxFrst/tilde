@@ -545,7 +545,7 @@ describe('a session out of sight', () => {
   });
 
   test('tells the user when a long command ends', async () => {
-    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1_000);
     const { term } = renderView();
     await resolveSession();
     term.osc(133, 'C');
@@ -564,17 +564,21 @@ describe('a session out of sight', () => {
     await resolveSession();
     term.osc(9, 'tests passed');
     expect(notify.notifyDesktop).toHaveBeenLastCalledWith('Tilde', 'tests passed');
-    // One notification every few seconds per session: the next ones only mark the Rail.
+    // One message every few seconds per pane: the next ones only mark the Rail. The bell
+    // has its own allowance, so it never hides a message.
     term.osc(777, 'notify;Backup;done');
     term.osc(633, 'C');
     term.osc(633, 'D;0');
     term.ring();
-    expect(notify.notifyDesktop).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(notify.notifyDesktop).mock.calls).toEqual([
+      ['Tilde', 'tests passed'],
+      ['Tilde', 'Signal sonore'],
+    ]);
     expect(useAttention.getState().marked).toEqual({ t: true });
   });
 
   test('a restarted shell forgets the command the old one was running', async () => {
-    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1_000);
     const { term, props } = renderView();
     await resolveSession();
     term.osc(133, 'C');

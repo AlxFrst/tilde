@@ -11,15 +11,20 @@ import {
 
 const noop = () => undefined;
 
-let permission: Promise<boolean> | null = null;
+let granted = false;
 
-/** Whether the system lets Tilde notify; asked once per window, at the first notification. */
-function allowed(): Promise<boolean> {
-  permission ??= (async () => {
-    if (await isPermissionGranted()) return true;
-    return (await requestPermission()) === 'granted';
-  })().catch(() => false);
-  return permission;
+/**
+ * Whether the system lets Tilde notify; asked at the first notification. Only a yes is
+ * kept: one given later in the system's settings counts without restarting Tilde.
+ */
+async function allowed(): Promise<boolean> {
+  if (granted) return true;
+  try {
+    granted = (await isPermissionGranted()) || (await requestPermission()) === 'granted';
+  } catch {
+    granted = false;
+  }
+  return granted;
 }
 
 /** A system notification. Clicking it does nothing: the plugin cannot tell us. */
