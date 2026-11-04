@@ -7,7 +7,6 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { Plus } from 'lucide-react';
 import { useMemo } from 'react';
 import { t } from '@/i18n';
@@ -18,7 +17,7 @@ import { bindingKeys } from '@/terminal/keyLabels';
 import type { Tab } from '@/workspace/types';
 import { openDefaultTab } from '../actions';
 import { useLabelNames } from '../paneLabel';
-import { viewDragHandlers } from '../viewDrop';
+import { railRowTransform, viewDragHandlers } from '../viewDrop';
 import { NewTabMenu } from '../NewTabMenu';
 import { SessionRow } from './SessionRow';
 
@@ -28,7 +27,7 @@ function SortableSession({ tab }: { tab: Tab }) {
   });
   return (
     <div
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: railRowTransform(transform), transition }}
       className={isDragging ? 'relative z-10 opacity-80' : undefined}
     >
       <SessionRow tab={tab} dragProps={{ ...attributes, ...listeners }} buttonRef={setNodeRef} />
@@ -72,6 +71,7 @@ export function TodaySection() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        autoScroll={viewDrag.autoScroll}
         onDragStart={viewDrag.onDragStart}
         onDragMove={viewDrag.onDragMove}
         onDragCancel={viewDrag.onDragCancel}

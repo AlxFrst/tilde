@@ -10,7 +10,6 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { FileDown, FileUp, FolderPlus, Library, Plus, ServerCog } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -45,7 +44,7 @@ import { RowShell, SessionRow, paneCount } from './SessionRow';
 import { useSessionStatus } from './sessionStatus';
 import { useViewMark } from './ViewMenu';
 import { useLabelNames } from '../paneLabel';
-import { viewDragHandlers, type DragSource } from '../viewDrop';
+import { railRowTransform, viewDragHandlers, type DragSource } from '../viewDrop';
 
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
 
@@ -122,7 +121,7 @@ function PinnedRow({ c }: { c: Connection }) {
   const panes = session ? leaves(session.root).length : 0;
   return (
     <li
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: railRowTransform(transform), transition }}
       className={cn(isDragging && 'relative z-10 opacity-80')}
     >
       <RowShell
@@ -316,6 +315,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
     <DndContext
       sensors={sensors}
       collisionDetection={collisions}
+      autoScroll={viewDrag.autoScroll}
       onDragStart={viewDrag.onDragStart}
       onDragMove={viewDrag.onDragMove}
       onDragCancel={viewDrag.onDragCancel}

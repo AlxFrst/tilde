@@ -43,6 +43,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // A drag a test leaves going would still hear the next test's pointer.
+  act(() => {
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+  });
   vi.restoreAllMocks();
 });
 
@@ -125,4 +129,84 @@ test('Escape cancels the drop', async () => {
   expect(useUi.getState().viewDrop).toBeNull();
   fireEvent.pointerUp(row('beta'), at(1250, 300));
   expect(shown()).toEqual([]);
+});
+
+// Carried sideways, the row used to widen the Rail's list, which dnd-kit then scrolled
+// after it: the Rail slid away under the content and stayed there, and the drop missed.
+
+/** The transform of the row's draggable wrapper. */
+function moved(el: Element): string {
+  for (let e: HTMLElement | null = el as HTMLElement; e; e = e.parentElement) {
+    if (e.style.transform) return e.style.transform;
+  }
+  return '';
+}
+
+/** The Rail's scrolling list around « Aujourd'hui », `height` pixels of content tall. */
+function setupInRail(height = 600) {
+  render(
+    <>
+      <div data-testid="rail" style={{ overflowX: 'hidden', overflowY: 'auto' }}>
+        <TodaySection />
+      </div>
+      <main data-view-area data-testid="area" />
+    </>,
+  );
+  const rail = screen.getByTestId('rail');
+  rects.set(rail, new DOMRect(0, 0, 290, 600));
+  Object.defineProperty(rail, 'clientHeight', { configurable: true, value: 600 });
+  Object.defineProperty(rail, 'scrollHeight', { configurable: true, value: height });
+  rects.set(screen.getByTestId('area'), new DOMRect(300, 0, 1000, 600));
+  const row = (name: string) => screen.getByRole('button', { name });
+  rects.set(row('alpha'), new DOMRect(0, 40, 280, 30));
+  rects.set(row('beta'), new DOMRect(0, 80, 280, 30));
+  return { rail, row };
+}
+
+test('a row dragged onto the content stays in the Rail’s column', async () => {
+  const row = setup();
+  await drag(row('beta'), 1250, 300, false);
+  expect(moved(row('beta'))).toMatch(/^translate3d\(0px, /);
+});
+
+test('the drop lands under the pointer even if the Rail scrolled meanwhile', async () => {
+  const { rail, row } = setupInRail();
+  await drag(row('beta'), 1250, 300, false);
+  await act(async () => {
+    Object.defineProperty(rail, 'scrollLeft', { configurable: true, value: 400 });
+    fireEvent.scroll(rail);
+    await Promise.resolve();
+  });
+  await act(async () => {
+    fireEvent.pointerMove(row('beta'), at(1250, 300));
+    await new Promise((r) => setTimeout(r, 20));
+  });
+  await act(async () => {
+    fireEvent.pointerUp(row('beta'), at(1250, 300));
+    await Promise.resolve();
+  });
+  expect(shown()).toEqual([a, b]);
+});
+
+test('the Rail does not scroll under a row dragged over the content', async () => {
+  const { rail, row } = setupInRail(2000);
+  const scrollBy = vi.fn();
+  rail.scrollBy = scrollBy;
+  // The bottom of the window, as low as the Rail's bottom edge.
+  await drag(row('beta'), 1250, 590, false);
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  expect(scrollBy).not.toHaveBeenCalled();
+});
+
+test('the Rail still scrolls under a row dragged along its bottom edge', async () => {
+  const { rail, row } = setupInRail(2000);
+  const scrollBy = vi.fn();
+  rail.scrollBy = scrollBy;
+  await drag(row('beta'), 100, 595, false);
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 40));
+  });
+  expect(scrollBy).toHaveBeenCalledWith(0, expect.any(Number));
 });

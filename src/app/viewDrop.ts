@@ -2,7 +2,14 @@
 // in its place (the centre). The drag itself belongs to the Rail's sections (dnd-kit);
 // this follows the pointer over the content area and tells them what a drop would do.
 
-import type { Active, DragEndEvent, DragMoveEvent } from '@dnd-kit/core';
+import type {
+  Active,
+  AutoScrollOptions,
+  DragEndEvent,
+  DragMoveEvent,
+  DragStartEvent,
+} from '@dnd-kit/core';
+import { CSS, type Transform } from '@dnd-kit/utilities';
 import { t } from '@/i18n';
 import { useConnections } from '@/stores/connections';
 import { useUi, type ViewDropPreview } from '@/stores/ui';
@@ -100,12 +107,48 @@ function dropOnView(source: DragSource, target: ViewDropTarget): void {
   if (c) placeConnectionInView(c, target.targetTabId, target.zone);
 }
 
-/** Where the pointer is during a dnd-kit drag (client pixels). */
-function pointerOf(e: { activatorEvent: Event | null; delta: { x: number; y: number } }) {
-  const start = e.activatorEvent;
-  if (!start || !('clientX' in start) || !('clientY' in start)) return null;
-  const { clientX, clientY } = start as PointerEvent;
-  return { x: clientX + e.delta.x, y: clientY + e.delta.y };
+// Where the pointer is during a Rail drag (client pixels). dnd-kit's delta also counts what
+// the Rail scrolled meanwhile, which is not where the pointer is: it is followed instead.
+let pointer: { x: number; y: number } | null = null;
+
+function follow(e: Event): void {
+  if ('clientX' in e && 'clientY' in e) {
+    pointer = { x: (e as PointerEvent).clientX, y: (e as PointerEvent).clientY };
+  }
+}
+
+function startFollowing(start: Event | null): void {
+  pointer = null;
+  if (start) follow(start);
+  // Captured on the window: updated before dnd-kit hears of the same move.
+  window.addEventListener('pointermove', follow, true);
+  window.addEventListener('pointerup', follow, true);
+}
+
+function stopFollowing(): void {
+  window.removeEventListener('pointermove', follow, true);
+  window.removeEventListener('pointerup', follow, true);
+  pointer = null;
+}
+
+/**
+ * The Rail scrolls under a row dragged along its top or bottom edge, not while the row is
+ * over the content (its bottom zones would scroll the Rail's list away).
+ */
+const autoScroll: AutoScrollOptions = {
+  canScroll: (el) => {
+    if (!pointer) return true;
+    const box = el.getBoundingClientRect();
+    return pointer.x >= box.left && pointer.x <= box.right;
+  },
+};
+
+/**
+ * Where a dragged Rail row is drawn: up and down its list only. Carried sideways, it widened
+ * the list, which dnd-kit then scrolled after it: the Rail slid away and stayed there.
+ */
+export function railRowTransform(transform: Transform | null): string | undefined {
+  return CSS.Translate.toString(transform && { ...transform, x: 0 });
 }
 
 /**
@@ -118,11 +161,13 @@ export function viewDragHandlers(
 ) {
   const targetOf = (e: DragMoveEvent | DragEndEvent) => {
     const source = sourceOf(e.active);
-    const p = pointerOf(e);
+    const p = pointer;
     return { source, target: source && p ? viewDropTarget(p.x, p.y) : null };
   };
   return {
-    onDragStart: () => {
+    autoScroll,
+    onDragStart: (e: DragStartEvent) => {
+      startFollowing(e.activatorEvent);
       useUi.getState().setRailDragging(true);
     },
     onDragMove: (e: DragMoveEvent) => {
@@ -130,11 +175,13 @@ export function viewDragHandlers(
       useUi.getState().setViewDrop(source ? previewFor(source, target, names) : null);
     },
     onDragCancel: () => {
+      stopFollowing();
       useUi.getState().setViewDrop(null);
       useUi.getState().setRailDragging(false);
     },
     onDragEnd: (e: DragEndEvent): boolean => {
       const { source, target } = targetOf(e);
+      stopFollowing();
       useUi.getState().setViewDrop(null);
       useUi.getState().setRailDragging(false);
       if (!source || !target) return false;

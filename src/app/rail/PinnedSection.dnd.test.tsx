@@ -146,3 +146,27 @@ describe('reordering', () => {
     expect(moveConnection).toHaveBeenCalledWith('c1', null, 'a');
   });
 });
+
+// Over its own row it follows the pointer: toward the Rail's edge, it used to widen the list.
+test('a connection dragged sideways stays in the Rail’s column', async () => {
+  render(<PinnedSection />);
+  rects.set(screen.getByRole('group', { name: 'Épinglés' }), new DOMRect(0, 0, 280, 400));
+  const row = screen.getByRole('button', { name: /^web/ });
+  rects.set(row, new DOMRect(0, 40, 280, 30));
+  const at = (x: number) => ({ clientX: x, clientY: 50, isPrimary: true, button: 0, pointerId: 1 });
+  fireEvent.pointerDown(row, at(10));
+  await act(async () => {
+    fireEvent.pointerMove(row, at(20));
+    await Promise.resolve();
+  });
+  await act(async () => {
+    fireEvent.pointerMove(row, at(275));
+    await new Promise((r) => setTimeout(r, 20));
+  });
+  let moved = '';
+  for (let e: HTMLElement | null = row; e && !moved; e = e.parentElement) moved = e.style.transform;
+  expect(moved).toMatch(/^translate3d\(0px, /);
+  act(() => {
+    fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
+  });
+});
