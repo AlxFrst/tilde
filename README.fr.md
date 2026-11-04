@@ -53,6 +53,17 @@ Réglages → Général.
 - **Splits** redimensionnables, sessions renommables et colorables
 - Rendu WebGL (xterm.js), Unicode/emoji, recherche dans le scrollback, liens cliquables,
   copie à la sélection, confirmation avant de coller plusieurs lignes
+- **Plusieurs fenêtres** (Ctrl+Maj+N), chacune avec ses sessions, rouvertes au démarrage.
+  Sous Windows, la **liste de raccourcis** de la barre des tâches ouvre une nouvelle fenêtre
+  ou une connexion récente
+- **Notifications** : une commande longue qui se termine, un programme qui vous appelle ou
+  la sonnerie dans une session que vous ne regardez pas la marquent dans le Rail et affichent
+  une notification système (intégration du shell : d'origine avec fish 4, quelques lignes
+  pour bash et zsh)
+- **Images dans le terminal** : Sixel et images inline d'iTerm2 (img2sixel, chafa, timg,
+  lsix, imgcat, aperçus de yazi), en SSH et dans les shells locaux sous Linux et macOS. Sous
+  Windows, les shells locaux passent par le ConPTY du système, qui supprime le Sixel ; les
+  images inline passent
 - Confirmation avant de fermer un terminal où un programme tourne
 - Onglets et splits **restaurés** au redémarrage (dans le dernier dossier connu)
 - Profils personnalisés dans `settings.json` (commande, arguments, dossier, variables,

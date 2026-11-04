@@ -13,6 +13,26 @@ All notable changes to Tilde are listed here. The format follows
   sessions and spaces' state; connections, settings and themes are shared. Tilde reopens
   the windows that were open when it was quit. Closing a window while others stay open ends
   its sessions and forgets it; closing the last one quits Tilde.
+- **Jump list.** Right-click Tilde's taskbar button (Windows) for *New window* and the six
+  connections you opened last, in the interface's language. A recent opens in the last window
+  used, or starts Tilde on it. Only saved connections and targets still among your recents can
+  be opened this way. An entry you remove from the list also leaves your recents, until you
+  open it again.
+- **Notifications for sessions out of sight.** When a long command ends, a program asks for
+  attention (OSC 9, OSC 777) or the bell rings in a session you are not looking at, its row
+  in the Rail gets a mark until you show it, a system notification names the session and
+  says why (*Command finished in 2 min 13 s*, *Command failed (code 1)…*), and the taskbar
+  flashes if Tilde is in the background. The end of a command comes from shell integration:
+  fish 4 sends it by itself, and the lines the Files pane offers for bash and zsh now send it
+  too. *Settings › Terminal › Notifications* turns them off or sets the shortest command
+  reported (10 s by default) and whether the bell notifies. Messages from the server are
+  shown as plain text, cut short, at most one every few seconds per session.
+- **Images in the terminal.** Sixel and iTerm2's inline images now show in Tilde's
+  terminals, so `img2sixel`, `chafa`, `timg`, `lsix`, `imgcat`, matplotlib's Sixel backend
+  or yazi's previews display pictures. Each terminal keeps up to 32 MB of images; older ones
+  give way to a hatched placeholder in the scrollback. Both kinds work over SSH and in local
+  shells on Linux and macOS. On Windows, local shells go through the system's ConPTY, which
+  drops Sixel: only inline images get through there.
 
 ### Fixed
 - Dragging a session from the Rail onto the content no longer slides the Rail away: it
