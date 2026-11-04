@@ -4,7 +4,7 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.4.1]
 
 ### Added
 - **Several windows.** *New window* (`Ctrl+Shift+N`, the palette, or the menu next to *New
@@ -187,6 +187,7 @@ The first public version.
   SHA-256 sums.
 - Built-in updates, signed and checked at startup (can be turned off).
 
+[0.4.1]: https://github.com/AlxFrst/tilde/releases/tag/v0.4.1
 [0.4.0]: https://github.com/AlxFrst/tilde/releases/tag/v0.4.0
 [0.3.1]: https://github.com/AlxFrst/tilde/releases/tag/v0.3.1
 [0.3.0]: https://github.com/AlxFrst/tilde/releases/tag/v0.3.0
