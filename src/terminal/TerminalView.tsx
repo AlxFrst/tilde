@@ -366,7 +366,7 @@ export function TerminalView(props: TerminalViewProps) {
   };
 
   const restart = () => {
-    handle.current?.term.reset();
+    handle.current?.reset();
     setExitCode(undefined);
     setConnection(null);
     setGeneration((g) => g + 1);

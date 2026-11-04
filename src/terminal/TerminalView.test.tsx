@@ -5,6 +5,7 @@ import type { OpenSessionOptions } from '@/ipc/session';
 import type { SshPanel, TerminalPanel } from '@/workspace/types';
 import { useSettings } from '@/stores/settings';
 import { defaultSettings } from '@/test/fixtures';
+import { IMAGE_ADDON_OPTIONS } from './createTerminal';
 import { TerminalView } from './TerminalView';
 
 // ---- fake xterm -------------------------------------------------------------------
@@ -121,6 +122,25 @@ vi.mock('@xterm/addon-search', () => ({
     clearDecorations() {}
   },
 }));
+const imageShouldThrow = vi.hoisted(() => ({ value: false }));
+const { FakeImageAddon } = vi.hoisted(() => ({
+  FakeImageAddon: class {
+    options: Record<string, unknown>;
+    resets = 0;
+    disposed = false;
+    constructor(options: Record<string, unknown>) {
+      if (imageShouldThrow.value) throw new Error('no images');
+      this.options = options;
+    }
+    reset() {
+      this.resets += 1;
+    }
+    dispose() {
+      this.disposed = true;
+    }
+  },
+}));
+vi.mock('@xterm/addon-image', () => ({ ImageAddon: FakeImageAddon }));
 vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: class {} }));
 vi.mock('@xterm/addon-unicode11', () => ({ Unicode11Addon: class {} }));
 vi.mock('@xterm/addon-serialize', () => ({ SerializeAddon: class {} }));
@@ -173,6 +193,7 @@ beforeAll(() => {
 beforeEach(() => {
   FakeTerminal.instances = [];
   webglShouldThrow.value = false;
+  imageShouldThrow.value = false;
   ipc.open = null;
   ipc.resolveOpen = null;
   vi.clearAllMocks();
@@ -298,6 +319,61 @@ test('webgl failure falls back without crashing', () => {
   const { term } = renderView();
   expect(session.openSession).toHaveBeenCalled();
   expect(term.disposed).toBe(false);
+});
+
+type FakeImageAddon = InstanceType<typeof FakeImageAddon>;
+const isImageAddon = (a: unknown): a is FakeImageAddon => a instanceof FakeImageAddon;
+
+function imageAddonOf(term: FakeTerminal) {
+  const found = term.loaded.find(isImageAddon);
+  if (!found) throw new Error('no image addon loaded');
+  return found;
+}
+
+test('every terminal shows images, with Tilde’s memory limits', () => {
+  const { term } = renderView();
+  const { options } = imageAddonOf(term);
+  expect(options).toEqual(IMAGE_ADDON_OPTIONS);
+  expect(options).toMatchObject({ sixelSupport: true, iipSupport: true, showPlaceholder: true });
+  // Tools ask for the cell size in pixels to scale their pictures.
+  expect(options.enableSizeReports).toBe(true);
+  // Per terminal, with many sessions open: well under the addon's 128 MB.
+  expect(options.storageLimit).toBe(32);
+  // Never above the addon's defaults: a remote server picks what it sends.
+  expect(options.pixelLimit).toBeLessThanOrEqual(4096 * 4096);
+  expect(options.sixelSizeLimit).toBeLessThanOrEqual(25_000_000);
+  expect(options.iipSizeLimit).toBeLessThanOrEqual(20_000_000);
+});
+
+test('closing a terminal frees its images', () => {
+  const { unmount, term } = renderView();
+  const images = imageAddonOf(term);
+  unmount();
+  expect(images.disposed).toBe(true);
+  expect(term.disposed).toBe(true);
+});
+
+test('a restarted session starts without the previous one’s images', async () => {
+  const { term } = renderView();
+  await resolveSession();
+  const reset = vi.spyOn(term, 'reset');
+  act(() => {
+    ipc.open?.onExit(3);
+  });
+  await userEvent.click(await screen.findByRole('button', { name: /Relancer/ }));
+  expect(reset).toHaveBeenCalledTimes(1);
+  expect(imageAddonOf(term).resets).toBe(1);
+  expect(session.openSession).toHaveBeenCalledTimes(2);
+});
+
+test('a terminal still opens when image support fails to load', () => {
+  imageShouldThrow.value = true;
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { term } = renderView();
+  expect(term.loaded.some(isImageAddon)).toBe(false);
+  expect(session.openSession).toHaveBeenCalled();
+  expect(term.disposed).toBe(false);
+  warn.mockRestore();
 });
 
 test('exit is reported and shows the exit overlay', async () => {
