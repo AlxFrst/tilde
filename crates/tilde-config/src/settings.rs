@@ -188,6 +188,7 @@ pub struct Terminal {
     pub copy_on_select: bool,
     pub right_click: RightClick,
     pub confirm_close: bool,
+    pub notifications: Notifications,
 }
 
 impl Default for Terminal {
@@ -204,7 +205,29 @@ impl Default for Terminal {
             copy_on_select: false,
             right_click: RightClick::Menu,
             confirm_close: true,
+            notifications: Notifications::default(),
         }
+    }
+}
+
+/// What happens when a session out of sight needs you: a long command ends (shell
+/// integration, OSC 133/633), a program asks for it (OSC 9, OSC 777) or rings the bell.
+/// The Rail marks the session in any case; these settings govern the system side.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Notifications {
+    /// A system notification (and a taskbar flash when Tilde is in the background).
+    pub enabled: bool,
+    /// The end of a command is notified only if it ran at least this long (seconds).
+    #[schemars(range(min = 0, max = 86_400))]
+    pub min_duration_secs: u32,
+    /// The terminal bell notifies too.
+    pub on_bell: bool,
+}
+
+impl Default for Notifications {
+    fn default() -> Self {
+        Self { enabled: true, min_duration_secs: 10, on_bell: true }
     }
 }
 
@@ -334,6 +357,8 @@ impl Settings {
         c.check("terminal.fontSize", t.font_size, 6, 72);
         c.check("terminal.lineHeight", t.line_height, 0.8, 3.0);
         c.check("terminal.scrollback", t.scrollback, 0, 1_000_000);
+        let n = &t.notifications;
+        c.check("terminal.notifications.minDurationSecs", n.min_duration_secs, 0, 86_400);
         c.check("ssh.keepaliveIntervalSecs", self.ssh.keepalive_interval_secs, 0, 3600);
         c.check("ssh.keepaliveCountMax", self.ssh.keepalive_count_max, 1, 100);
         c.check("sftp.concurrency", self.sftp.concurrency, 1, 16);
@@ -408,6 +433,27 @@ mod tests {
         assert!(Settings::default().general.explorer_menu);
         let off: Settings = serde_json::from_str(r#"{"general":{"explorerMenu":false}}"#).unwrap();
         assert!(!off.general.explorer_menu);
+    }
+
+    #[test]
+    fn notifications_are_on_by_default_for_commands_of_ten_seconds_or_more() {
+        let n = Settings::default().terminal.notifications;
+        assert!(n.enabled && n.on_bell);
+        assert_eq!(n.min_duration_secs, 10);
+        let s: Settings =
+            serde_json::from_str(r#"{"terminal":{"notifications":{"onBell":false}}}"#).unwrap();
+        assert!(!s.terminal.notifications.on_bell);
+        assert!(s.terminal.notifications.enabled);
+    }
+
+    #[test]
+    fn a_minimum_duration_over_a_day_is_refused() {
+        let mut s = Settings::default();
+        s.terminal.notifications.min_duration_secs = 86_401;
+        let Err(ConfigError::Invalid(errors)) = s.validate() else {
+            panic!("expected Invalid");
+        };
+        assert_eq!(errors[0].path, "terminal.notifications.minDurationSecs");
     }
 
     #[test]

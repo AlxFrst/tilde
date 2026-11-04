@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { OpenSessionOptions } from '@/ipc/session';
 import type { SshPanel, TerminalPanel } from '@/workspace/types';
+import { useAttention } from '@/stores/attention';
 import { useSettings } from '@/stores/settings';
 import { defaultSettings } from '@/test/fixtures';
 import { IMAGE_ADDON_OPTIONS } from './createTerminal';
@@ -24,7 +25,27 @@ const { FakeTerminal } = vi.hoisted(() => {
     dataListeners: Listener<string>[] = [];
     loaded: unknown[] = [];
     disposed = false;
-    parser = { registerOscHandler: vi.fn(() => ({ dispose() {} })) };
+    oscHandlers = new Map<number, (data: string) => boolean>();
+    parser = {
+      registerOscHandler: (ident: number, handler: (data: string) => boolean) => {
+        this.oscHandlers.set(ident, handler);
+        return { dispose() {} };
+      },
+    };
+    /** What the terminal does with an OSC sequence the program printed. */
+    osc(ident: number, data: string) {
+      this.oscHandlers.get(ident)?.(data);
+    }
+    bellListeners: (() => void)[] = [];
+    onBell(l: () => void) {
+      this.bellListeners.push(l);
+      return { dispose() {} };
+    }
+    ring() {
+      this.bellListeners.forEach((l) => {
+        l();
+      });
+    }
     constructor(options: Record<string, unknown>) {
       this.options = { ...options };
       FakeTerminal.instances.push(this);
@@ -172,6 +193,12 @@ vi.mock('@/ipc/session', () => ({
 }));
 
 const session = await import('@/ipc/session');
+
+vi.mock('@/ipc/notify', () => ({
+  notifyDesktop: vi.fn(() => Promise.resolve()),
+  requestAttention: vi.fn(),
+}));
+const notify = await import('@/ipc/notify');
 
 beforeAll(() => {
   window.matchMedia = vi.fn().mockImplementation((q: string) => ({
@@ -507,6 +534,60 @@ test('the terminal opens in an element without padding, inside the padded one', 
   if (!el) throw new Error('not opened');
   expect(el.className).not.toMatch(/\bp[xytrbl]?-/);
   expect(el.parentElement?.className).toMatch(/\bpx-2\b/);
+});
+
+describe('a session out of sight', () => {
+  beforeEach(async () => {
+    const { useWorkspace } = await import('@/stores/workspace');
+    // Another session is shown: this one ('t') is out of sight.
+    useWorkspace.setState({ tabs: [], activeTabId: 'other', views: {}, dormant: [] });
+    useAttention.setState({ marked: {}, windowFocused: true });
+  });
+
+  test('tells the user when a long command ends', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { term } = renderView();
+    await resolveSession();
+    term.osc(133, 'C');
+    now.mockReturnValue(61_000);
+    term.osc(133, 'D;1');
+    expect(notify.notifyDesktop).toHaveBeenCalledWith(
+      'Tilde',
+      'Commande échouée (code 1) en 1 min',
+    );
+    expect(useAttention.getState().marked).toEqual({ t: true });
+    now.mockRestore();
+  });
+
+  test('passes on what programs ask for: OSC 9, OSC 777, VS Code marks, the bell', async () => {
+    const { term } = renderView();
+    await resolveSession();
+    term.osc(9, 'tests passed');
+    expect(notify.notifyDesktop).toHaveBeenLastCalledWith('Tilde', 'tests passed');
+    // One notification every few seconds per session: the next ones only mark the Rail.
+    term.osc(777, 'notify;Backup;done');
+    term.osc(633, 'C');
+    term.osc(633, 'D;0');
+    term.ring();
+    expect(notify.notifyDesktop).toHaveBeenCalledTimes(1);
+    expect(useAttention.getState().marked).toEqual({ t: true });
+  });
+
+  test('a restarted shell forgets the command the old one was running', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    const { term, props } = renderView();
+    await resolveSession();
+    term.osc(133, 'C');
+    act(() => {
+      ipc.open?.onExit(0);
+    });
+    expect(props.onExit).toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: /Relancer/ }));
+    now.mockReturnValue(120_000);
+    term.osc(133, 'D;0');
+    expect(notify.notifyDesktop).not.toHaveBeenCalled();
+    now.mockRestore();
+  });
 });
 
 test('a terminal scrolled sideways by the browser is put back at once', () => {

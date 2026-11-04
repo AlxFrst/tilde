@@ -187,4 +187,9 @@ export default {
   'Coller {count} ligne ?': 'Paste {count} line?',
   'Coller {count} lignes ?': 'Paste {count} lines?',
   'Chaque ligne sera exécutée par le shell.': 'Each line will be run by the shell.',
+
+  // terminal/shellSignals.ts, terminal/notifier.ts
+  'Commande terminée en {duration}': 'Command finished in {duration}',
+  'Commande échouée (code {code}) en {duration}': 'Command failed (code {code}) after {duration}',
+  'Signal sonore': 'Bell',
 } satisfies Record<string, string>;

@@ -30,6 +30,7 @@ import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { t } from '@/i18n';
 import type { Connection, Folder } from '@/ipc/connections';
 import { cn } from '@/lib/utils';
+import { useAttention } from '@/stores/attention';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
 import { useShallow } from 'zustand/react/shallow';
@@ -114,6 +115,7 @@ function PinnedRow({ c }: { c: Connection }) {
   const active = useWorkspace((s) => session !== undefined && s.activeTabId === session.id);
   const status = useSessionStatus(session);
   const view = useViewMark(session?.id);
+  const attention = useAttention((s) => session !== undefined && s.marked[session.id] === true);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `pinned:${c.id}`,
     data: { connectionId: c.id },
@@ -148,6 +150,7 @@ function PinnedRow({ c }: { c: Connection }) {
         dragProps={{ ...attributes, ...listeners }}
         buttonRef={setNodeRef}
         view={view}
+        attention={attention}
       />
       {session && <PaneList tab={session} />}
       {others.length > 0 && (

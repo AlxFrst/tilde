@@ -6,6 +6,7 @@ import type { Connection, ConnectionsFile } from '@/ipc/connections';
 import { removeConnection } from '@/ipc/connections';
 import type { ResolvedProfile } from '@/ipc/profiles';
 import { registerCorePanels } from '@/panels/core';
+import { useAttention, watchAttention } from '@/stores/attention';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
@@ -517,5 +518,72 @@ describe('side by side', () => {
     const pinned = ws().tabs.find((t) => t.pinnedConnectionId === 'a');
     expect(pinned).toBeDefined();
     expect(shown()).toEqual([one, pinned?.id]);
+  });
+});
+
+describe('sessions with something to see', () => {
+  const named = (...names: string[]) =>
+    names.map((n) => {
+      const id = ws().openTab('pwsh');
+      ws().renameTab(id, n);
+      return id;
+    });
+  const today = (name: string) => within(group('Aujourd’hui')).getByRole('button', { name });
+  const badge = (row: HTMLElement) =>
+    within(row).queryByRole('status', { name: 'Activité à voir' });
+  let stop: () => void = () => undefined;
+
+  beforeEach(() => {
+    useAttention.setState({ marked: {}, windowFocused: true });
+    stop = watchAttention();
+  });
+  afterEach(() => {
+    stop();
+  });
+
+  test('a session out of sight is marked until it is shown', () => {
+    setFile({});
+    const [build = '', logs = ''] = named('build', 'logs');
+    ws().activateTab(build);
+    show();
+    act(() => {
+      useAttention.getState().mark(logs);
+    });
+    expect(badge(today('logs'))).toBeInTheDocument();
+    expect(today('logs')).toHaveAccessibleDescription(/^Activité à voir/);
+    expect(badge(today('build'))).toBeNull();
+    // The close button and the status dot keep their spot: the mark sits on the icon.
+    expect(badge(today('logs'))?.parentElement?.querySelector('svg')).not.toBeNull();
+    act(() => {
+      ws().activateTab(logs);
+    });
+    expect(badge(today('logs'))).toBeNull();
+  });
+
+  test('the session on screen keeps its mark until the window has the focus again', () => {
+    setFile({});
+    const [build = ''] = named('build');
+    show();
+    act(() => {
+      useAttention.getState().setWindowFocused(false);
+      useAttention.getState().mark(build);
+    });
+    expect(badge(today('build'))).toBeInTheDocument();
+    act(() => {
+      useAttention.getState().setWindowFocused(true);
+    });
+    expect(badge(today('build'))).toBeNull();
+  });
+
+  test('a pinned connection’s row carries the mark of its session', () => {
+    setFile({ connections: [conn('a', 'alpha')] });
+    const pinned = ws().openPinned('a', 'a.example', 'main');
+    ws().openTab('pwsh');
+    show();
+    act(() => {
+      useAttention.getState().mark(pinned);
+    });
+    const row = within(group('Épinglés')).getByRole('button', { name: /^alpha/ });
+    expect(badge(row)).toBeInTheDocument();
   });
 });

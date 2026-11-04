@@ -103,6 +103,7 @@ export default {
   Fermer: 'Close',
   'Fermer les autres': 'Close others',
   'Fermer celles en dessous': 'Close sessions below',
+  'Activité à voir': 'New activity',
   'Nom de la session': 'Session name',
   'Fermer {name}': 'Close {name}',
 

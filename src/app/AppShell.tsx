@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useUi } from '@/stores/ui';
 import { shownView, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { viewRects } from '@/workspace/view';
+import { useAttentionTracking } from './attention';
 import { CommandPalette } from './CommandPalette';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -144,6 +145,7 @@ export function AppShell({
   const activeTab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const file = useConnections((s) => s.file);
   // The sessions shown side by side (never in the Quake console), each in its slot.
+  // tabsOnScreen (stores/workspace) says the same, for what the user sees.
   const view = useWorkspace((s) => (quake ? null : shownView(s)));
   const slots = useMemo(() => (view ? viewRects(view) : null), [view]);
   // With a view each slot has its own environment frame; the content area has none.
@@ -152,6 +154,7 @@ export function AppShell({
   useEffect(() => registerBuiltins(), []);
   useWindowCloseGuard(!quake);
   useQuakeTabs(quake);
+  useAttentionTracking();
 
   const area = useRef<HTMLElement>(null);
   const isMac = appInfo.platform === 'macos';

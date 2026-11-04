@@ -168,6 +168,15 @@ export default {
   'Confirmer la fermeture': 'Confirm before closing',
   'Quand un programme tourne encore dans le terminal.':
     'When a program is still running in the terminal.',
+  Notifications: 'Notifications',
+  'Notifications système': 'System notifications',
+  'Quand une session hors de vue a besoin de vous.': 'When a session out of sight needs you.',
+  'Fin d’une commande d’au moins': 'End of a command lasting at least',
+  'Détectée par l’intégration du shell : fish 4 d’origine, bash et zsh avec les lignes du panneau Fichiers.':
+    "Detected through shell integration: built into fish 4, with the Files pane's lines for bash and zsh.",
+  'Durée minimale d’une commande signalée': 'Shortest command reported',
+  'Sonnerie du terminal': 'Terminal bell',
+  'Notifier la sonnerie du terminal': 'Notify the terminal bell',
 
   // src/app/settings/ShortcutsSection.tsx
   'Réinitialiser tous les raccourcis ?': 'Reset all shortcuts?',

@@ -27,6 +27,7 @@ export const defaultSettings: Settings = {
     copyOnSelect: false,
     rightClick: 'menu',
     confirmClose: true,
+    notifications: { enabled: true, minDurationSecs: 10, onBell: true },
   },
   ssh: {
     keepaliveIntervalSecs: 15,

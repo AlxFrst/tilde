@@ -1,5 +1,5 @@
 import { Columns2, Server, X, type LucideIcon } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -14,6 +14,7 @@ import {
 import { listSpaces, spaceName } from '@/connections/spaces';
 import { t, tn } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useAttention } from '@/stores/attention';
 import { useConnections } from '@/stores/connections';
 import { useProfiles } from '@/stores/profiles';
 import { useWorkspace } from '@/stores/workspace';
@@ -217,6 +218,26 @@ export interface RowShellProps {
   buttonRef?: (el: HTMLElement | null) => void;
   /** In the side-by-side view: shown, or set aside. */
   view?: 'shown' | 'aside' | null;
+  /** Something happened in the session while it was out of sight (see stores/attention). */
+  attention?: boolean;
+}
+
+/** The mark of a session with something to see, on the corner of its icon. */
+function AttentionBadge({ id, active }: { id: string; active: boolean }) {
+  const label = t('Activité à voir');
+  return (
+    <span
+      id={id}
+      role="status"
+      aria-label={label}
+      title={label}
+      className={cn(
+        'absolute -top-1 -right-1 size-2 rounded-full bg-primary ring-2',
+        // A ring of the row's own background keeps the dot apart from the icon's strokes.
+        active ? 'ring-surface-2' : 'ring-surface-1 group-hover:ring-surface-2',
+      )}
+    />
+  );
 }
 
 /** One row of the Rail: a click opens, a middle click closes, a double click renames. */
@@ -238,7 +259,9 @@ export function RowShell({
   dragProps,
   buttonRef,
   view,
+  attention = false,
 }: RowShellProps) {
+  const badgeId = useId();
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -252,6 +275,12 @@ export function RowShell({
             aria-label={label}
             aria-current={active || undefined}
             {...dragProps}
+            // The badge describes the row, before the drag instructions a sortable row has.
+            aria-describedby={
+              [attention ? badgeId : null, dragProps?.['aria-describedby']]
+                .filter((id) => typeof id === 'string')
+                .join(' ') || undefined
+            }
             className={cn(
               'flex min-h-8 w-full min-w-0 items-center gap-2.5 rounded-lg border border-transparent px-2 py-1 text-left outline-none',
               'hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-ring',
@@ -271,11 +300,15 @@ export function RowShell({
               }
             }}
           >
-            <Icon
-              className={cn('size-4 shrink-0', state === 'asleep' && 'opacity-70')}
-              strokeWidth={1.6}
-              style={{ color: iconColor ?? 'var(--tilde-text-muted)' }}
-            />
+            {/* The badge sits on the icon, away from the status dot and the close button. */}
+            <span className="relative flex shrink-0">
+              <Icon
+                className={cn('size-4 shrink-0', state === 'asleep' && 'opacity-70')}
+                strokeWidth={1.6}
+                style={{ color: iconColor ?? 'var(--tilde-text-muted)' }}
+              />
+              {attention && <AttentionBadge id={badgeId} active={active} />}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate">{title}</span>
               {subtitle && (
@@ -351,6 +384,7 @@ export function SessionRow({
   const status = useSessionStatus(tab);
   const Icon = useSessionIcon(tab);
   const view = useViewMark(tab.id);
+  const attention = useAttention((s) => s.marked[tab.id] === true);
   const [editing, setEditing] = useState(false);
   const shells = leaves(tab.root).length;
   const first = leaves(tab.root)[0];
@@ -384,6 +418,7 @@ export function SessionRow({
           dragProps={dragProps}
           buttonRef={buttonRef}
           view={view}
+          attention={attention}
           menu={
             <ContextMenuContent className="min-w-52">
               <SessionMenuItems
