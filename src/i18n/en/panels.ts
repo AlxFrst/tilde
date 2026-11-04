@@ -125,8 +125,8 @@ export default {
   'Nouveau fichier': 'New file',
   Renommer: 'Rename',
   Valider: 'OK',
-  'Le shell distant ne signale pas son dossier courant : le panneau reste sur votre dossier personnel. Pour qu’il suive vos {cd}, ajoutez à {file} :':
-    "The remote shell doesn't report its current folder, so the pane stays on your home folder. To make it follow your {cd} commands, add this to {file}:",
+  'Le shell distant ne signale pas son dossier courant : le panneau reste sur votre dossier personnel. Pour qu’il suive vos {cd}, ajoutez à {file} ces lignes, qui disent aussi à Tilde quand une commande se termine :':
+    "The remote shell doesn't report its current folder, so the pane stays on your home folder. To make it follow your {cd} commands, add these lines to {file}; they also tell Tilde when a command finishes:",
   Copié: 'Copied',
   Copier: 'Copy',
   'Ne pas suivre le terminal': "Don't follow the terminal",

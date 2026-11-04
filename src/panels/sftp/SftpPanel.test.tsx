@@ -129,6 +129,9 @@ test('without osc7 a snippet is offered', async () => {
   });
   expect(screen.getByText(/ne signale pas son dossier/)).toBeInTheDocument();
   expect(screen.getByText(/PROMPT_COMMAND/)).toBeInTheDocument();
+  // The same lines tell Tilde when a command finishes (notifications).
+  expect(screen.getByText(/disent aussi à Tilde quand une commande se termine/)).toBeVisible();
+  expect(screen.getByText(/133;C/)).toBeInTheDocument();
 });
 
 test('delete asks for confirmation', async () => {
