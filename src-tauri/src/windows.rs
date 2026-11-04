@@ -138,14 +138,17 @@ pub fn launch_target(app: &AppHandle) -> Option<WebviewWindow> {
 
 /// Opens Tilde window `label`, hidden: its page shows it once rendered. Beside `near` (same
 /// size, a little lower right) if given; a window reopened at startup gets its place back
-/// from the window-state plugin.
+/// from the window-state plugin. A new window shows `space` first (the space of the window
+/// it was opened from); one with a saved workspace shows that.
 pub fn create(
     app: &AppHandle,
     label: &str,
     near: Option<&WebviewWindow>,
+    space: Option<&str>,
 ) -> tauri::Result<WebviewWindow> {
     app.state::<AppState>().windows.opening(label);
-    let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
+    let url = WebviewUrl::App(start_url(space).into());
+    let builder = WebviewWindowBuilder::new(app, label, url)
         .title("Tilde")
         .inner_size(1200.0, 760.0)
         .min_inner_size(720.0, 480.0)
@@ -154,11 +157,11 @@ pub fn create(
         .visible(false);
     let place = near.and_then(beside);
     let builder = match place {
-        Some((x, y, width, height)) => builder.position(x, y).inner_size(width, height),
+        Some(Place { x, y, width, height }) => builder.position(x, y).inner_size(width, height),
         None => builder.center(),
     };
     let window = builder.build()?;
-    if let Some((x, y, width, height)) = place {
+    if let Some(Place { x, y, width, height }) = place {
         // The window-state plugin puts back the place last saved under this label (a closed
         // window's, when the label is reused), in a task `build` queued on the main thread.
         // Queued after it, this one sets the new window beside its neighbour again.
@@ -174,23 +177,66 @@ pub fn create(
     Ok(window)
 }
 
-/// Position and size (logical) of a window opened beside `w`; `None` when `w` fills the
-/// screen (the new one is then centred).
-fn beside(w: &WebviewWindow) -> Option<(f64, f64, f64, f64)> {
+/// The page a new window loads, on `space` if it is an id Tilde writes (anything else is
+/// left out: the window then shows the first space).
+pub fn start_url(space: Option<&str>) -> String {
+    let valid = |s: &&str| {
+        !s.is_empty()
+            && s.len() <= 64
+            && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    };
+    match space.filter(valid) {
+        Some(space) => format!("index.html?space={space}"),
+        None => "index.html".into(),
+    }
+}
+
+/// A window's position and size, in logical pixels.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Place {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+/// `place` moved, and shrunk, as little as needed to lie within `area` (a monitor's work
+/// area, the taskbar left out). A window opened beside a large one went past the bottom of
+/// the screen, under the taskbar, and the bottom of its Rail (the spaces) was out of reach.
+pub fn fit(place: Place, area: Place) -> Place {
+    let width = place.width.min(area.width);
+    let height = place.height.min(area.height);
+    Place {
+        x: place.x.clamp(area.x, area.x + area.width - width),
+        y: place.y.clamp(area.y, area.y + area.height - height),
+        width,
+        height,
+    }
+}
+
+/// Where a window opened beside `w` goes (same size, a little lower right, within the
+/// screen); `None` when `w` fills the screen (the new one is then centred).
+fn beside(w: &WebviewWindow) -> Option<Place> {
     if w.is_maximized().unwrap_or(false) || w.is_fullscreen().unwrap_or(false) {
         return None;
     }
     let scale = w.scale_factor().ok()?;
     let pos = w.outer_position().ok()?.to_logical::<f64>(scale);
     let size = w.inner_size().ok()?.to_logical::<f64>(scale);
-    Some((pos.x + CASCADE, pos.y + CASCADE, size.width, size.height))
+    let place =
+        Place { x: pos.x + CASCADE, y: pos.y + CASCADE, width: size.width, height: size.height };
+    let Some(monitor) = w.current_monitor().ok().flatten() else { return Some(place) };
+    let area = monitor.work_area();
+    let at = area.position.to_logical::<f64>(monitor.scale_factor());
+    let size = area.size.to_logical::<f64>(monitor.scale_factor());
+    Some(fit(place, Place { x: at.x, y: at.y, width: size.width, height: size.height }))
 }
 
-/// Opens a new Tilde window beside the last one used.
+/// Opens a new Tilde window beside the last one used, showing `space` first.
 ///
 /// On its own thread: building a webview window from the main thread (where the
 /// single-instance callback runs) deadlocks on Windows (see `WebviewWindowBuilder::new`).
-pub fn open_new(app: &AppHandle) {
+pub fn open_new(app: &AppHandle, space: Option<String>) {
     static OPENING: Mutex<()> = Mutex::new(());
     let app = app.clone();
     std::thread::spawn(move || {
@@ -199,7 +245,7 @@ pub fn open_new(app: &AppHandle) {
         let open = app.webview_windows();
         let label = free_label(open.keys().chain(&closing).map(String::as_str));
         let near = launch_target(&app);
-        if let Err(e) = create(&app, &label, near.as_ref()) {
+        if let Err(e) = create(&app, &label, near.as_ref(), space.as_deref()) {
             tracing::error!(error = %e, label, "new window could not be created");
         }
     });
@@ -209,7 +255,7 @@ pub fn open_new(app: &AppHandle) {
 pub fn reopen_saved(app: &AppHandle) {
     let paths = app.state::<AppState>().settings.lock().paths().clone();
     for label in saved_windows(&paths) {
-        if let Err(e) = create(app, &label, None) {
+        if let Err(e) = create(app, &label, None, None) {
             tracing::error!(error = %e, label, "saved window could not be reopened");
         }
     }
@@ -242,10 +288,10 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
     }
 }
 
-/// *Nouvelle fenêtre*.
+/// *Nouvelle fenêtre*, from a window showing `space_id`: the new one shows it too.
 #[tauri::command]
-pub async fn window_new(app: AppHandle) {
-    open_new(&app);
+pub async fn window_new(app: AppHandle, space_id: Option<String>) {
+    open_new(&app, space_id);
 }
 
 /// The window's page confirmed that the user closes it (nothing left running, or they
@@ -259,6 +305,38 @@ pub fn window_closing(window: WebviewWindow, state: tauri::State<'_, AppState>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_new_window_opens_on_the_space_it_was_opened_from() {
+        assert_eq!(start_url(Some("a00fb7f5c96338e6")), "index.html?space=a00fb7f5c96338e6");
+        assert_eq!(start_url(Some("main")), "index.html?space=main");
+        assert_eq!(start_url(None), "index.html");
+        // Never anything that could change the address.
+        for odd in ["", "a&b=c", "x#y", "../z", "é", &"a".repeat(65)] {
+            assert_eq!(start_url(Some(odd)), "index.html", "{odd}");
+        }
+    }
+
+    #[test]
+    fn a_window_opened_beside_a_large_one_stays_on_the_screen() {
+        let screen = Place { x: 0.0, y: 0.0, width: 5120.0, height: 1380.0 };
+        // Beside a window as tall as the screen: as tall as the screen, not past its bottom.
+        let tall = Place { x: 1531.0, y: 36.0, width: 2493.0, height: 1414.0 };
+        assert_eq!(fit(tall, screen), Place { x: 1531.0, y: 0.0, width: 2493.0, height: 1380.0 });
+        // Near the bottom right corner: moved back in, size kept.
+        let corner = Place { x: 4500.0, y: 1000.0, width: 1200.0, height: 760.0 };
+        assert_eq!(
+            fit(corner, screen),
+            Place { x: 3920.0, y: 620.0, width: 1200.0, height: 760.0 }
+        );
+        // Room enough: where it was asked.
+        let roomy = Place { x: 132.0, y: 132.0, width: 1200.0, height: 760.0 };
+        assert_eq!(fit(roomy, screen), roomy);
+        // A screen left of the primary one.
+        let left = Place { x: -3200.0, y: 0.0, width: 3200.0, height: 1740.0 };
+        let off = Place { x: -100.0, y: 10.0, width: 1200.0, height: 760.0 };
+        assert_eq!(fit(off, left), Place { x: -1200.0, y: 10.0, width: 1200.0, height: 760.0 });
+    }
 
     #[test]
     fn a_new_window_takes_the_first_free_label() {

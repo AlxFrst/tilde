@@ -26,7 +26,7 @@ export const onQuakeError = (handler: (message: string) => void): Promise<Unlist
     },
     { target: getCurrentWindow().label },
   );
-/** Opens a new Tilde window beside this one. */
-export const windowNew = () => invoke<undefined>('window_new');
+/** Opens a new Tilde window beside this one, showing space `spaceId` first. */
+export const windowNew = (spaceId: string | null) => invoke<undefined>('window_new', { spaceId });
 /** The user confirmed closing this window (Rust forgets it once gone, unless it was the last). */
 export const windowClosing = () => invoke<undefined>('window_closing');

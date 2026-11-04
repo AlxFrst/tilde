@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { t } from '@/i18n';
 import { tRust } from '@/i18n/rust';
-import { windowNew } from '@/ipc/window';
+import { openNewWindow } from './newWindow';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
@@ -57,13 +57,7 @@ export function NewTabMenu() {
           <Server strokeWidth={1.5} />
           {t('Connexion SSH…')}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => {
-            windowNew().catch((err: unknown) => {
-              console.warn('new window failed', err);
-            });
-          }}
-        >
+        <DropdownMenuItem onSelect={openNewWindow}>
           <AppWindow strokeWidth={1.5} />
           {t('Nouvelle fenêtre')}
           <DropdownMenuShortcut>{bindingKeys('Ctrl+Shift+N').join('+')}</DropdownMenuShortcut>

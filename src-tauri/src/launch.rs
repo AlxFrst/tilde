@@ -191,7 +191,7 @@ pub fn on_second_instance(app: &AppHandle, args: &[String], cwd: &str) {
     let allowed = |key: &str| allowed_now(&app.state::<AppState>(), key);
     let SecondLaunch::Forward { dir, connection } = second_launch(args, Path::new(cwd), allowed)
     else {
-        crate::windows::open_new(app);
+        crate::windows::open_new(app, None);
         return;
     };
     let Some(window) = crate::windows::launch_target(app) else { return };

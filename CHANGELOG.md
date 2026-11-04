@@ -10,7 +10,9 @@ All notable changes to Tilde are listed here. The format follows
 - **Several windows.** *New window* (`Ctrl+Shift+N`, the palette, or the menu next to *New
   session*) opens another Tilde window, and so does starting Tilde again (a folder from
   Explorer's *Open in Tilde* still opens in the last window used). Each window has its own
-  sessions and spaces' state; connections, settings and themes are shared. Tilde reopens
+  sessions and spaces' state; connections, settings and themes are shared. A new window
+  shows the space of the window it was opened from, with its servers, and fits on the
+  screen beside it. Tilde reopens
   the windows that were open when it was quit. Closing a window while others stay open ends
   its sessions and forgets it; closing the last one quits Tilde.
 - **Jump list.** Right-click Tilde's taskbar button (Windows) for *New window* and the six
@@ -37,7 +39,8 @@ All notable changes to Tilde are listed here. The format follows
 ### Fixed
 - Dragging a session from the Rail onto the content no longer slides the Rail away: it
   scrolled sideways out of sight and stayed there, and the drop missed. The dragged row now
-  stays in the Rail's column, and the Rail scrolls only while the row is over it.
+  stays in the Rail's column and keeps its place while it is over the content, and the Rail
+  scrolls only while the row is over it.
 - A session opened from a menu (*Open another session*, *Show session*, a shell from the
   menu next to *New session*) takes the keyboard: no need to click it before typing.
 - A connection's question (password, host key) answered in one window leaves the others

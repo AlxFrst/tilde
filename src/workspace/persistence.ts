@@ -74,5 +74,13 @@ export async function restoreWorkspace(
       return;
     }
   }
+  // Nothing saved: a new window, which shows the space of the window it was opened from.
+  const space = startSpace();
+  if (space) ws.switchSpace(space);
   ws.openTab(fallback.id);
+}
+
+/** The space a new window opens on: `?space=` in its address (windows.rs, `start_url`). */
+export function startSpace(search: string = window.location.search): string | null {
+  return new URLSearchParams(search).get('space');
 }
