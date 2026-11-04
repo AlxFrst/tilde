@@ -122,6 +122,7 @@ pub async fn session_open(
     output: Channel<InvokeResponseBody>,
     events: Channel<SessionEvent>,
 ) -> Result<SessionOpened, SessionErrorDto> {
+    let generation = state.windows.generation(window.label());
     let opened = match target {
         OpenTarget::Local { profile_id } => {
             open_local(&state, profile_id, cwd, cols, rows, output, events)
@@ -138,10 +139,10 @@ pub async fn session_open(
             Ok(SessionOpened { id, profile_id: None })
         }
     }?;
-    // Closing the window ends it. A window closed while this was connecting is gone already:
-    // nobody would show the session.
-    state.windows.session_opened(opened.id, window.label());
-    if app.get_webview_window(window.label()).is_none() {
+    // Closing the window ends it. A window closed while this was connecting is gone already
+    // (perhaps replaced by a new window under its label): nobody would show the session.
+    let recorded = state.windows.session_opened(opened.id, window.label(), generation);
+    if !recorded || app.get_webview_window(window.label()).is_none() {
         state.windows.session_closed(opened.id);
         end_session(&app, &state, opened.id);
     }

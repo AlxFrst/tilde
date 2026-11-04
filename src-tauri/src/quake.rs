@@ -151,7 +151,12 @@ pub fn sync_quake(app: &AppHandle, quake: &Quake, state: &Mutex<QuakeState>) {
             tracing::warn!(error = %e, shortcut = %quake.shortcut, "Quake shortcut unavailable");
             let message = format!("Raccourci Quake « {} » indisponible : {e}", quake.shortcut);
             st.error = Some(message.clone());
-            let _ = app.emit(EVENT_ERROR, message);
+            // To the Tilde window last used (where the shortcut was just set): every window
+            // listens, and only one should say it. At startup, before any page listens, the
+            // main window reads it from `quake_status` instead.
+            if let Some(window) = crate::windows::launch_target(app) {
+                let _ = window.emit_to(window.label(), EVENT_ERROR, message);
+            }
         }
     }
 }

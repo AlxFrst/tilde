@@ -86,6 +86,26 @@ pub fn remove_workspace(paths: &ConfigPaths, label: &str) -> Result<(), ConfigEr
     }
 }
 
+/// Makes window `label`'s workspace the main window's: the last window left open was not
+/// `main` (closed earlier, and forgotten), and the next start opens `main` only. Without it,
+/// that start would show an empty `main` beside the window the user kept.
+///
+/// # Errors
+///
+/// [`ConfigError::Io`] if the file exists and cannot be moved.
+pub fn adopt_as_main(paths: &ConfigPaths, label: &str) -> Result<(), ConfigError> {
+    if label == MAIN_WINDOW {
+        return Ok(());
+    }
+    let Some(file) = workspace_file(paths, label) else { return Ok(()) };
+    match fs::rename(&file, paths.workspace_file()) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+            Err(ConfigError::Io { path: file, source: e })
+        }
+        _ => Ok(()),
+    }
+}
+
 /// The windows other than `main` that have a saved workspace, by number: the ones open when
 /// Tilde was last quit, to open again.
 #[must_use]

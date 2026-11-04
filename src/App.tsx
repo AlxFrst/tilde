@@ -1,4 +1,3 @@
-import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
@@ -22,7 +21,12 @@ import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { useTransfers } from '@/stores/transfers';
 import { useWindowEffects } from '@/stores/windowEffects';
-import { quakeStatus, windowApplyEffects, windowSupportedEffects } from '@/ipc/window';
+import {
+  onQuakeError,
+  quakeStatus,
+  windowApplyEffects,
+  windowSupportedEffects,
+} from '@/ipc/window';
 import { applyTheme } from '@/themes';
 import { cssFontName } from '@/themes/fonts';
 import { useActiveTheme } from '@/themes/useActiveTheme';
@@ -197,18 +201,20 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when settings arrive
   }, [quake, checkUpdates === undefined]);
 
-  // Quake shortcut errors (taken by another app, invalid) are reported in the main window
-  // only, including one from startup, before any page was listening.
+  // Quake shortcut errors (taken by another app, invalid) show in the window last used; one
+  // from startup, before any page was listening, in the main window.
   useEffect(() => {
-    if (quake || !isMainWindow()) return;
-    quakeStatus().then(
-      (status) => {
-        if (status) toast.error(tRust(status));
-      },
-      () => undefined,
-    );
-    const off = listen<string>('quake://error', (e) => {
-      toast.error(tRust(e.payload));
+    if (quake) return;
+    if (isMainWindow()) {
+      quakeStatus().then(
+        (status) => {
+          if (status) toast.error(tRust(status));
+        },
+        () => undefined,
+      );
+    }
+    const off = onQuakeError((message) => {
+      toast.error(tRust(message));
     });
     return () => {
       void off.then((f) => {

@@ -108,6 +108,7 @@ mod win {
 
     use ::windows::{
         Win32::{
+            Foundation::E_ACCESSDENIED,
             Storage::EnhancedStorage::PKEY_Title,
             System::{
                 Com::{
@@ -270,10 +271,13 @@ mod win {
                 for r in recents {
                     items.AddObject(&link(&exe, &r.title, &r.arguments)?)?;
                 }
-                list.AppendCategory(
-                    &HSTRING::from(content.recent),
-                    &items.cast::<IObjectArray>()?,
-                )?;
+                let appended = list
+                    .AppendCategory(&HSTRING::from(content.recent), &items.cast::<IObjectArray>()?);
+                if let Err(e) = appended
+                    && !category_refused(&e)
+                {
+                    return Err(e);
+                }
             }
             // Starting Tilde again opens a new window (`launch::on_second_instance`); the
             // first start just starts it.
@@ -282,6 +286,13 @@ mod win {
             tasks.AddObject(&link(&exe, content.new_window, "")?)?;
             list.AddUserTasks(&tasks.cast::<IObjectArray>()?)
         }
+    }
+
+    /// Whether `AppendCategory` failed because Windows keeps no recent items (turned off in
+    /// Settings › Personalisation › Start, or by a policy). The list then goes without the
+    /// category, as Microsoft asks: « Nouvelle fenêtre » still belongs in it.
+    fn category_refused(e: &::windows::core::Error) -> bool {
+        e.code() == E_ACCESSDENIED
     }
 
     /// A shell link starting Tilde with `arguments`, shown as `title` with Tilde's icon.
@@ -352,6 +363,13 @@ mod win {
             };
             assert_eq!(title, "demo-server « prod »");
             assert_eq!(removed_arguments(&removed), [arguments]);
+        }
+
+        #[test]
+        fn recent_items_turned_off_leave_the_task_in_the_list() {
+            assert!(category_refused(&::windows::core::Error::from(E_ACCESSDENIED)));
+            let other = ::windows::Win32::Foundation::E_OUTOFMEMORY;
+            assert!(!category_refused(&::windows::core::Error::from(other)));
         }
 
         /// Writes, then deletes, the list of development builds (never the installed Tilde's):

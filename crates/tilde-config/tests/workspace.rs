@@ -2,7 +2,9 @@ use std::fs;
 
 use serde_json::json;
 use tempfile::TempDir;
-use tilde_config::{ConfigPaths, load_workspace, remove_workspace, save_workspace, saved_windows};
+use tilde_config::{
+    ConfigPaths, adopt_as_main, load_workspace, remove_workspace, save_workspace, saved_windows,
+};
 
 fn paths() -> (TempDir, ConfigPaths) {
     let dir = TempDir::new().unwrap();
@@ -16,6 +18,20 @@ fn save_then_load_roundtrip() {
     let state = json!({"version": 1, "tabs": [], "activeTabId": null});
     save_workspace(&paths, "main", &state).unwrap();
     assert_eq!(load_workspace(&paths, "main"), Some(state));
+}
+
+#[test]
+fn the_last_window_left_opens_as_the_main_window_next_time() {
+    let (_dir, paths) = paths();
+    let kept = json!({"tabs": ["kept"]});
+    save_workspace(&paths, "window-3", &kept).unwrap();
+    adopt_as_main(&paths, "window-3").unwrap();
+    assert_eq!(load_workspace(&paths, "main"), Some(kept));
+    assert_eq!(saved_windows(&paths), Vec::<String>::new());
+    // Nothing saved, nothing to adopt; main's own workspace is its own.
+    adopt_as_main(&paths, "window-4").unwrap();
+    adopt_as_main(&paths, "main").unwrap();
+    assert_eq!(load_workspace(&paths, "main"), Some(json!({"tabs": ["kept"]})));
 }
 
 #[test]

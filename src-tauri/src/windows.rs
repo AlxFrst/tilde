@@ -7,8 +7,13 @@
 use std::collections::{HashMap, HashSet};
 
 use parking_lot::Mutex;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
-use tilde_config::{MAIN_WINDOW, remove_workspace, saved_windows, window_label, window_number};
+use tauri::{
+    AppHandle, LogicalPosition, LogicalSize, Manager, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
+};
+use tilde_config::{
+    MAIN_WINDOW, adopt_as_main, remove_workspace, saved_windows, window_label, window_number,
+};
 
 use crate::state::AppState;
 
@@ -26,11 +31,25 @@ pub struct Windows {
     forgotten: Mutex<HashSet<String>>,
     /// The last Tilde window to have had the focus.
     last_focused: Mutex<Option<String>>,
+    /// How many windows have opened under each label: a session that finishes opening for a
+    /// window closed meanwhile must not go to a new window under the same label.
+    generations: Mutex<HashMap<String, u64>>,
 }
 
 impl Windows {
-    pub fn session_opened(&self, id: u32, label: &str) {
+    /// Which window `label` is now (see [`Windows::session_opened`]).
+    pub fn generation(&self, label: &str) -> u64 {
+        self.generations.lock().get(label).copied().unwrap_or(0)
+    }
+
+    /// Session `id` opened for window `label` as it was at `generation`. `false` (nothing
+    /// recorded) when that window has since been replaced by another under its label.
+    pub fn session_opened(&self, id: u32, label: &str, generation: u64) -> bool {
+        if self.generation(label) != generation {
+            return false;
+        }
         self.owners.lock().insert(id, label.to_string());
+        true
     }
 
     pub fn session_closed(&self, id: u32) {
@@ -49,8 +68,14 @@ impl Windows {
 
     /// A window (perhaps under a closed one's label) opens: it is a window like any other.
     pub fn opening(&self, label: &str) {
-        self.closing.lock().remove(label);
         self.forgotten.lock().remove(label);
+        *self.generations.lock().entry(label.to_string()).or_default() += 1;
+    }
+
+    /// Windows being closed: their labels are not free until they are gone (their workspace
+    /// is forgotten then, and a new window under the label would lose its own).
+    pub fn closing_labels(&self) -> Vec<String> {
+        self.closing.lock().iter().cloned().collect()
     }
 
     /// The user confirmed closing window `label` (not Tilde quitting, nor the OS ending it).
@@ -127,11 +152,23 @@ pub fn create(
         .decorations(false)
         .transparent(true)
         .visible(false);
-    let builder = match near.and_then(beside) {
+    let place = near.and_then(beside);
+    let builder = match place {
         Some((x, y, width, height)) => builder.position(x, y).inner_size(width, height),
         None => builder.center(),
     };
     let window = builder.build()?;
+    if let Some((x, y, width, height)) = place {
+        // The window-state plugin puts back the place last saved under this label (a closed
+        // window's, when the label is reused), in a task `build` queued on the main thread.
+        // Queued after it, this one sets the new window beside its neighbour again.
+        let w = window.clone();
+        let _ = window.run_on_main_thread(move || {
+            let _ = w.unmaximize();
+            let _ = w.set_size(LogicalSize::new(width, height));
+            let _ = w.set_position(LogicalPosition::new(x, y));
+        });
+    }
     crate::autofill::disable(&window);
     crate::show_if_page_stalls(app.clone(), label.to_string());
     Ok(window)
@@ -158,7 +195,9 @@ pub fn open_new(app: &AppHandle) {
     let app = app.clone();
     std::thread::spawn(move || {
         let _serial = OPENING.lock();
-        let label = free_label(app.webview_windows().keys().map(String::as_str));
+        let closing = app.state::<AppState>().windows.closing_labels();
+        let open = app.webview_windows();
+        let label = free_label(open.keys().chain(&closing).map(String::as_str));
         let near = launch_target(&app);
         if let Err(e) = create(&app, &label, near.as_ref()) {
             tracing::error!(error = %e, label, "new window could not be created");
@@ -194,6 +233,11 @@ pub fn on_destroyed(app: &AppHandle, label: &str) {
         }
     }
     if !others {
+        // The next start opens `main`: it shows what this last window held.
+        let paths = state.settings.lock().paths().clone();
+        if let Err(e) = adopt_as_main(&paths, label) {
+            tracing::warn!(error = %e, label, "last window's workspace could not be kept");
+        }
         app.exit(0);
     }
 }
@@ -228,9 +272,9 @@ mod tests {
     #[test]
     fn closing_a_window_ends_only_its_sessions() {
         let w = Windows::default();
-        w.session_opened(1, "main");
-        w.session_opened(2, "window-2");
-        w.session_opened(3, "window-2");
+        w.session_opened(1, "main", 0);
+        w.session_opened(2, "window-2", 0);
+        w.session_opened(3, "window-2", 0);
         w.session_closed(3);
         assert_eq!(w.take_sessions("window-2"), [2]);
         assert_eq!(w.take_sessions("window-2"), Vec::<u32>::new());
@@ -265,11 +309,25 @@ mod tests {
     }
 
     #[test]
-    fn a_label_taken_again_starts_clean() {
+    fn a_session_finishing_after_its_window_was_replaced_belongs_to_no_window() {
+        let w = Windows::default();
+        let first = w.generation("window-2");
+        w.opening("window-2");
+        let second = w.generation("window-2");
+        assert!(!w.session_opened(1, "window-2", first));
+        assert!(w.session_opened(2, "window-2", second));
+        assert_eq!(w.take_sessions("window-2"), [2]);
+    }
+
+    #[test]
+    fn a_window_being_closed_keeps_its_label_until_it_is_gone() {
         let w = Windows::default();
         w.closing("window-2");
-        w.opening("window-2");
-        assert!(!w.gone("window-2", true));
+        let closing = w.closing_labels();
+        let label = free_label(["main"].into_iter().chain(closing.iter().map(String::as_str)));
+        assert_eq!(label, "window-3");
+        w.gone("window-2", true);
+        assert_eq!(w.closing_labels(), Vec::<String>::new());
     }
 
     #[test]
