@@ -34,6 +34,25 @@ export function openConnection(c: Connection): void {
 }
 
 /**
+ * Opens a recent by its key, as the palette does: a saved connection (`conn:<id>`), or a
+ * target typed by hand (`ssh:<target>`). `false` when there is nothing to open (a connection
+ * deleted since, a key of another kind).
+ */
+export function openRecent(key: string): boolean {
+  if (key.startsWith('conn:')) {
+    const id = key.slice('conn:'.length);
+    const c = useConnections.getState().file.connections.find((x) => x.id === id);
+    if (c) openConnection(c);
+    return c !== undefined;
+  }
+  if (key.startsWith('ssh:')) {
+    useWorkspace.getState().openSshTab(key.slice('ssh:'.length));
+    return true;
+  }
+  return false;
+}
+
+/**
  * Puts a saved connection's session beside `targetTabId` (or in its place), opening that
  * session first if it is asleep.
  */

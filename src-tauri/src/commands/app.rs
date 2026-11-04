@@ -17,14 +17,15 @@ pub fn app_info(app: AppHandle) -> AppInfo {
 }
 
 /// The interface's language (`fr` or `en`; anything else is French), for the text Rust
-/// shows itself: native dialogs, Explorer's context menu, the lines written into SSH
-/// terminals. Messages sent to the front-end stay French (it translates them).
+/// shows itself: native dialogs, Explorer's context menu, the taskbar's jump list, the lines
+/// written into SSH terminals. Messages sent to the front-end stay French (it translates them).
 #[tauri::command]
-pub fn app_set_locale(state: State<'_, AppState>, locale: String) {
+pub fn app_set_locale(app: AppHandle, state: State<'_, AppState>, locale: String) {
     if !state.locale.set(&locale) {
         return;
     }
     tilde_ssh::set_english_notices(state.locale.is_english());
+    crate::jump_list::refresh(&app);
     #[cfg(windows)]
     {
         let enabled = state.settings.lock().settings().general.explorer_menu;

@@ -105,18 +105,45 @@ export function sessionTitle(tab: Tab, names: LabelNames): string {
   return first ? paneLabel(tab, first, names).title : '';
 }
 
+/**
+ * A session's name as its row in the Rail shows it: a saved connection's own session
+ * goes by the connection's name, any other by {@link sessionTitle}.
+ */
+export function railTitle(tab: Tab, names: LabelNames): string {
+  const own = tab.pinnedConnectionId !== null && (names.rank?.(tab) ?? 1) === 1;
+  return (own ? names.connectionName(tab.pinnedConnectionId) : null) ?? sessionTitle(tab, names);
+}
+
+/** « tab:connection » of every pinned session, in order. */
+const pinnedKey = (tabs: readonly Tab[]): string =>
+  tabs
+    .filter((x) => x.pinnedConnectionId !== null)
+    .map((x) => `${x.id}:${x.pinnedConnectionId ?? ''}`)
+    .join(' ');
+
 /** Names from the connections and profiles stores, re-rendering when they change. */
 export function useLabelNames(): LabelNames {
   const connections = useConnections((s) => s.file.connections);
   const profiles = useProfiles((s) => s.profiles);
-  // « tab:connection » of every pinned session, in order: a string, so a cwd change
-  // elsewhere re-renders nothing.
-  const pinned = useWorkspace((s) =>
-    s.tabs
-      .filter((x) => x.pinnedConnectionId !== null)
-      .map((x) => `${x.id}:${x.pinnedConnectionId ?? ''}`)
-      .join(' '),
+  // A string, so a cwd change elsewhere re-renders nothing.
+  const pinned = useWorkspace((s) => pinnedKey(s.tabs));
+  return labelNames(connections, profiles, pinned);
+}
+
+/** The names as they are now, outside React (a notification's title). */
+export function currentLabelNames(): LabelNames {
+  return labelNames(
+    useConnections.getState().file.connections,
+    useProfiles.getState().profiles,
+    pinnedKey(useWorkspace.getState().tabs),
   );
+}
+
+function labelNames(
+  connections: readonly { id: string; name: string }[],
+  profiles: readonly { id: string; name: string }[],
+  pinned: string,
+): LabelNames {
   return {
     rank: (tab) => {
       if (tab.pinnedConnectionId === null) return 1;

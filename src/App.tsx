@@ -1,4 +1,3 @@
-import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
@@ -7,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { openDefaultTab } from '@/app/actions';
 import { AppShell } from '@/app/AppShell';
 import { startLaunchHandling } from '@/app/launch';
+import { isMainWindow } from '@/app/quake';
 import { startSingleSpace, startSpaceSync } from '@/app/spaceSync';
 import { autoCheckForUpdates } from '@/app/updates';
 import { registerCorePanels } from '@/panels/core';
@@ -21,7 +21,12 @@ import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { useTransfers } from '@/stores/transfers';
 import { useWindowEffects } from '@/stores/windowEffects';
-import { quakeStatus, windowApplyEffects, windowSupportedEffects } from '@/ipc/window';
+import {
+  onQuakeError,
+  quakeStatus,
+  windowApplyEffects,
+  windowSupportedEffects,
+} from '@/ipc/window';
 import { applyTheme } from '@/themes';
 import { cssFontName } from '@/themes/fonts';
 import { useActiveTheme } from '@/themes/useActiveTheme';
@@ -186,27 +191,30 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
       },
     );
   }, [loaded, effect, dark]);
-  // Updates: checked once at startup by the main window (at most once a day).
+  // Updates: checked once at startup by the main window (at most once a day), not by the
+  // other windows.
   const checkUpdates = settings?.general.checkUpdates;
   useEffect(() => {
-    if (quake || checkUpdates === undefined) return;
+    if (quake || !isMainWindow() || checkUpdates === undefined) return;
     autoCheckForUpdates(checkUpdates);
     // Startup only: turning the setting on later waits for the next start.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when settings arrive
   }, [quake, checkUpdates === undefined]);
 
-  // Quake shortcut errors (taken by another app, invalid) are reported in the main window,
-  // including one from startup, before any page was listening.
+  // Quake shortcut errors (taken by another app, invalid) show in the window last used; one
+  // from startup, before any page was listening, in the main window.
   useEffect(() => {
     if (quake) return;
-    quakeStatus().then(
-      (status) => {
-        if (status) toast.error(tRust(status));
-      },
-      () => undefined,
-    );
-    const off = listen<string>('quake://error', (e) => {
-      toast.error(tRust(e.payload));
+    if (isMainWindow()) {
+      quakeStatus().then(
+        (status) => {
+          if (status) toast.error(tRust(status));
+        },
+        () => undefined,
+      );
+    }
+    const off = onQuakeError((message) => {
+      toast.error(tRust(message));
     });
     return () => {
       void off.then((f) => {
@@ -248,7 +256,8 @@ export default function App({ mode = 'main' }: { mode?: 'main' | 'quake' }) {
     };
   }, [canShow, quake]);
 
-  // "Ouvrir dans Tilde": a terminal in the folder this launch, or a later one, names.
+  // "Ouvrir dans Tilde" and the jump list: a terminal in the folder this launch, or a later
+  // one, names; the recent connection it names.
   useEffect(() => {
     if (!ready || quake) return;
     return startLaunchHandling();

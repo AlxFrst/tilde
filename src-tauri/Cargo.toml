@@ -39,6 +39,7 @@ tilde-ssh-config = { path = "../crates/tilde-ssh-config" }
 async-trait = "0.1"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt"] }
 tauri-plugin-global-shortcut = "2"
+tauri-plugin-notification = "2"
 time = { version = "0.3", features = ["formatting"] }
 
 [target.'cfg(windows)'.dependencies]
@@ -46,7 +47,17 @@ windows-version = "0.1"
 winreg = "0.56"
 # Same versions as wry's: WebView2 settings (autofill off).
 webview2-com = "0.39"
-windows = "0.62"
+# The taskbar's jump list (jump_list.rs).
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Storage_EnhancedStorage",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_Shell_PropertiesSystem",
+] }
 
 
 [dev-dependencies]

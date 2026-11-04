@@ -13,6 +13,7 @@ export default {
     'Files open from an SSH tab ({keys} to connect).',
   'Agrandir / réduire le panneau': 'Maximize / restore pane',
   'Plein écran': 'Full screen',
+  'Nouvelle fenêtre': 'New window',
   'Nouvelle session': 'New session',
   'Fermer la session': 'Close session',
   'Session suivante': 'Next session',
@@ -102,6 +103,7 @@ export default {
   Fermer: 'Close',
   'Fermer les autres': 'Close others',
   'Fermer celles en dessous': 'Close sessions below',
+  'Activité à voir': 'New activity',
   'Nom de la session': 'Session name',
   'Fermer {name}': 'Close {name}',
 

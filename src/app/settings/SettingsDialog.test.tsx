@@ -59,6 +59,38 @@ test('number fields refuse out-of-range values', async () => {
   expect(update).toHaveBeenCalledWith({ terminal: { fontSize: 16 } });
 });
 
+test('notifications can be turned off, and the shortest command reported changed', async () => {
+  useUi.setState({ settingsSection: 'terminal' });
+  render(<SettingsDialog open onOpenChange={vi.fn()} />);
+  expect(screen.getByText(/fish 4 d’origine, bash et zsh avec les lignes/)).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('switch', { name: 'Notifications système' }));
+  expect(update).toHaveBeenCalledWith({ terminal: { notifications: { enabled: false } } });
+  const input = screen.getByLabelText('Durée minimale d’une commande signalée');
+  expect(input).toHaveValue('10');
+  await userEvent.clear(input);
+  await userEvent.type(input, '90000{Enter}');
+  expect(screen.getByText(/entre 0 et 86/)).toBeInTheDocument();
+  await userEvent.clear(input);
+  await userEvent.type(input, '30{Enter}');
+  expect(update).toHaveBeenLastCalledWith({ terminal: { notifications: { minDurationSecs: 30 } } });
+});
+
+test('without system notifications, the bell has nothing to choose', () => {
+  useSettings.setState({
+    settings: {
+      ...defaultSettings,
+      terminal: {
+        ...defaultSettings.terminal,
+        notifications: { ...defaultSettings.terminal.notifications, enabled: false },
+      },
+    },
+  });
+  useUi.setState({ settingsSection: 'terminal' });
+  render(<SettingsDialog open onOpenChange={vi.fn()} />);
+  expect(screen.getByRole('switch', { name: 'Notifier la sonnerie du terminal' })).toBeDisabled();
+  expect(screen.getByLabelText('Durée minimale d’une commande signalée')).toBeEnabled();
+});
+
 test('shows the settings in English, numbers included', async () => {
   setLocale('en');
   useUi.setState({ settingsSection: 'terminal' });

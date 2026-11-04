@@ -179,7 +179,7 @@ function Osc7Banner({ onDetach }: { onDetach: () => void }) {
       <p>
         {withCode(
           t(
-            'Le shell distant ne signale pas son dossier courant : le panneau reste sur votre dossier personnel. Pour qu’il suive vos {cd}, ajoutez à {file} :',
+            'Le shell distant ne signale pas son dossier courant : le panneau reste sur votre dossier personnel. Pour qu’il suive vos {cd}, ajoutez à {file} ces lignes, qui disent aussi à Tilde quand une commande se termine :',
           ),
           { cd: 'cd', file: snippet.file },
         )}

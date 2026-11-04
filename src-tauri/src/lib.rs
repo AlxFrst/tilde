@@ -4,6 +4,7 @@ mod autofill;
 mod commands;
 #[cfg(windows)]
 mod explorer_menu;
+mod jump_list;
 mod launch;
 mod locale;
 mod logging;
@@ -12,6 +13,7 @@ mod quake;
 mod state;
 mod updater;
 mod window_effects;
+mod windows;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -31,32 +33,35 @@ use crate::{
     state::AppState,
 };
 
-/// The front-end shows the (initially hidden) window once it has rendered. If it crashes
+/// The front-end shows its (initially hidden) window once it has rendered. If it crashes
 /// before that, the window would stay invisible forever — and single-instance would only
 /// "focus" that ghost on relaunch — so Rust shows it anyway after a grace period.
-fn show_window_if_frontend_stalls(app: tauri::AppHandle) {
+pub(crate) fn show_if_page_stalls(app: tauri::AppHandle, label: String) {
     const GRACE: std::time::Duration = std::time::Duration::from_secs(5);
     std::thread::spawn(move || {
         std::thread::sleep(GRACE);
-        if let Some(window) = app.get_webview_window("main")
+        if let Some(window) = app.get_webview_window(&label)
             && !window.is_visible().unwrap_or(true)
         {
-            tracing::warn!("front-end did not show the window in time; showing it as a fallback");
+            tracing::warn!(label, "front-end did not show the window in time; showing it");
             let _ = window.show();
         }
     });
 }
 
-/// The Quake window hides instead of closing; closing the main window quits the app
-/// (a hidden Quake window must not keep it running).
+/// The Quake window hides instead of closing. A Tilde window that is gone ends its sessions,
+/// and the last one quits the app (a hidden Quake window must not keep it running).
 fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     match event {
         tauri::WindowEvent::CloseRequested { api, .. } if window.label() == quake::QUAKE_LABEL => {
             api.prevent_close();
             let _ = window.hide();
         }
-        tauri::WindowEvent::Destroyed if window.label() == "main" => {
-            window.app_handle().exit(0);
+        tauri::WindowEvent::Focused(true) => {
+            window.app_handle().state::<AppState>().windows.focused(window.label());
+        }
+        tauri::WindowEvent::Destroyed => {
+            windows::on_destroyed(window.app_handle(), window.label());
         }
         _ => {}
     }
@@ -84,9 +89,10 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     );
     let _ = app.state::<AppState>().sftp.transfers.set(transfers);
     std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_webview_window(tilde_config::MAIN_WINDOW) {
         autofill::disable(&window);
     }
+    windows::reopen_saved(app);
     let quake = app.state::<AppState>().settings.lock().settings().general.quake.clone();
     quake::sync_quake(app, &quake, &app.state::<AppState>().quake);
     #[cfg(windows)]
@@ -97,6 +103,8 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
             explorer_menu::apply(enabled, &handle.state::<AppState>().locale);
         });
     }
+    // Settings and connections are loaded: the taskbar's jump list can list the recents.
+    jump_list::refresh(app);
     let handle = app.clone();
     let on_change = move |file| match file {
         ConfigFile::Settings => on_settings_file_changed(&handle),
@@ -113,7 +121,7 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     std::thread::spawn(move || {
         commands::profiles::detected_shells(&handle.state::<AppState>());
     });
-    show_window_if_frontend_stalls(app.clone());
+    show_if_page_stalls(app.clone(), tilde_config::MAIN_WINDOW.to_string());
 }
 
 /// Every command the front-end may invoke.
@@ -124,6 +132,7 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         commands::app::app_info,
         commands::app::app_set_locale,
         launch::launch_take_dir,
+        launch::launch_take_connection,
         commands::app::open_logs_dir,
         commands::app::open_settings_file,
         commands::app::open_connections_file,
@@ -198,6 +207,8 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         window_effects::window_supported_effects,
         commands::workspace::workspace_load,
         commands::workspace::workspace_save,
+        windows::window_new,
+        windows::window_closing,
     ]
 }
 
@@ -211,6 +222,8 @@ pub fn run() {
     let log_dir = dirs::data_local_dir().map(|d| d.join("Tilde").join("logs"));
     let _log_guard = logging::init(log_dir.as_deref());
     tracing::info!(version = env!("CARGO_PKG_VERSION"), "starting Tilde");
+    // Before any window exists: the taskbar groups them, and finds their jump list, by it.
+    jump_list::claim_app_id();
 
     // Without an OS config dir (exotic systems only) we still start, keeping settings
     // in a temp folder rather than refusing to launch.
@@ -233,6 +246,7 @@ pub fn run() {
     let args: Vec<String> = std::env::args().collect();
     let launch_dir =
         std::env::current_dir().ok().and_then(|cwd| launch::dir_from_args(&args, &cwd));
+    let launch_connection = launch::connect_from_args(&args);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
@@ -248,6 +262,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        // System notifications for sessions out of sight (src/ipc/notify.ts).
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -278,7 +294,9 @@ pub fn run() {
             monitor_local: Arc::default(),
             monitor_remote: Mutex::default(),
             launch_dir: launch::LaunchDir(Mutex::new(launch_dir)),
+            launch_connection: launch::LaunchConnection(Mutex::new(launch_connection)),
             locale: locale::UiLocale::default(),
+            windows: windows::Windows::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

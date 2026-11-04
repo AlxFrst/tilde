@@ -718,6 +718,27 @@ impl ConnectionsStore {
         }
     }
 
+    /// Drops `keys` from the recents (the user removed them from the taskbar's jump list,
+    /// whose shell asks that they be forgotten; opened again, they come back). Best effort:
+    /// ignored while read-only. Returns whether the recents changed.
+    pub fn forget_recents(&mut self, keys: &[String]) -> bool {
+        if self.check_writable().is_err() {
+            return false;
+        }
+        let mut file = self.file.clone();
+        file.recents.retain(|r| !keys.contains(&r.key));
+        if file.recents.len() == self.file.recents.len() {
+            return false;
+        }
+        match self.commit(file) {
+            Ok(()) => true,
+            Err(e) => {
+                tracing::warn!(error = %e, "could not forget recent connections");
+                false
+            }
+        }
+    }
+
     /// Adds the folders and connections of an exported file. Folders are matched by
     /// name, ids are regenerated, connections already present (same host, user and
     /// port) or invalid are skipped, recents and unknown keys are ignored.

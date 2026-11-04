@@ -27,7 +27,10 @@ export function TerminalSection() {
   const profiles = useProfiles((s) => s.profiles);
   if (!settings) return null;
   const term = settings.terminal;
+  const notif = term.notifications;
   const set = (patch: Partial<Settings['terminal']>) => void update({ terminal: patch });
+  const setNotif = (patch: Partial<Settings['terminal']['notifications']>) =>
+    void update({ terminal: { notifications: patch } });
 
   return (
     <div className="grid gap-6">
@@ -176,6 +179,56 @@ export function TerminalSection() {
             disabled={readOnly}
             onChange={(confirmClose) => {
               set({ confirmClose });
+            }}
+          />
+        </Row>
+      </Section>
+
+      {/* A session out of sight that needs you is always marked in the Rail; these say
+          whether the system is told too. */}
+      <Section title={t('Notifications')}>
+        <Row
+          label={t('Notifications système')}
+          hint={t('Quand une session hors de vue a besoin de vous.')}
+        >
+          <SwitchField
+            setting="terminal.notifications.enabled"
+            label={t('Notifications système')}
+            checked={notif.enabled}
+            disabled={readOnly}
+            onChange={(enabled) => {
+              setNotif({ enabled });
+            }}
+          />
+        </Row>
+        <Row
+          label={t('Fin d’une commande d’au moins')}
+          hint={t(
+            'Détectée par l’intégration du shell : fish 4 d’origine, bash et zsh avec les lignes du panneau Fichiers.',
+          )}
+        >
+          <NumberField
+            setting="terminal.notifications.minDurationSecs"
+            label={t('Durée minimale d’une commande signalée')}
+            value={notif.minDurationSecs}
+            min={0}
+            max={86_400}
+            unit="s"
+            disabled={readOnly}
+            onChange={(minDurationSecs) => {
+              setNotif({ minDurationSecs });
+            }}
+          />
+        </Row>
+        <Row label={t('Sonnerie du terminal')}>
+          <SwitchField
+            setting="terminal.notifications.onBell"
+            label={t('Notifier la sonnerie du terminal')}
+            checked={notif.onBell}
+            // Without system notifications the bell only marks the Rail: nothing to choose.
+            disabled={readOnly || !notif.enabled}
+            onChange={(onBell) => {
+              setNotif({ onBell });
             }}
           />
         </Row>

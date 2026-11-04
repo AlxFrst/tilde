@@ -168,6 +168,7 @@ fait avec la touche `)`.
 | `library.open`                       | Bibliothèque               | Ctrl+Shift+L                |
 | `sidebar.toggle`                     | Masquer / afficher la barre latérale | Ctrl+Shift+B      |
 | `window.fullscreen`                  | Plein écran                | F11                         |
+| `window.new`                         | Nouvelle fenêtre           | Ctrl+Shift+N                |
 | `app.settings`                       | Réglages                   | —                           |
 | `connections.new`                    | Nouvelle connexion         | —                           |
 

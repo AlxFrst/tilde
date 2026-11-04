@@ -110,6 +110,29 @@ test('the configured default profile is used', async () => {
   expect(profileIds()).toEqual(['wsl:Ubuntu']);
 });
 
+test('a new window opens on the space of the window it was opened from', async () => {
+  // Rust puts it in the new window's address (windows.rs, `start_url`).
+  window.history.replaceState(null, '', '/index.html?space=pro');
+  try {
+    useWorkspace.setState({ tabs: [], activeTabId: null, activeSpaceId: 'main' });
+    vi.mocked(loadWorkspace).mockResolvedValue(null);
+    await restoreWorkspace([profile('cmd')], defaultSettings);
+    expect(ws().activeSpaceId).toBe('pro');
+    expect(ws().tabs.map((t) => t.spaceId)).toEqual(['pro']);
+
+    // Reloaded, it has a workspace of its own: that one shows.
+    useWorkspace.setState({ tabs: [], activeTabId: null, activeSpaceId: 'main' });
+    ws().openTab('cmd');
+    const snap = ws().snapshot();
+    useWorkspace.setState({ tabs: [], activeTabId: null });
+    vi.mocked(loadWorkspace).mockResolvedValue(snap);
+    await restoreWorkspace([profile('cmd')], defaultSettings);
+    expect(ws().activeSpaceId).toBe('main');
+  } finally {
+    window.history.replaceState(null, '', '/');
+  }
+});
+
 test('no shell detected leaves the welcome screen', async () => {
   vi.mocked(loadWorkspace).mockResolvedValue(null);
   await restoreWorkspace([], defaultSettings);

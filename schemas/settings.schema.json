@@ -42,7 +42,12 @@
         "defaultProfile": null,
         "copyOnSelect": false,
         "rightClick": "menu",
-        "confirmClose": true
+        "confirmClose": true,
+        "notifications": {
+          "enabled": true,
+          "minDurationSecs": 10,
+          "onBell": true
+        }
       }
     },
     "ssh": {
@@ -265,6 +270,14 @@
         "confirmClose": {
           "type": "boolean",
           "default": true
+        },
+        "notifications": {
+          "$ref": "#/$defs/Notifications",
+          "default": {
+            "enabled": true,
+            "minDurationSecs": 10,
+            "onBell": true
+          }
         }
       }
     },
@@ -283,6 +296,30 @@
         "paste",
         "copyPaste"
       ]
+    },
+    "Notifications": {
+      "description": "What happens when a session out of sight needs you: a long command ends (shell\nintegration, OSC 133/633), a program asks for it (OSC 9, OSC 777) or rings the bell.\nThe Rail marks the session in any case; these settings govern the system side.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "A system notification (and a taskbar flash when Tilde is in the background).",
+          "type": "boolean",
+          "default": true
+        },
+        "minDurationSecs": {
+          "description": "The end of a command is notified only if it ran at least this long (seconds).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "maximum": 86400,
+          "default": 10
+        },
+        "onBell": {
+          "description": "The terminal bell notifies too.",
+          "type": "boolean",
+          "default": true
+        }
+      }
     },
     "Ssh": {
       "type": "object",

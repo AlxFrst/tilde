@@ -157,6 +157,18 @@ export function shownView(s: Pick<WorkspaceState, 'views' | 'activeSpaceId'>): V
   return view?.shown ? view.root : null;
 }
 
+/**
+ * The sessions on screen, as AppShell lays them out: those of the view shown, else the
+ * active one. Never a view in the Quake console.
+ */
+export function tabsOnScreen(
+  s: Pick<WorkspaceState, 'views' | 'activeSpaceId' | 'activeTabId' | 'viewsEnabled'>,
+): string[] {
+  const view = s.viewsEnabled ? shownView(s) : null;
+  if (view) return viewTabs(view);
+  return s.activeTabId === null ? [] : [s.activeTabId];
+}
+
 /** The pane shown alone, and how many panes its session had then. */
 export interface Zoom {
   leafId: string;

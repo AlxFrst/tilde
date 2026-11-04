@@ -43,6 +43,7 @@ import { useKeybindings } from '@/stores/keybindings';
 import { bindingKeys } from './keyLabels';
 import { clipboardKey, matchShortcut } from './keys';
 import { enableLigatures } from './ligatures';
+import { createSessionNotifier, type SessionNotifier } from './notifier';
 import { parseOsc7 } from './osc7';
 import { needsPasteConfirmation, pastedLineCount } from './paste';
 import { createResizeScheduler } from './resize';
@@ -110,6 +111,7 @@ export function TerminalView(props: TerminalViewProps) {
   const container = useRef<HTMLDivElement>(null);
   const handle = useRef<TerminalHandle | null>(null);
   const session = useRef<SessionState | null>(null);
+  const notifier = useRef<SessionNotifier | null>(null);
   const latest = useRef({ props, terminalSettings, theme });
   useLayoutEffect(() => {
     latest.current = { props, terminalSettings, theme };
@@ -162,6 +164,13 @@ export function TerminalView(props: TerminalViewProps) {
     handle.current = h;
     setSearchAddon(h.search);
     const { term } = h;
+    // What the shell or a program signals (a command ended, a notification, the bell)
+    // reaches the user when this session is out of sight.
+    const signals = createSessionNotifier(
+      () => latest.current.props.tabId,
+      () => latest.current.terminalSettings?.notifications,
+    );
+    notifier.current = signals;
 
     const scheduler = createResizeScheduler((cols, rows) => {
       const id = session.current?.id;
@@ -189,6 +198,24 @@ export function TerminalView(props: TerminalViewProps) {
         const cwd = parseOsc7(data);
         if (cwd) latest.current.props.onCwd(cwd);
         return true;
+      }),
+      // Shell integration: FinalTerm's marks (fish 4, the bash/zsh snippet), VS Code's.
+      ...[133, 633].map((ident) =>
+        term.parser.registerOscHandler(ident, (data) => {
+          signals.shellMark(data);
+          return true;
+        }),
+      ),
+      term.parser.registerOscHandler(9, (data) => {
+        signals.osc9(data);
+        return true;
+      }),
+      term.parser.registerOscHandler(777, (data) => {
+        signals.osc777(data);
+        return true;
+      }),
+      term.onBell(() => {
+        signals.bell();
       }),
     ];
 
@@ -237,6 +264,7 @@ export function TerminalView(props: TerminalViewProps) {
         s.dispose();
       });
       handle.current = null;
+      notifier.current = null;
       h.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- created once; reads latest values via refs
@@ -254,6 +282,7 @@ export function TerminalView(props: TerminalViewProps) {
       disposed: false,
     };
     session.current = s;
+    notifier.current?.reset();
     // A pane in a background tab has no size yet: keep the default until it is shown.
     if (container.current) safeFit(h, container.current);
     const opened = { cols: h.term.cols, rows: h.term.rows };
@@ -366,7 +395,7 @@ export function TerminalView(props: TerminalViewProps) {
   };
 
   const restart = () => {
-    handle.current?.term.reset();
+    handle.current?.reset();
     setExitCode(undefined);
     setConnection(null);
     setGeneration((g) => g + 1);

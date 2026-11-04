@@ -31,4 +31,7 @@ pub use themes::{
     list_user_themes, save_user_theme,
 };
 pub use watch::{ConfigFile, ConfigWatcher, watch_config};
-pub use workspace::{load_workspace, save_workspace};
+pub use workspace::{
+    MAIN_WINDOW, adopt_as_main, load_workspace, remove_workspace, save_workspace, saved_windows,
+    window_label, window_number,
+};

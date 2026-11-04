@@ -102,6 +102,14 @@ drop connections without saying why. Tilde starts from the other end.
   (bash/zsh/fish on Linux and macOS), and custom profiles are supported.
 - Sessions and splits, restored at startup; WebGL rendering, ligatures, search, clickable
   links, copy on select, `Ctrl+C` / `Ctrl+V`, safe multi-line paste.
+- **Several windows** (`Ctrl+Shift+N`), each with its own sessions, reopened at startup. On
+  Windows, the taskbar's **jump list** opens a new window or one of your recent connections.
+- **Notifications**: a long command that ends, a program asking for attention or the bell in
+  a session you are not looking at marks it in the Rail and shows a system notification
+  (shell integration: built into fish 4, a few lines for bash and zsh).
+- **Images in the terminal**: Sixel and iTerm2 inline images (img2sixel, chafa, timg, lsix,
+  imgcat, yazi previews), over SSH and in local shells on Linux and macOS. On Windows, local
+  shells go through the system's ConPTY, which drops Sixel; inline images get through.
 
 ### Panes beside your shell
 - **Editor** (CodeMirror 6): 16 languages, search, Ctrl+S, a *Save* button that tells whether
@@ -187,6 +195,7 @@ match the key built into Tilde is refused. You can turn the check off in *Settin
 | `Ctrl+Shift+X` | Close pane |
 | `Ctrl+Shift+Enter` | Maximize the pane / show the others again |
 | `F11` | Full screen |
+| `Ctrl+Shift+N` | New window |
 | `Ctrl+C` (with a selection) / `Ctrl+V`, or `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` with nothing selected interrupts, as usual) |
 | `Ctrl+Shift+F` | Search the scrollback |
 | `Ctrl+Shift+K` | SSH quick connect |

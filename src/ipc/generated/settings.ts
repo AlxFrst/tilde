@@ -49,6 +49,26 @@ export interface Terminal {
   copyOnSelect: boolean;
   rightClick: 'menu' | 'paste' | 'copyPaste';
   confirmClose: boolean;
+  notifications: Notifications;
+}
+/**
+ * What happens when a session out of sight needs you: a long command ends (shell
+ * integration, OSC 133/633), a program asks for it (OSC 9, OSC 777) or rings the bell.
+ * The Rail marks the session in any case; these settings govern the system side.
+ */
+export interface Notifications {
+  /**
+   * A system notification (and a taskbar flash when Tilde is in the background).
+   */
+  enabled: boolean;
+  /**
+   * The end of a command is notified only if it ran at least this long (seconds).
+   */
+  minDurationSecs: number;
+  /**
+   * The terminal bell notifies too.
+   */
+  onBell: boolean;
 }
 export interface Ssh {
   keepaliveIntervalSecs: number;

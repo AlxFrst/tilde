@@ -62,6 +62,7 @@ fn invalid_json_is_never_overwritten() {
     assert!(store.read_only());
     assert!(matches!(store.upsert_connection(conn("x", "h")), Err(ConfigError::ReadOnlyFile(_))));
     store.record_recent("ssh:h", "h");
+    assert!(!store.forget_recents(&["ssh:h".into()]));
     assert_eq!(read(&paths), broken);
 }
 
@@ -199,6 +200,24 @@ fn recents_are_capped_deduplicated_and_most_recent_first() {
     assert_eq!(keys[0], "ssh:h10");
     assert_eq!(keys[1], "ssh:h14");
     assert_eq!(keys.iter().filter(|k| **k == "ssh:h10").count(), 1);
+}
+
+#[test]
+fn recents_removed_from_the_jump_list_are_forgotten_until_opened_again() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    for key in ["ssh:a", "ssh:b", "conn:c1"] {
+        store.record_recent(key, key);
+    }
+    let keys = |store: &ConnectionsStore| -> Vec<String> {
+        store.file().recents.iter().map(|r| r.key.clone()).collect()
+    };
+    assert!(store.forget_recents(&["ssh:b".into(), "conn:c1".into(), "ssh:gone".into()]));
+    assert_eq!(keys(&store), ["ssh:a"]);
+    assert_eq!(keys(&ConnectionsStore::load(paths).0), ["ssh:a"], "written");
+    assert!(!store.forget_recents(&["ssh:gone".into()]), "nothing to forget");
+    store.record_recent("ssh:b", "ssh:b");
+    assert_eq!(keys(&store), ["ssh:b", "ssh:a"]);
 }
 
 #[test]

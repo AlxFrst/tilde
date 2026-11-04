@@ -1,19 +1,22 @@
-import { ChevronDown, RefreshCw, Server } from 'lucide-react';
+import { AppWindow, ChevronDown, RefreshCw, Server } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { t } from '@/i18n';
 import { tRust } from '@/i18n/rust';
+import { openNewWindow } from './newWindow';
 import { useProfiles } from '@/stores/profiles';
 import { useSsh } from '@/stores/ssh';
 import { useWorkspace } from '@/stores/workspace';
+import { bindingKeys } from '@/terminal/keyLabels';
 import { profileIcon } from './profileIcon';
 
-/** Chevron next to "+": open a tab with any profile. */
+/** Chevron next to "+": open a tab with any profile, connect, or open a new window. */
 export function NewTabMenu() {
   const profiles = useProfiles((s) => s.profiles);
   return (
@@ -53,6 +56,11 @@ export function NewTabMenu() {
         >
           <Server strokeWidth={1.5} />
           {t('Connexion SSH…')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={openNewWindow}>
+          <AppWindow strokeWidth={1.5} />
+          {t('Nouvelle fenêtre')}
+          <DropdownMenuShortcut>{bindingKeys('Ctrl+Shift+N').join('+')}</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={() => {

@@ -10,7 +10,6 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { FileDown, FileUp, FolderPlus, Library, Plus, ServerCog } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -31,6 +30,7 @@ import { exportWithToast, importWithReport } from '@/connections/transfer';
 import { t } from '@/i18n';
 import type { Connection, Folder } from '@/ipc/connections';
 import { cn } from '@/lib/utils';
+import { useAttention } from '@/stores/attention';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useWorkspace } from '@/stores/workspace';
 import { useShallow } from 'zustand/react/shallow';
@@ -45,7 +45,7 @@ import { RowShell, SessionRow, paneCount } from './SessionRow';
 import { useSessionStatus } from './sessionStatus';
 import { useViewMark } from './ViewMenu';
 import { useLabelNames } from '../paneLabel';
-import { viewDragHandlers, type DragSource } from '../viewDrop';
+import { railCollisions, railRowTransform, viewDragHandlers, type DragSource } from '../viewDrop';
 
 const COLLAPSED_KEY = 'tilde.sidebar.collapsedFolders';
 
@@ -115,6 +115,7 @@ function PinnedRow({ c }: { c: Connection }) {
   const active = useWorkspace((s) => session !== undefined && s.activeTabId === session.id);
   const status = useSessionStatus(session);
   const view = useViewMark(session?.id);
+  const attention = useAttention((s) => session !== undefined && s.marked[session.id] === true);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `pinned:${c.id}`,
     data: { connectionId: c.id },
@@ -122,7 +123,7 @@ function PinnedRow({ c }: { c: Connection }) {
   const panes = session ? leaves(session.root).length : 0;
   return (
     <li
-      style={{ transform: CSS.Translate.toString(transform), transition }}
+      style={{ transform: railRowTransform(transform), transition }}
       className={cn(isDragging && 'relative z-10 opacity-80')}
     >
       <RowShell
@@ -149,6 +150,7 @@ function PinnedRow({ c }: { c: Connection }) {
         dragProps={{ ...attributes, ...listeners }}
         buttonRef={setNodeRef}
         view={view}
+        attention={attention}
       />
       {session && <PaneList tab={session} />}
       {others.length > 0 && (
@@ -210,8 +212,11 @@ function AddMenu() {
 
 const isRow = (d: { id: unknown }) => String(d.id).startsWith('pinned:');
 
-/** Over a row: that row, to reorder. Elsewhere: the folder (or root) under the drag. */
-const collisions: CollisionDetection = (args) => {
+/**
+ * Over a row: that row, to reorder. Elsewhere: the folder (or root) under the drag. Over the
+ * content: nothing (the drop goes there).
+ */
+const collisions: CollisionDetection = railCollisions((args) => {
   const rows = pointerWithin({
     ...args,
     droppableContainers: args.droppableContainers.filter(isRow),
@@ -221,7 +226,7 @@ const collisions: CollisionDetection = (args) => {
     ...args,
     droppableContainers: args.droppableContainers.filter((d) => !isRow(d)),
   });
-};
+});
 
 /** The rows of one list, sortable among themselves. */
 function PinnedList({ items }: { items: Connection[] }) {
@@ -316,6 +321,7 @@ export function PinnedSection({ onOpenLibrary }: { onOpenLibrary?: () => void })
     <DndContext
       sensors={sensors}
       collisionDetection={collisions}
+      autoScroll={viewDrag.autoScroll}
       onDragStart={viewDrag.onDragStart}
       onDragMove={viewDrag.onDragMove}
       onDragCancel={viewDrag.onDragCancel}

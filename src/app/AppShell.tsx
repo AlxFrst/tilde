@@ -3,16 +3,13 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { registerBuiltins } from '@/commands/builtin';
-import { dirtyEditors } from '@/stores/editors';
 import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/stores/ui';
 import { shownView, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { viewRects } from '@/workspace/view';
-import { allSessions } from '@/terminal/sessionRegistry';
-import { flushWorkspace } from '@/workspace/persistence';
-import { confirmClose } from './closeGuard';
+import { useAttentionTracking } from './attention';
 import { CommandPalette } from './CommandPalette';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -34,16 +31,14 @@ import { LibraryDialog } from './library/LibraryDialog';
 import { TabBar } from './TabBar';
 import { TunnelsDialog } from './TunnelsDialog';
 import { useShortcuts } from './useShortcuts';
+import { onCloseRequested } from './windowClose';
 import { Welcome } from './Welcome';
 
 /** Asks before closing the window while a program runs in any terminal. */
 function useWindowCloseGuard(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
-    const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (await confirmClose(allSessions(), dirtyEditors())) flushWorkspace();
-      else event.preventDefault();
-    });
+    const unlisten = getCurrentWindow().onCloseRequested(onCloseRequested);
     return () => {
       void unlisten.then((off) => {
         off();
@@ -150,6 +145,7 @@ export function AppShell({
   const activeTab = useWorkspace((s) => s.tabs.find((t) => t.id === s.activeTabId));
   const file = useConnections((s) => s.file);
   // The sessions shown side by side (never in the Quake console), each in its slot.
+  // tabsOnScreen (stores/workspace) says the same, for what the user sees.
   const view = useWorkspace((s) => (quake ? null : shownView(s)));
   const slots = useMemo(() => (view ? viewRects(view) : null), [view]);
   // With a view each slot has its own environment frame; the content area has none.
@@ -158,6 +154,7 @@ export function AppShell({
   useEffect(() => registerBuiltins(), []);
   useWindowCloseGuard(!quake);
   useQuakeTabs(quake);
+  useAttentionTracking();
 
   const area = useRef<HTMLElement>(null);
   const isMac = appInfo.platform === 'macos';

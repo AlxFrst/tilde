@@ -3,8 +3,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { OpenSessionOptions } from '@/ipc/session';
 import type { SshPanel, TerminalPanel } from '@/workspace/types';
+import { useAttention } from '@/stores/attention';
 import { useSettings } from '@/stores/settings';
 import { defaultSettings } from '@/test/fixtures';
+import { IMAGE_ADDON_OPTIONS } from './createTerminal';
 import { TerminalView } from './TerminalView';
 
 // ---- fake xterm -------------------------------------------------------------------
@@ -23,7 +25,27 @@ const { FakeTerminal } = vi.hoisted(() => {
     dataListeners: Listener<string>[] = [];
     loaded: unknown[] = [];
     disposed = false;
-    parser = { registerOscHandler: vi.fn(() => ({ dispose() {} })) };
+    oscHandlers = new Map<number, (data: string) => boolean>();
+    parser = {
+      registerOscHandler: (ident: number, handler: (data: string) => boolean) => {
+        this.oscHandlers.set(ident, handler);
+        return { dispose() {} };
+      },
+    };
+    /** What the terminal does with an OSC sequence the program printed. */
+    osc(ident: number, data: string) {
+      this.oscHandlers.get(ident)?.(data);
+    }
+    bellListeners: (() => void)[] = [];
+    onBell(l: () => void) {
+      this.bellListeners.push(l);
+      return { dispose() {} };
+    }
+    ring() {
+      this.bellListeners.forEach((l) => {
+        l();
+      });
+    }
     constructor(options: Record<string, unknown>) {
       this.options = { ...options };
       FakeTerminal.instances.push(this);
@@ -121,6 +143,25 @@ vi.mock('@xterm/addon-search', () => ({
     clearDecorations() {}
   },
 }));
+const imageShouldThrow = vi.hoisted(() => ({ value: false }));
+const { FakeImageAddon } = vi.hoisted(() => ({
+  FakeImageAddon: class {
+    options: Record<string, unknown>;
+    resets = 0;
+    disposed = false;
+    constructor(options: Record<string, unknown>) {
+      if (imageShouldThrow.value) throw new Error('no images');
+      this.options = options;
+    }
+    reset() {
+      this.resets += 1;
+    }
+    dispose() {
+      this.disposed = true;
+    }
+  },
+}));
+vi.mock('@xterm/addon-image', () => ({ ImageAddon: FakeImageAddon }));
 vi.mock('@xterm/addon-web-links', () => ({ WebLinksAddon: class {} }));
 vi.mock('@xterm/addon-unicode11', () => ({ Unicode11Addon: class {} }));
 vi.mock('@xterm/addon-serialize', () => ({ SerializeAddon: class {} }));
@@ -153,6 +194,12 @@ vi.mock('@/ipc/session', () => ({
 
 const session = await import('@/ipc/session');
 
+vi.mock('@/ipc/notify', () => ({
+  notifyDesktop: vi.fn(() => Promise.resolve()),
+  requestAttention: vi.fn(),
+}));
+const notify = await import('@/ipc/notify');
+
 beforeAll(() => {
   window.matchMedia = vi.fn().mockImplementation((q: string) => ({
     matches: q.includes('dark'),
@@ -173,6 +220,7 @@ beforeAll(() => {
 beforeEach(() => {
   FakeTerminal.instances = [];
   webglShouldThrow.value = false;
+  imageShouldThrow.value = false;
   ipc.open = null;
   ipc.resolveOpen = null;
   vi.clearAllMocks();
@@ -298,6 +346,61 @@ test('webgl failure falls back without crashing', () => {
   const { term } = renderView();
   expect(session.openSession).toHaveBeenCalled();
   expect(term.disposed).toBe(false);
+});
+
+type FakeImageAddon = InstanceType<typeof FakeImageAddon>;
+const isImageAddon = (a: unknown): a is FakeImageAddon => a instanceof FakeImageAddon;
+
+function imageAddonOf(term: FakeTerminal) {
+  const found = term.loaded.find(isImageAddon);
+  if (!found) throw new Error('no image addon loaded');
+  return found;
+}
+
+test('every terminal shows images, with Tilde’s memory limits', () => {
+  const { term } = renderView();
+  const { options } = imageAddonOf(term);
+  expect(options).toEqual(IMAGE_ADDON_OPTIONS);
+  expect(options).toMatchObject({ sixelSupport: true, iipSupport: true, showPlaceholder: true });
+  // Tools ask for the cell size in pixels to scale their pictures.
+  expect(options.enableSizeReports).toBe(true);
+  // Per terminal, with many sessions open: well under the addon's 128 MB.
+  expect(options.storageLimit).toBe(32);
+  // Never above the addon's defaults: a remote server picks what it sends.
+  expect(options.pixelLimit).toBeLessThanOrEqual(4096 * 4096);
+  expect(options.sixelSizeLimit).toBeLessThanOrEqual(25_000_000);
+  expect(options.iipSizeLimit).toBeLessThanOrEqual(20_000_000);
+});
+
+test('closing a terminal frees its images', () => {
+  const { unmount, term } = renderView();
+  const images = imageAddonOf(term);
+  unmount();
+  expect(images.disposed).toBe(true);
+  expect(term.disposed).toBe(true);
+});
+
+test('a restarted session starts without the previous one’s images', async () => {
+  const { term } = renderView();
+  await resolveSession();
+  const reset = vi.spyOn(term, 'reset');
+  act(() => {
+    ipc.open?.onExit(3);
+  });
+  await userEvent.click(await screen.findByRole('button', { name: /Relancer/ }));
+  expect(reset).toHaveBeenCalledTimes(1);
+  expect(imageAddonOf(term).resets).toBe(1);
+  expect(session.openSession).toHaveBeenCalledTimes(2);
+});
+
+test('a terminal still opens when image support fails to load', () => {
+  imageShouldThrow.value = true;
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  const { term } = renderView();
+  expect(term.loaded.some(isImageAddon)).toBe(false);
+  expect(session.openSession).toHaveBeenCalled();
+  expect(term.disposed).toBe(false);
+  warn.mockRestore();
 });
 
 test('exit is reported and shows the exit overlay', async () => {
@@ -431,6 +534,64 @@ test('the terminal opens in an element without padding, inside the padded one', 
   if (!el) throw new Error('not opened');
   expect(el.className).not.toMatch(/\bp[xytrbl]?-/);
   expect(el.parentElement?.className).toMatch(/\bpx-2\b/);
+});
+
+describe('a session out of sight', () => {
+  beforeEach(async () => {
+    const { useWorkspace } = await import('@/stores/workspace');
+    // Another session is shown: this one ('t') is out of sight.
+    useWorkspace.setState({ tabs: [], activeTabId: 'other', views: {}, dormant: [] });
+    useAttention.setState({ marked: {}, windowFocused: true });
+  });
+
+  test('tells the user when a long command ends', async () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1_000);
+    const { term } = renderView();
+    await resolveSession();
+    term.osc(133, 'C');
+    now.mockReturnValue(61_000);
+    term.osc(133, 'D;1');
+    expect(notify.notifyDesktop).toHaveBeenCalledWith(
+      'Tilde',
+      'Commande échouée (code 1) en 1 min',
+    );
+    expect(useAttention.getState().marked).toEqual({ t: true });
+    now.mockRestore();
+  });
+
+  test('passes on what programs ask for: OSC 9, OSC 777, VS Code marks, the bell', async () => {
+    const { term } = renderView();
+    await resolveSession();
+    term.osc(9, 'tests passed');
+    expect(notify.notifyDesktop).toHaveBeenLastCalledWith('Tilde', 'tests passed');
+    // One message every few seconds per pane: the next ones only mark the Rail. The bell
+    // has its own allowance, so it never hides a message.
+    term.osc(777, 'notify;Backup;done');
+    term.osc(633, 'C');
+    term.osc(633, 'D;0');
+    term.ring();
+    expect(vi.mocked(notify.notifyDesktop).mock.calls).toEqual([
+      ['Tilde', 'tests passed'],
+      ['Tilde', 'Signal sonore'],
+    ]);
+    expect(useAttention.getState().marked).toEqual({ t: true });
+  });
+
+  test('a restarted shell forgets the command the old one was running', async () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1_000);
+    const { term, props } = renderView();
+    await resolveSession();
+    term.osc(133, 'C');
+    act(() => {
+      ipc.open?.onExit(0);
+    });
+    expect(props.onExit).toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: /Relancer/ }));
+    now.mockReturnValue(120_000);
+    term.osc(133, 'D;0');
+    expect(notify.notifyDesktop).not.toHaveBeenCalled();
+    now.mockRestore();
+  });
 });
 
 test('a terminal scrolled sideways by the browser is put back at once', () => {

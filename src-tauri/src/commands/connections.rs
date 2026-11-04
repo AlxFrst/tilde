@@ -42,8 +42,10 @@ fn view(state: &AppState) -> ConnectionsView {
     }
 }
 
+/// Tells the front-end, and the taskbar's jump list (its recents, a connection's name).
 pub(crate) fn emit_changed(app: &AppHandle) {
     let _ = app.emit(EVENT_CHANGED, view(&app.state::<AppState>()));
+    crate::jump_list::refresh(app);
 }
 
 /// Runs `change` on the store, then tells the front-end.

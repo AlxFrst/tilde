@@ -1,6 +1,6 @@
 import { registerCorePanels } from '@/panels/core';
 import type { LayoutNode, Tab } from '@/workspace/types';
-import { paneLabel, sessionTitle, type LabelNames } from './paneLabel';
+import { paneLabel, railTitle, sessionTitle, type LabelNames } from './paneLabel';
 
 beforeAll(() => {
   registerCorePanels();
@@ -87,4 +87,14 @@ test('a session is named after what it was given, its connection, or its shell',
   }
   expect(sessionTitle(titled, names)).toBe('PowerShell');
   expect(sessionTitle(tab([term('a')], 'build'), names)).toBe('build');
+});
+
+test('a session is called as its row in the Rail calls it', () => {
+  const pinned = { ...tab([ssh('a')], 'renamed'), pinnedConnectionId: 'c1' };
+  const ranked = (rank: number): LabelNames => ({ ...names, rank: () => rank });
+  // A saved connection's own session: its row is the connection's.
+  expect(railTitle(pinned, ranked(1))).toBe('demo-server');
+  // Its other sessions, and the sessions of « Aujourd’hui », go by their own names.
+  expect(railTitle({ ...pinned, customTitle: null }, ranked(2))).toBe('demo-server (2)');
+  expect(railTitle(tab([term('a')], 'build'), names)).toBe('build');
 });
