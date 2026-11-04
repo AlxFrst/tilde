@@ -12,6 +12,7 @@ mod quake;
 mod state;
 mod updater;
 mod window_effects;
+mod windows;
 
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -31,32 +32,35 @@ use crate::{
     state::AppState,
 };
 
-/// The front-end shows the (initially hidden) window once it has rendered. If it crashes
+/// The front-end shows its (initially hidden) window once it has rendered. If it crashes
 /// before that, the window would stay invisible forever — and single-instance would only
 /// "focus" that ghost on relaunch — so Rust shows it anyway after a grace period.
-fn show_window_if_frontend_stalls(app: tauri::AppHandle) {
+pub(crate) fn show_if_page_stalls(app: tauri::AppHandle, label: String) {
     const GRACE: std::time::Duration = std::time::Duration::from_secs(5);
     std::thread::spawn(move || {
         std::thread::sleep(GRACE);
-        if let Some(window) = app.get_webview_window("main")
+        if let Some(window) = app.get_webview_window(&label)
             && !window.is_visible().unwrap_or(true)
         {
-            tracing::warn!("front-end did not show the window in time; showing it as a fallback");
+            tracing::warn!(label, "front-end did not show the window in time; showing it");
             let _ = window.show();
         }
     });
 }
 
-/// The Quake window hides instead of closing; closing the main window quits the app
-/// (a hidden Quake window must not keep it running).
+/// The Quake window hides instead of closing. A Tilde window that is gone ends its sessions,
+/// and the last one quits the app (a hidden Quake window must not keep it running).
 fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
     match event {
         tauri::WindowEvent::CloseRequested { api, .. } if window.label() == quake::QUAKE_LABEL => {
             api.prevent_close();
             let _ = window.hide();
         }
-        tauri::WindowEvent::Destroyed if window.label() == "main" => {
-            window.app_handle().exit(0);
+        tauri::WindowEvent::Focused(true) => {
+            window.app_handle().state::<AppState>().windows.focused(window.label());
+        }
+        tauri::WindowEvent::Destroyed => {
+            windows::on_destroyed(window.app_handle(), window.label());
         }
         _ => {}
     }
@@ -84,9 +88,10 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     );
     let _ = app.state::<AppState>().sftp.transfers.set(transfers);
     std::thread::spawn(tilde_ssh::clean_stale_edit_dirs);
-    if let Some(window) = app.get_webview_window("main") {
+    if let Some(window) = app.get_webview_window(tilde_config::MAIN_WINDOW) {
         autofill::disable(&window);
     }
+    windows::reopen_saved(app);
     let quake = app.state::<AppState>().settings.lock().settings().general.quake.clone();
     quake::sync_quake(app, &quake, &app.state::<AppState>().quake);
     #[cfg(windows)]
@@ -113,7 +118,7 @@ fn on_startup(app: &tauri::AppHandle, paths: &ConfigPaths) {
     std::thread::spawn(move || {
         commands::profiles::detected_shells(&handle.state::<AppState>());
     });
-    show_window_if_frontend_stalls(app.clone());
+    show_if_page_stalls(app.clone(), tilde_config::MAIN_WINDOW.to_string());
 }
 
 /// Every command the front-end may invoke.
@@ -198,6 +203,8 @@ fn command_handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'sta
         window_effects::window_supported_effects,
         commands::workspace::workspace_load,
         commands::workspace::workspace_save,
+        windows::window_new,
+        windows::window_closing,
     ]
 }
 
@@ -279,6 +286,7 @@ pub fn run() {
             monitor_remote: Mutex::default(),
             launch_dir: launch::LaunchDir(Mutex::new(launch_dir)),
             locale: locale::UiLocale::default(),
+            windows: windows::Windows::default(),
         })
         .setup(move |app| {
             on_startup(app.handle(), &paths);

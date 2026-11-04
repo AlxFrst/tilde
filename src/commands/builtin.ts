@@ -8,6 +8,7 @@ import { msg, t } from '@/i18n';
 import { openKeybindingsFile } from '@/ipc/keybindings';
 import { openLogsDir, openSettingsFile } from '@/ipc/settings';
 import { openThemesDir } from '@/ipc/themes';
+import { windowNew } from '@/ipc/window';
 import { blankConnection, useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { useUi } from '@/stores/ui';
@@ -91,6 +92,17 @@ export function registerBuiltins(): () => void {
         }
         const { railHidden, setRailHidden } = useUi.getState();
         setRailHidden(!railHidden);
+      },
+    },
+    {
+      id: 'window.new',
+      keywords: ['new window', 'fenêtre', 'window', 'monitor', 'écran'],
+      title: msg('Nouvelle fenêtre'),
+      group: 'Application',
+      run: () => {
+        windowNew().catch((err: unknown) => {
+          console.warn('new window failed', err);
+        });
       },
     },
     {

@@ -115,11 +115,11 @@ impl UiPrompter {
     }
 
     /// Resolves question `id`. `false` if nobody is waiting for it (timed out, unknown).
+    /// Every window shows the question: answered in one, it leaves the others.
     pub fn reply(&self, id: u32, reply: PromptReply) -> bool {
-        match self.pending.lock().remove(&id) {
-            Some(waiting) => waiting.send(reply).is_ok(),
-            None => false,
-        }
+        let Some(waiting) = self.pending.lock().remove(&id) else { return false };
+        (self.notify)(Notice::Dismiss(id));
+        waiting.send(reply).is_ok()
     }
 
     /// Asks and waits. `None`: cancelled or unanswered in time.
@@ -281,6 +281,19 @@ mod tests {
         assert!(p.reply(1, PromptReply::Secret { value: "pw".into(), remember: true }));
         let answer = asking.await.unwrap().unwrap();
         assert_eq!((answer.value.as_str(), answer.remember), ("pw", true));
+    }
+
+    #[tokio::test]
+    async fn an_answered_question_leaves_the_other_windows() {
+        let (p, seen) = prompter(PROMPT_TIMEOUT);
+        let asking = tokio::spawn({
+            let p = Arc::clone(&p);
+            async move { p.secret(password_prompt()).await }
+        });
+        wait_for_question(&seen).await;
+        assert!(p.reply(1, PromptReply::Cancel));
+        asking.await.unwrap();
+        assert_eq!(seen.lock().last().map(String::as_str), Some("dismiss 1"));
     }
 
     #[tokio::test]

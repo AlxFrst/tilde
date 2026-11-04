@@ -12,3 +12,7 @@ export const windowApplyEffects = (dark: boolean) =>
 export const windowSupportedEffects = () => invoke<WindowEffect[]>('window_supported_effects');
 /** Why the Quake shortcut is not active although enabled (taken, invalid), if it is not. */
 export const quakeStatus = () => invoke<string | null>('quake_status');
+/** Opens a new Tilde window beside this one. */
+export const windowNew = () => invoke<undefined>('window_new');
+/** The user confirmed closing this window (Rust forgets it once gone, unless it was the last). */
+export const windowClosing = () => invoke<undefined>('window_closing');

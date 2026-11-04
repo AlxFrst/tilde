@@ -45,6 +45,8 @@ pub struct AppState {
     pub launch_dir: crate::launch::LaunchDir,
     /// The interface's language, for native dialogs and Explorer's context menu.
     pub locale: UiLocale,
+    /// The Tilde windows' sessions and whether a closed one is to be forgotten.
+    pub windows: crate::windows::Windows,
 }
 
 #[derive(Default)]

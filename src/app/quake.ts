@@ -11,6 +11,14 @@ export function isQuakeWindow(label: string = getCurrentWindow().label): boolean
   return label === QUAKE_LABEL;
 }
 
+/**
+ * The first Tilde window (always open at startup; the others are `window-2`…): app-wide
+ * chores (update check, Quake shortcut errors) happen there once, not in every window.
+ */
+export function isMainWindow(label: string = getCurrentWindow().label): boolean {
+  return label === 'main';
+}
+
 /** Time for the closing panes to ask Rust to end their sessions before the window goes. */
 const SHUTDOWN_GRACE_MS = 100;
 

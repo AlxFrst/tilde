@@ -6,7 +6,7 @@ use std::{sync::Arc, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tauri::{
-    AppHandle, State,
+    AppHandle, Manager, State, WebviewWindow,
     ipc::{Channel, InvokeBody, InvokeResponseBody, Request},
 };
 use tilde_session::{OutputSink, SessionError, SessionId, SessionSpec};
@@ -113,6 +113,7 @@ pub(crate) fn start_dir(requested: Option<&str>, profile_cwd: Option<&str>) -> O
 #[allow(clippy::too_many_arguments)] // Tauri command: one argument per IPC field
 pub async fn session_open(
     app: AppHandle,
+    window: WebviewWindow,
     state: State<'_, AppState>,
     target: OpenTarget,
     cwd: Option<String>,
@@ -121,7 +122,7 @@ pub async fn session_open(
     output: Channel<InvokeResponseBody>,
     events: Channel<SessionEvent>,
 ) -> Result<SessionOpened, SessionErrorDto> {
-    match target {
+    let opened = match target {
         OpenTarget::Local { profile_id } => {
             open_local(&state, profile_id, cwd, cols, rows, output, events)
         }
@@ -136,7 +137,15 @@ pub async fn session_open(
             emit_changed(&app);
             Ok(SessionOpened { id, profile_id: None })
         }
+    }?;
+    // Closing the window ends it. A window closed while this was connecting is gone already:
+    // nobody would show the session.
+    state.windows.session_opened(opened.id, window.label());
+    if app.get_webview_window(window.label()).is_none() {
+        state.windows.session_closed(opened.id);
+        end_session(&app, &state, opened.id);
     }
+    Ok(opened)
 }
 
 fn open_local(
@@ -277,10 +286,20 @@ pub fn session_close(
     state: State<'_, AppState>,
     id: u32,
 ) -> Result<(), SessionErrorDto> {
+    state.windows.session_closed(id);
     if state.ssh.shells.lock().remove(&id).is_some() {
         crate::commands::sftp::on_session_closed(&app, id);
     }
     Ok(state.sessions.close(SessionId(id))?)
+}
+
+/// Ends session `id` whose window is gone (as closing its tab would).
+pub(crate) fn end_session(app: &AppHandle, state: &AppState, id: u32) {
+    if state.ssh.shells.lock().remove(&id).is_some() {
+        crate::commands::sftp::on_session_closed(app, id);
+    }
+    // Already ended on its own (its shell exited): nothing left to close.
+    let _ = state.sessions.close(SessionId(id));
 }
 
 /// Inspects the process table, so it runs off the main thread. A connected SSH session

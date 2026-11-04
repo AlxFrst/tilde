@@ -27,6 +27,7 @@ export const DEFAULT_KEYBINDINGS: Readonly<Record<string, string>> = {
   'library.open': 'Ctrl+Shift+L',
   'sidebar.toggle': 'Ctrl+Shift+B',
   'window.fullscreen': 'F11',
+  'window.new': 'Ctrl+Shift+N',
   'space.next': 'Ctrl+Shift+PageDown',
   'space.prev': 'Ctrl+Shift+PageUp',
   ...Object.fromEntries(

@@ -1,11 +1,12 @@
 //! Starting Tilde on a folder: `tilde --open <dir>`, which Explorer's "Ouvrir dans Tilde"
-//! runs. A first launch keeps the folder until the front-end asks for it; a second launch
-//! hands it to the running window (single instance) as an event.
+//! runs. A first launch keeps the folder until the main window asks for it; a later launch
+//! hands it to the last window used (single instance) as an event. A later launch without
+//! a folder opens a new window.
 
 use std::path::{Path, PathBuf};
 
 use parking_lot::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State, WebviewWindow};
 
 use crate::state::AppState;
 
@@ -46,23 +47,29 @@ fn drive_root(value: &str) -> std::borrow::Cow<'_, str> {
 #[derive(Default)]
 pub struct LaunchDir(pub Mutex<Option<PathBuf>>);
 
-/// The folder Tilde was started on, once (`None` afterwards).
+/// The folder Tilde was started on, once (`None` afterwards), for the main window: the
+/// windows reopened at startup beside it do not take it.
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)] // Tauri hands command arguments over by value.
-pub fn launch_take_dir(state: State<'_, AppState>) -> Option<String> {
+pub fn launch_take_dir(window: WebviewWindow, state: State<'_, AppState>) -> Option<String> {
+    if window.label() != tilde_config::MAIN_WINDOW {
+        return None;
+    }
     state.launch_dir.0.lock().take().map(|d| d.display().to_string())
 }
 
-/// Called by the single-instance plugin when Tilde is started again: shows the window
-/// and, if that launch named a folder, asks it to open a terminal there.
+/// Called by the single-instance plugin when Tilde is started again. With a folder: the last
+/// window used comes forward and opens a terminal there. Without: a new window opens.
 pub fn on_second_instance(app: &AppHandle, args: &[String], cwd: &str) {
-    let Some(window) = app.get_webview_window("main") else { return };
+    let Some(dir) = dir_from_args(args, Path::new(cwd)) else {
+        crate::windows::open_new(app);
+        return;
+    };
+    let Some(window) = crate::windows::launch_target(app) else { return };
     let _ = window.unminimize();
     let _ = window.show();
     let _ = window.set_focus();
-    if let Some(dir) = dir_from_args(args, Path::new(cwd)) {
-        let _ = window.emit(OPEN_DIR_EVENT, dir.display().to_string());
-    }
+    let _ = window.emit_to(window.label(), OPEN_DIR_EVENT, dir.display().to_string());
 }
 
 #[cfg(test)]

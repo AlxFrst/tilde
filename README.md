@@ -187,6 +187,7 @@ match the key built into Tilde is refused. You can turn the check off in *Settin
 | `Ctrl+Shift+X` | Close pane |
 | `Ctrl+Shift+Enter` | Maximize the pane / show the others again |
 | `F11` | Full screen |
+| `Ctrl+Shift+N` | New window |
 | `Ctrl+C` (with a selection) / `Ctrl+V`, or `Ctrl+Shift+C` / `Ctrl+Shift+V` | Copy / paste (`Ctrl+C` with nothing selected interrupts, as usual) |
 | `Ctrl+Shift+F` | Search the scrollback |
 | `Ctrl+Shift+K` | SSH quick connect |

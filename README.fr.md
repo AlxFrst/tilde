@@ -99,6 +99,7 @@ Réglages → Général.
 | Ctrl+Maj+X | Fermer le panneau |
 | Ctrl+Maj+Entrée | Agrandir le panneau / revenir aux autres |
 | F11 | Plein écran |
+| Ctrl+Maj+N | Nouvelle fenêtre |
 | Alt+← ↑ → ↓ | Changer de panneau |
 | Ctrl+C (avec une sélection) / Ctrl+V, ou Ctrl+Maj+C / Ctrl+Maj+V | Copier / coller (Ctrl+C sans sélection interrompt la commande) |
 | Ctrl+Maj+F | Rechercher |

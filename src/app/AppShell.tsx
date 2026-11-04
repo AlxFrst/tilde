@@ -3,16 +3,12 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AppInfo } from '@/ipc/app';
 import type { Settings } from '@/ipc/generated/settings';
 import { registerBuiltins } from '@/commands/builtin';
-import { dirtyEditors } from '@/stores/editors';
 import { useConnections } from '@/stores/connections';
 import { useSsh } from '@/stores/ssh';
 import { cn } from '@/lib/utils';
 import { useUi } from '@/stores/ui';
 import { shownView, useWorkspace, zoomedLeafOf } from '@/stores/workspace';
 import { viewRects } from '@/workspace/view';
-import { allSessions } from '@/terminal/sessionRegistry';
-import { flushWorkspace } from '@/workspace/persistence';
-import { confirmClose } from './closeGuard';
 import { CommandPalette } from './CommandPalette';
 import { ConfirmCloseDialog } from './ConfirmCloseDialog';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -34,16 +30,14 @@ import { LibraryDialog } from './library/LibraryDialog';
 import { TabBar } from './TabBar';
 import { TunnelsDialog } from './TunnelsDialog';
 import { useShortcuts } from './useShortcuts';
+import { onCloseRequested } from './windowClose';
 import { Welcome } from './Welcome';
 
 /** Asks before closing the window while a program runs in any terminal. */
 function useWindowCloseGuard(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
-    const unlisten = getCurrentWindow().onCloseRequested(async (event) => {
-      if (await confirmClose(allSessions(), dirtyEditors())) flushWorkspace();
-      else event.preventDefault();
-    });
+    const unlisten = getCurrentWindow().onCloseRequested(onCloseRequested);
     return () => {
       void unlisten.then((off) => {
         off();
