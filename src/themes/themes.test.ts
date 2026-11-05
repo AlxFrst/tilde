@@ -39,6 +39,10 @@ test('every builtin theme has all tokens as valid hex', () => {
       'one-light',
       'rose-pine',
       'rose-pine-dawn',
+      'zero-day',
+      'zero-day-light',
+      'daemon',
+      'daemon-light',
     ]),
   );
 });

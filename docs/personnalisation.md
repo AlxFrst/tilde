@@ -26,8 +26,10 @@ Thèmes intégrés :
 | Dracula          | Gruvbox Light    |
 | Nord             | One Light        |
 | Gruvbox Dark     | Rosé Pine Dawn   |
-| One Dark         |                  |
-| Rosé Pine        |                  |
+| One Dark         | Zero Day Light   |
+| Rosé Pine        | Daemon Light     |
+| Zero Day         |                  |
+| Daemon           |                  |
 
 Il y a un thème sombre et un thème clair. L'apparence (Système, Sombre ou Clair) choisit
 lequel est affiché ; « Système » suit le réglage de l'OS.
