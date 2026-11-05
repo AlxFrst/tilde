@@ -4,6 +4,17 @@ All notable changes to Tilde are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.2]
+
+### Added
+- **Zero Day and Daemon themes**, each with a dark and a light variant. The dark ones have a
+  pure black ground for AMOLED screens. Tilde now has 18 themes.
+- **A theme per space.** Turn on *Settings › Appearance › One theme per space* and each space
+  can pick a dark and a light theme in its edit window (*Global theme* keeps the one from the
+  settings). The appearance still decides which of the two shows, and each window follows the
+  space it shows. A space whose theme was deleted goes back to the global one. It is off by
+  default, and a space's choices stay saved while it is off.
+
 ## [0.4.1]
 
 ### Added
@@ -187,6 +198,7 @@ The first public version.
   SHA-256 sums.
 - Built-in updates, signed and checked at startup (can be turned off).
 
+[0.4.2]: https://github.com/AlxFrst/tilde/releases/tag/v0.4.2
 [0.4.1]: https://github.com/AlxFrst/tilde/releases/tag/v0.4.1
 [0.4.0]: https://github.com/AlxFrst/tilde/releases/tag/v0.4.0
 [0.3.1]: https://github.com/AlxFrst/tilde/releases/tag/v0.3.1
