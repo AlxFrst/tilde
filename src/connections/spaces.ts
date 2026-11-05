@@ -5,7 +5,14 @@ import { msg, t } from '@/i18n';
 import type { Connection, ConnectionsFile, Space } from '@/ipc/connections';
 
 /** The implicit space (mirrors `MAIN_SPACE_ID` and `MAIN_SPACE_NAME` in crates/tilde-config). */
-export const MAIN_SPACE: Space = { id: 'main', name: msg('Principal'), color: null, icon: null };
+export const MAIN_SPACE: Space = {
+  id: 'main',
+  name: msg('Principal'),
+  color: null,
+  icon: null,
+  themeDark: null,
+  themeLight: null,
+};
 
 /**
  * The name to show for a space. The main space's default name (written by Rust in

@@ -30,7 +30,14 @@ vi.mock('@/ipc/connections', async (orig) => ({
 }));
 vi.mock('@/ipc/session', () => ({ isSessionBusy: vi.fn(() => Promise.resolve(false)) }));
 
-const pro = { id: 'pro', name: 'Pro', color: '#7AA2F7', icon: 'briefcase' };
+const pro = {
+  id: 'pro',
+  name: 'Pro',
+  color: '#7AA2F7',
+  icon: 'briefcase',
+  themeDark: null,
+  themeLight: null,
+};
 const conn = (id: string, name: string, extra: Partial<Connection> = {}) =>
   blankConnection({ id, name, host: `${id}.example`, ...extra });
 const profile: ResolvedProfile = {

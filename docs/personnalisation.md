@@ -32,6 +32,15 @@ Thèmes intégrés :
 Il y a un thème sombre et un thème clair. L'apparence (Système, Sombre ou Clair) choisit
 lequel est affiché ; « Système » suit le réglage de l'OS.
 
+### Par espace
+
+Par défaut, le thème est le même partout. Activez **Réglages → Apparence → Un thème par
+espace** (`appearance.themePerSpace`) pour qu'un espace choisisse les siens : dans sa fenêtre
+d'édition, remplacez « Thème global » par un thème sombre et un thème clair. L'apparence décide
+toujours lequel des deux est affiché. Si le thème choisi est supprimé, l'espace revient au thème
+global. Dans `connections.json`, ce sont les clés `themeDark` et `themeLight` de l'espace ;
+elles sont conservées quand l'option est désactivée.
+
 ### Éditeur
 
 Dans **Réglages → Thèmes**, « Dupliquer et modifier » ouvre l'éditeur sur une copie. Chaque

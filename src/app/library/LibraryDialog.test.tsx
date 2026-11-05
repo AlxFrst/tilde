@@ -24,7 +24,14 @@ vi.mock('@/ipc/connections', async (orig) => ({
   upsertConnection: vi.fn((c: Connection) => Promise.resolve({ ...c, id: c.id || 'adopted' })),
 }));
 
-const pro = { id: 'pro', name: 'Pro', color: '#7AA2F7', icon: 'briefcase' };
+const pro = {
+  id: 'pro',
+  name: 'Pro',
+  color: '#7AA2F7',
+  icon: 'briefcase',
+  themeDark: null,
+  themeLight: null,
+};
 const web = blankConnection({ id: 'w', name: 'web-01', host: 'web01.example', spaceId: 'pro' });
 const nas = blankConnection({ id: 'n', name: 'nas', host: 'nas.lan' });
 const file: ConnectionsFile = {

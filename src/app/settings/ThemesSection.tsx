@@ -19,6 +19,7 @@ import { useSettings } from '@/stores/settings';
 import { useThemes } from '@/stores/themes';
 import { allThemes, serializeTheme, ThemeError, type ThemeDefinition } from '@/themes';
 import { importTheme, type ImportResult } from '@/themes/importers';
+import { SpaceThemeNote } from './SpaceThemeNote';
 import { ThemeEditor, uniqueThemeId } from './ThemeEditor';
 
 const SWATCH_KEYS = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan'] as const;
@@ -177,6 +178,7 @@ export function ThemesSection() {
 
   return (
     <div className="grid gap-4">
+      <SpaceThemeNote />
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" onClick={() => void startImport()}>
           <Upload strokeWidth={1.5} />

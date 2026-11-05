@@ -10,11 +10,25 @@ const file = (extra: Partial<ConnectionsFile> = {}): ConnectionsFile => ({
   ...extra,
 });
 
-const pro = { id: 'pro', name: 'Pro', color: '#7AA2F7', icon: 'briefcase' };
+const pro = {
+  id: 'pro',
+  name: 'Pro',
+  color: '#7AA2F7',
+  icon: 'briefcase',
+  themeDark: null,
+  themeLight: null,
+};
 
 test('listSpaces returns Principal when the file has none', () => {
   expect(listSpaces(file())).toEqual([MAIN_SPACE]);
-  expect(MAIN_SPACE).toEqual({ id: 'main', name: 'Principal', color: null, icon: null });
+  expect(MAIN_SPACE).toEqual({
+    id: 'main',
+    name: 'Principal',
+    color: null,
+    icon: null,
+    themeDark: null,
+    themeLight: null,
+  });
   const spaces = [MAIN_SPACE, pro];
   expect(listSpaces(file({ spaces }))).toEqual(spaces);
 });

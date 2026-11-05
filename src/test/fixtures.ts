@@ -7,6 +7,7 @@ export const defaultSettings: Settings = {
     colorScheme: 'system',
     themeDark: 'tilde-dark',
     themeLight: 'tilde-light',
+    themePerSpace: false,
     uiFontFamily: 'Geist Variable',
     uiFontSize: 13,
     density: 'comfortable',

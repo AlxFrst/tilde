@@ -20,7 +20,10 @@ const ws = () => useWorkspace.getState();
 const c1 = blankConnection({ id: 'c1', name: 'prod', host: 'prod', spaceId: 'pro' });
 const file = (connections = [c1]): ConnectionsFile => ({
   version: 1,
-  spaces: [MAIN_SPACE, { id: 'pro', name: 'Pro', color: null, icon: null }],
+  spaces: [
+    MAIN_SPACE,
+    { id: 'pro', name: 'Pro', color: null, icon: null, themeDark: null, themeLight: null },
+  ],
   folders: [],
   connections,
   recents: [],

@@ -32,6 +32,12 @@ export default {
   '{percent} %': '{percent}%',
   'Thème sombre': 'Dark theme',
   'Thème clair': 'Light theme',
+  'Un thème par espace': 'One theme per space',
+  'Chaque espace peut choisir ses thèmes dans sa fenêtre d’édition.':
+    'Each space can pick its themes in its edit window.',
+  'Thème global': 'Global theme',
+  'L’espace « {name} » a son propre thème : le thème global s’applique aux autres espaces.':
+    'The “{name}” space has its own theme: the global theme applies to the other spaces.',
   Thème: 'Theme',
   Interface: 'Interface',
   'Police de l’interface': 'Interface font',

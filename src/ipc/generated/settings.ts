@@ -16,6 +16,10 @@ export interface Appearance {
   colorScheme: 'system' | 'dark' | 'light';
   themeDark: string;
   themeLight: string;
+  /**
+   * Lets each space show its own themes instead of the global ones.
+   */
+  themePerSpace: boolean;
   uiFontFamily: string;
   uiFontSize: number;
   density: 'compact' | 'comfortable' | 'spacious';
