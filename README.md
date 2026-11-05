@@ -124,8 +124,8 @@ drop connections without saying why. Tilde starts from the other end.
   Server status strip*.
 
 ### Make it yours
-- **14 themes** (Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine — dark
-  and light). Import from **iTerm2**, **Windows Terminal** or **base16**, and a theme editor
+- **18 themes** (Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine, Zero Day,
+  Daemon — dark and light). Import from **iTerm2**, **Windows Terminal** or **base16**, and a theme editor
   with live preview.
 - **Rebindable shortcuts** with conflict detection (`keybindings.json`).
 - **Mica, Acrylic and vibrancy**, plus background opacity.

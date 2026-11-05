@@ -69,8 +69,8 @@ Réglages → Général.
 - Profils personnalisés dans `settings.json` (commande, arguments, dossier, variables,
   couleur), ou masquage d'un shell détecté
 - Fenêtre sans bordure ; sous Windows, « Ouvrir dans Tilde » dans le menu de l'Explorateur
-- **14 thèmes** : Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine
-  (sombres et clairs), suivi automatique du thème de l'OS
+- **18 thèmes** : Tilde, Catppuccin, Tokyo Night, Dracula, Nord, Gruvbox, One, Rosé Pine, Zero Day,
+  Daemon (sombres et clairs), suivi automatique du thème de l'OS
 - **Personnalisation** (voir [docs/personnalisation.md](docs/personnalisation.md)) :
   - éditeur de thèmes avec aperçu en direct ;
   - import iTerm2, Windows Terminal et base16, et export ;
