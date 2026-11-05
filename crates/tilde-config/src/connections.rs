@@ -18,6 +18,8 @@ use std::{
 };
 
 use schemars::JsonSchema;
+
+use crate::themes::is_valid_theme_id;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -91,6 +93,10 @@ pub struct Space {
     pub color: Option<String>,
     /// One of [`SPACE_ICONS`].
     pub icon: Option<String>,
+    /// Theme id shown here in dark mode, when themes per space are on.
+    pub theme_dark: Option<String>,
+    /// Theme id shown here in light mode, when themes per space are on.
+    pub theme_light: Option<String>,
 }
 
 /// A folder of connections (one level).
@@ -305,6 +311,8 @@ fn validate_space(s: &mut Space) -> Result<(), ConfigError> {
     s.name = s.name.trim().to_owned();
     blank_to_none(&mut s.color);
     blank_to_none(&mut s.icon);
+    blank_to_none(&mut s.theme_dark);
+    blank_to_none(&mut s.theme_light);
     if s.name.is_empty() {
         return Err(invalid("name", "le nom est obligatoire"));
     }
@@ -316,6 +324,12 @@ fn validate_space(s: &mut Space) -> Result<(), ConfigError> {
     }
     if s.icon.as_deref().is_some_and(|i| !SPACE_ICONS.contains(&i)) {
         return Err(invalid("icon", "icône inconnue"));
+    }
+    if s.theme_dark.as_deref().is_some_and(|id| !is_valid_theme_id(id)) {
+        return Err(invalid("themeDark", "identifiant de thème invalide"));
+    }
+    if s.theme_light.as_deref().is_some_and(|id| !is_valid_theme_id(id)) {
+        return Err(invalid("themeLight", "identifiant de thème invalide"));
     }
     Ok(())
 }
@@ -355,6 +369,12 @@ fn repair(file: &mut ConnectionsFile) {
         }
         if sp.icon.as_deref().is_some_and(|i| !SPACE_ICONS.contains(&i)) {
             sp.icon = None;
+        }
+        if sp.theme_dark.as_deref().is_some_and(|id| !is_valid_theme_id(id)) {
+            sp.theme_dark = None;
+        }
+        if sp.theme_light.as_deref().is_some_and(|id| !is_valid_theme_id(id)) {
+            sp.theme_light = None;
         }
     }
     let known: HashSet<String> = space_ids(&file.spaces).into_iter().map(str::to_owned).collect();

@@ -23,7 +23,14 @@ vi.mock('@tauri-apps/plugin-clipboard-manager', () => ({
   readText: vi.fn(() => Promise.resolve('')),
 }));
 
-const pro = { id: 'pro', name: 'Pro', color: null, icon: 'briefcase' };
+const pro = {
+  id: 'pro',
+  name: 'Pro',
+  color: null,
+  icon: 'briefcase',
+  themeDark: null,
+  themeLight: null,
+};
 const prod = blankConnection({
   id: 'p',
   name: 'prod',

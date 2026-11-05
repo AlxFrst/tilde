@@ -120,6 +120,8 @@ pub struct Appearance {
     pub color_scheme: ColorScheme,
     pub theme_dark: String,
     pub theme_light: String,
+    /// Lets each space show its own themes instead of the global ones.
+    pub theme_per_space: bool,
     pub ui_font_family: String,
     #[schemars(range(min = 10, max = 20))]
     pub ui_font_size: u8,
@@ -138,6 +140,7 @@ impl Default for Appearance {
             color_scheme: ColorScheme::System,
             theme_dark: "tilde-dark".into(),
             theme_light: "tilde-light".into(),
+            theme_per_space: false,
             ui_font_family: "Geist Variable".into(),
             ui_font_size: 13,
             density: Density::Comfortable,

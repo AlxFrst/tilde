@@ -10,6 +10,7 @@ import { blankConnection, useConnections } from '@/stores/connections';
 import { useKeybindings } from '@/stores/keybindings';
 import { useProfiles } from '@/stores/profiles';
 import { useSettings } from '@/stores/settings';
+import { useUi } from '@/stores/ui';
 import { useWorkspace } from '@/stores/workspace';
 import { compileBindings, DEFAULT_KEYBINDINGS } from '@/terminal/keys';
 import { defaultSettings } from '@/test/fixtures';
@@ -31,7 +32,20 @@ vi.mock('@/ipc/connections', async (orig) => ({
 }));
 vi.mock('@/ipc/session', () => ({ isSessionBusy: vi.fn(() => Promise.resolve(false)) }));
 
-const pro: Space = { id: 'pro', name: 'Pro', color: '#7AA2F7', icon: 'briefcase' };
+const pro: Space = {
+  id: 'pro',
+  name: 'Pro',
+  color: '#7AA2F7',
+  icon: 'briefcase',
+  themeDark: null,
+  themeLight: null,
+};
+const themesPerSpace = () => {
+  const { appearance } = defaultSettings;
+  useSettings.setState({
+    settings: { ...defaultSettings, appearance: { ...appearance, themePerSpace: true } },
+  });
+};
 const profile: ResolvedProfile = {
   id: 'pwsh',
   name: 'PowerShell',
@@ -75,6 +89,9 @@ let stopCommands: () => void = () => undefined;
 
 beforeAll(() => {
   registerCorePanels();
+  // Radix Select calls these, which jsdom does not have.
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.scrollIntoView = () => undefined;
 });
 beforeEach(() => {
   vi.clearAllMocks();
@@ -87,6 +104,7 @@ beforeEach(() => {
   });
   useProfiles.setState({ profiles: [profile], loaded: true });
   useSettings.setState({ settings: defaultSettings, readOnly: false, error: null });
+  useUi.getState().setSpaceDialog(null);
   useKeybindings.setState({
     effective: { ...DEFAULT_KEYBINDINGS },
     table: compileBindings(DEFAULT_KEYBINDINGS),
@@ -120,8 +138,48 @@ test('creating a space from the dialog saves it and switches to it', async () =>
     name: 'Homelab',
     color: '#9ECE6A',
     icon: 'house',
+    themeDark: null,
+    themeLight: null,
   });
   expect(ws().activeSpaceId).toBe('new-space');
+});
+
+test('a space keeps the theme chosen in its dialog', async () => {
+  themesPerSpace();
+  setFile({ spaces: [MAIN_SPACE, pro] });
+  render(<Shell />);
+  act(() => {
+    useUi.getState().setSpaceDialog(pro);
+  });
+  await userEvent.click(screen.getByRole('combobox', { name: 'Thème sombre' }));
+  await userEvent.click(await screen.findByRole('option', { name: 'Nord' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  expect(upsertSpace).toHaveBeenCalledWith(
+    expect.objectContaining({ id: 'pro', themeDark: 'nord', themeLight: null }),
+  );
+});
+
+test('a space whose theme was deleted shows the global theme', () => {
+  themesPerSpace();
+  const gone = { ...pro, themeDark: 'gone' };
+  setFile({ spaces: [MAIN_SPACE, gone] });
+  render(<Shell />);
+  act(() => {
+    useUi.getState().setSpaceDialog(gone);
+  });
+  expect(screen.getByRole('combobox', { name: 'Thème sombre' })).toHaveTextContent('Thème global');
+});
+
+test('with the option off, the dialog offers no theme but keeps the saved ones', async () => {
+  const themed = { ...pro, themeDark: 'nord' };
+  setFile({ spaces: [MAIN_SPACE, themed] });
+  render(<Shell />);
+  act(() => {
+    useUi.getState().setSpaceDialog(themed);
+  });
+  expect(screen.queryByRole('combobox', { name: 'Thème sombre' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+  expect(upsertSpace).toHaveBeenCalledWith(expect.objectContaining({ themeDark: 'nord' }));
 });
 
 test('clicking a space switches the rail and the shown session', async () => {

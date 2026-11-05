@@ -1,10 +1,15 @@
 import { act, renderHook } from '@testing-library/react';
 import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
+import { MAIN_SPACE } from '@/connections/spaces';
 import type { ThemesSnapshot } from '@/ipc/themes';
+import { defaultSettings } from '@/test/fixtures';
 import { getTheme, resolveTheme, type ThemeDefinition } from '@/themes';
-import { useActiveTheme } from '@/themes/useActiveTheme';
+import { spaceThemeChoice, useActiveTheme } from '@/themes/useActiveTheme';
+import { useConnections } from './connections';
+import { useSettings } from './settings';
 import { useThemes } from './themes';
+import { useWorkspace } from './workspace';
 
 const handlers = new Map<string, (e: { payload: unknown }) => void>();
 vi.mock('@tauri-apps/api/event', () => ({
@@ -76,6 +81,98 @@ test('preview overrides the resolved theme', () => {
     useThemes.getState().setPreview(null);
   });
   expect(result.current.id).toBe('tilde-dark');
+});
+
+describe('themes per space', () => {
+  const pro = { ...MAIN_SPACE, id: 'pro', name: 'Pro', themeDark: 'nord', themeLight: 'one-light' };
+  const choice = {
+    colorScheme: 'system',
+    themeDark: 'tilde-dark',
+    themeLight: 'tilde-light',
+  } as const;
+  const perSpace = (themePerSpace: boolean) => {
+    const { appearance } = defaultSettings;
+    useSettings.setState({
+      settings: { ...defaultSettings, appearance: { ...appearance, themePerSpace } },
+    });
+  };
+
+  beforeEach(() => {
+    perSpace(true);
+    useConnections.setState((s) => ({ file: { ...s.file, spaces: [MAIN_SPACE, pro] } }));
+    useWorkspace.setState({ activeSpaceId: MAIN_SPACE.id });
+  });
+  afterEach(() => {
+    useSettings.setState({ settings: null });
+    useConnections.setState((s) => ({ file: { ...s.file, spaces: [] } }));
+    useWorkspace.setState({ activeSpaceId: MAIN_SPACE.id });
+  });
+
+  test('a space takes over the global choice for the slots it sets', () => {
+    expect(spaceThemeChoice(choice, pro, [])).toEqual({
+      ...choice,
+      themeDark: 'nord',
+      themeLight: 'one-light',
+    });
+    expect(spaceThemeChoice(choice, { themeDark: 'nord', themeLight: null }, [])).toEqual({
+      ...choice,
+      themeDark: 'nord',
+    });
+    expect(spaceThemeChoice(choice, MAIN_SPACE, [])).toEqual(choice);
+    expect(spaceThemeChoice(choice, undefined, [])).toEqual(choice);
+  });
+
+  test('a theme that no longer exists leaves the global one', () => {
+    expect(spaceThemeChoice(choice, { themeDark: 'gone', themeLight: null }, [])).toEqual(choice);
+  });
+
+  test('a space can use a user theme', () => {
+    const user = [{ ...tilde, id: 'mine', name: 'Mine' }];
+    expect(spaceThemeChoice(choice, { themeDark: 'mine', themeLight: null }, user).themeDark).toBe(
+      'mine',
+    );
+  });
+
+  test('the window follows the active space, and the preview still wins', () => {
+    const { result } = renderHook(() => useActiveTheme());
+    expect(result.current.id).toBe('tilde-dark');
+    act(() => {
+      useWorkspace.setState({ activeSpaceId: 'pro' });
+    });
+    expect(result.current.id).toBe('nord');
+    act(() => {
+      useThemes.getState().setPreview({ ...tilde, id: 'draft', name: 'Draft' });
+    });
+    expect(result.current.id).toBe('draft');
+    act(() => {
+      useThemes.getState().setPreview(null);
+      useWorkspace.setState({ activeSpaceId: MAIN_SPACE.id });
+    });
+    expect(result.current.id).toBe('tilde-dark');
+  });
+
+  test('turned off, every space shows the global theme', () => {
+    perSpace(false);
+    useWorkspace.setState({ activeSpaceId: 'pro' });
+    const { result } = renderHook(() => useActiveTheme());
+    expect(result.current.id).toBe('tilde-dark');
+    act(() => {
+      perSpace(true);
+    });
+    expect(result.current.id).toBe('nord');
+  });
+
+  test('the light mode uses the light theme of the space', () => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: !query.includes('dark'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }));
+    useWorkspace.setState({ activeSpaceId: 'pro' });
+    const { result } = renderHook(() => useActiveTheme());
+    expect(result.current.id).toBe('one-light');
+  });
 });
 
 test('reloads on themes://changed', async () => {

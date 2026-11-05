@@ -6,7 +6,7 @@ import { useWorkspace } from '@/stores/workspace';
 import { defaultSpaceResolver, setSpaceResolver, spaceOfTab } from '@/workspace/spaces';
 import { startSpaceSync } from './spaceSync';
 
-const pro = { id: 'pro', name: 'Pro', color: null, icon: null };
+const pro = { id: 'pro', name: 'Pro', color: null, icon: null, themeDark: null, themeLight: null };
 const c1 = blankConnection({ id: 'c1', name: 'prod', host: 'prod', spaceId: 'pro' });
 const file = (extra: Partial<ConnectionsFile>): ConnectionsFile => ({
   version: 1,

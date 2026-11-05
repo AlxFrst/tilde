@@ -552,9 +552,41 @@ fn space_names_colors_and_icons_are_checked() {
     assert_eq!(invalid_path(store.upsert_space(bad_color)), "color");
     let bad_icon = Space { icon: Some("dragon".into()), ..space("X") };
     assert_eq!(invalid_path(store.upsert_space(bad_icon)), "icon");
+    let bad_theme = Space { theme_dark: Some("../x".into()), ..space("X") };
+    assert_eq!(invalid_path(store.upsert_space(bad_theme)), "themeDark");
+    let bad_theme = Space { theme_light: Some("con".into()), ..space("X") };
+    assert_eq!(invalid_path(store.upsert_space(bad_theme)), "themeLight");
     let ok =
         Space { color: Some("#7AA2F7".into()), icon: Some("briefcase".into()), ..space(" Pro ") };
     assert_eq!(store.upsert_space(ok).unwrap().name, "Pro");
+}
+
+#[test]
+fn a_space_keeps_its_themes() {
+    let (_d, paths) = setup(None);
+    let (mut store, _) = ConnectionsStore::load(paths.clone());
+    let themed =
+        Space { theme_dark: Some("nord".into()), theme_light: Some("  ".into()), ..space("Pro") };
+    let saved = store.upsert_space(themed).unwrap();
+    assert_eq!(saved.theme_light, None);
+    let (reloaded, _) = ConnectionsStore::load(paths);
+    let pro = reloaded.file().spaces.iter().find(|s| s.id == saved.id).unwrap();
+    assert_eq!(pro.theme_dark.as_deref(), Some("nord"));
+}
+
+#[test]
+fn a_bad_space_theme_is_dropped_and_older_files_still_load() {
+    let (_d, paths) = setup(Some(
+        r#"{"version":1,"spaces":[
+            {"id":"a","name":"A","themeDark":"../x","themeLight":"nord"},
+            {"id":"b","name":"B","color":null,"icon":null}
+        ]}"#,
+    ));
+    let (store, _) = ConnectionsStore::load(paths);
+    let spaces = &store.file().spaces;
+    assert_eq!(spaces[0].theme_dark, None);
+    assert_eq!(spaces[0].theme_light.as_deref(), Some("nord"));
+    assert_eq!(spaces[1].theme_dark, None);
 }
 
 #[test]

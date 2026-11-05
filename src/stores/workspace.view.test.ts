@@ -16,7 +16,10 @@ beforeAll(() => {
 const ws = () => useWorkspace.getState();
 const file = (): ConnectionsFile => ({
   version: 1,
-  spaces: [MAIN_SPACE, { id: 'pro', name: 'Pro', color: null, icon: null }],
+  spaces: [
+    MAIN_SPACE,
+    { id: 'pro', name: 'Pro', color: null, icon: null, themeDark: null, themeLight: null },
+  ],
   folders: [],
   connections: [],
   recents: [],

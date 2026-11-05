@@ -8,8 +8,9 @@ import { useThemes } from '@/stores/themes';
 import { useWindowEffects } from '@/stores/windowEffects';
 import { allThemes, type ThemeKind } from '@/themes';
 import { UI_FONT_SUGGESTIONS } from '@/themes/fonts';
-import { Choice, NumberField, Row, Section, SelectField, translated } from './fields';
+import { Choice, NumberField, Row, Section, SelectField, SwitchField, translated } from './fields';
 import { FontField } from './FontField';
+import { SpaceThemeNote } from './SpaceThemeNote';
 
 const SCHEMES = [
   ['system', msg('Système')],
@@ -162,6 +163,21 @@ export function AppearanceSection() {
             }}
           />
         </Row>
+        <Row
+          label={t('Un thème par espace')}
+          hint={t('Chaque espace peut choisir ses thèmes dans sa fenêtre d’édition.')}
+        >
+          <SwitchField
+            setting="appearance.themePerSpace"
+            label={t('Un thème par espace')}
+            checked={a.themePerSpace}
+            disabled={readOnly}
+            onChange={(themePerSpace) => {
+              set({ themePerSpace });
+            }}
+          />
+        </Row>
+        <SpaceThemeNote />
       </Section>
 
       <Section title={t('Interface')}>

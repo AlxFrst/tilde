@@ -15,6 +15,7 @@
         "colorScheme": "system",
         "themeDark": "tilde-dark",
         "themeLight": "tilde-light",
+        "themePerSpace": false,
         "uiFontFamily": "Geist Variable",
         "uiFontSize": 13,
         "density": "comfortable",
@@ -108,6 +109,11 @@
         "themeLight": {
           "type": "string",
           "default": "tilde-light"
+        },
+        "themePerSpace": {
+          "description": "Lets each space show its own themes instead of the global ones.",
+          "type": "boolean",
+          "default": false
         },
         "uiFontFamily": {
           "type": "string",

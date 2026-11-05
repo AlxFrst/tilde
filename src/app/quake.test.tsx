@@ -68,8 +68,22 @@ beforeEach(() => {
           file: {
             version: 1,
             spaces: [
-              { id: 'main', name: 'Principal', color: null, icon: null },
-              { id: 'pro', name: 'Pro', color: null, icon: null },
+              {
+                id: 'main',
+                name: 'Principal',
+                color: null,
+                icon: null,
+                themeDark: null,
+                themeLight: null,
+              },
+              {
+                id: 'pro',
+                name: 'Pro',
+                color: null,
+                icon: null,
+                themeDark: null,
+                themeLight: null,
+              },
             ],
             folders: [],
             connections: [

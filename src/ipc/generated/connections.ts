@@ -24,6 +24,14 @@ export interface Space {
    * One of [`SPACE_ICONS`].
    */
   icon: string | null;
+  /**
+   * Theme id shown here in dark mode, when themes per space are on.
+   */
+  themeDark: string | null;
+  /**
+   * Theme id shown here in light mode, when themes per space are on.
+   */
+  themeLight: string | null;
 }
 /**
  * A folder of connections (one level).

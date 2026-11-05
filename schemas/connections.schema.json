@@ -70,6 +70,22 @@
             "null"
           ],
           "default": null
+        },
+        "themeDark": {
+          "description": "Theme id shown here in dark mode, when themes per space are on.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "themeLight": {
+          "description": "Theme id shown here in light mode, when themes per space are on.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
       }
     },
